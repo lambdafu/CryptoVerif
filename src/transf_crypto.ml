@@ -4579,6 +4579,11 @@ let rec map_probaf env = function
   | Zero -> Polynom.zero
   | AttTime -> 
       Polynom.sum (Polynom.probaf_to_polynom (Time (!whole_game, compute_runtime()))) (Polynom.probaf_to_polynom (AttTime))
+  | OptimIf(cond, p1, p2) ->
+      if Proba.is_sure_cond (map_probaf env) cond then
+	map_probaf env p1
+      else
+	map_probaf env p2
   | Time _ -> Parsing_helper.internal_error "Unexpected time"
 
 let compute_proba ((_,_,_,set,_,_),_) =
@@ -4791,16 +4796,7 @@ let map_has_exist (((_, lm, _, _, _, _),_) as apply_equiv) map =
    renamings done by [ins] *)    
     
 let rec update_max_length_probaf ins = function
-  | (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Count _ | OCount _ | Zero | AttTime | Time _) as x -> x
-  | Proba(p,l) -> Proba(p, List.map (update_max_length_probaf ins) l)
-  | ActTime(f, l) -> ActTime(f, List.map (update_max_length_probaf ins) l)
-  | Length(f,l) -> Length(f, List.map (update_max_length_probaf ins) l)
-  | Mul(x,y) -> Mul(update_max_length_probaf ins x, update_max_length_probaf ins y)
-  | Add(x,y) -> Add(update_max_length_probaf ins x, update_max_length_probaf ins y)
-  | Sub(x,y) -> Sub(update_max_length_probaf ins x, update_max_length_probaf ins y)
-  | Div(x,y) -> Div(update_max_length_probaf ins x, update_max_length_probaf ins y)
-  | Power(x,n) -> Power(update_max_length_probaf ins x, n)
-  | Min(l) -> Min(List.map (update_max_length_probaf ins) l)
+  | (Time _) as x -> x
   | (Max _ | Maxlength _) as y ->
       let accu = ref Polynom.empty_minmax_accu in
       let rec add_max = function
@@ -4831,7 +4827,8 @@ let rec update_max_length_probaf ins = function
       in
       add_max y;
       Polynom.p_max (!accu)
-
+  | p -> Terms.map_sub_probaf (update_max_length_probaf ins) p
+	
 let update_maxlength ins proba =
   List.map (function
     | SetProba r -> SetProba (update_max_length_probaf ins r)

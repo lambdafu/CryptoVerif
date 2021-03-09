@@ -589,7 +589,38 @@ and display_proba ?separate_time level = function
 	  display_list_break (display_proba ?separate_time 0) pl
 	end;
       print_string ")"
+  | OptimIf(cond,p1,p2) ->
+      print_string "(\\kw{optim-if}\\ ";
+      display_optim_cond ?separate_time cond;
+      print_string "\\ \\kw{then}\\ ";
+      display_proba ?separate_time 0 p1;
+      print_string "\\ \\kw{else}\\ ";
+      display_proba ?separate_time 0 p2;
+      print_string ")"
 
+and display_optim_cond ?separate_time = function
+  | OCProbaFun(s,[p1; p2]) ->
+      display_proba ?separate_time 0 p1;
+      print_string (match s with
+      | "<=" -> "\\leq "
+      | s -> s  (* "=", "<" *));
+      display_proba ?separate_time 0 p2
+  | OCProbaFun(s,[p1]) ->
+      print_string ((match s with
+      | "is-cst" -> "\\kwf{is\text{-}cst}"
+      | _ -> Parsing_helper.internal_error "display_optim_cond: only allowed probability unary function is-cst"
+	  )^"(");
+      display_proba ?separate_time 0 p1;
+      print_string ")"
+  | OCBoolFun(s,[c1; c2]) ->
+      display_optim_cond ?separate_time c1;
+      print_string (match s with
+      | "&&" -> if !nice_tex then "\\wedge " else "\\ \\&\\&\\ "
+      | "||" -> if !nice_tex then "\\vee " else "\\ \\|\\|\\ "
+      | _ -> Parsing_helper.internal_error "display_optim_cond: only allowed boolean functions && ||");
+      display_optim_cond ?separate_time c2
+  | _ -> Parsing_helper.internal_error "display_optim_cond: probability fcts should be unary or binary, boolean fcts should be binary"
+    
 let display_pub_vars pub_vars =
   if pub_vars <> [] then
     begin

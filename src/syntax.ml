@@ -2171,7 +2171,30 @@ let rec check_probability_formula seen_vals env = function
 	Proba.pcoll2rand t, proba_dim
       else 
 	raise_error (s ^ " should be fixed, bounded, or nonuniform") ext'
-	
+  | POptimIf(cond, p1,p2), ext ->
+      let cond' = check_optim_cond seen_vals env cond in
+      let (p1', d1) = check_probability_formula seen_vals env p1 in
+      let (p2', d2) = check_probability_formula seen_vals env p2 in
+      (OptimIf(cond', p1', p2'), get_compatible ext d1 d2)
+
+and check_optim_cond seen_vals env = function
+  | POCProbaFun((s,ext_s),l), ext ->
+      (* possible functions are is-cst (one argument), 
+	 =, <=, < (two arguments). In all cases, the 2 arguments must have the
+	 same dimension. *)
+      let (l', ldim) = List.split (List.map (check_probability_formula seen_vals env) l) in
+      begin
+	match ldim with
+	| [_] -> ()
+	| [d1;d2] -> ignore (get_compatible ext d1 d2)
+	| _ -> Parsing_helper.internal_error "POCProbaFun fcts should have 1 or 2 arguments"
+      end;
+      OCProbaFun(s,l')
+  | POCBoolFun((s,ext_s),l), ext ->
+      (* possible functions are ||, && (two arguments) *)
+      let l' = List.map (check_optim_cond seen_vals env) l in
+      OCBoolFun(s,l')
+      
 and check_probability_formula2 seen_vals env p =
   let (p', d) = check_probability_formula seen_vals env p in
   begin
@@ -3233,9 +3256,19 @@ let rec rename_probaf (p,ext) =
   | PEpsRand i -> PEpsRand (rename_ie i)
   | PPColl1Rand i -> PPColl1Rand (rename_ie i)
   | PPColl2Rand i -> PPColl2Rand (rename_ie i)
+  | POptimIf(cond, p1,p2) -> POptimIf(rename_optim_cond cond,
+				      rename_probaf p1, rename_probaf p2)
   in
   (p', ext)
 
+and rename_optim_cond (cond, ext) =
+  let cond' = 
+    match cond with
+    | POCProbaFun(f, l) -> POCProbaFun(f, List.map rename_probaf l)
+    | POCBoolFun(f, l) -> POCBoolFun(f, List.map rename_optim_cond l)
+  in
+  (cond', ext)
+    
 let rec rename_fungroup = function
     PReplRestr(repl_opt, lres, lfg) ->
       let repl_opt' =
@@ -4294,7 +4327,16 @@ let rec collect_id_probaf accu (p,ext) =
   | PLengthTuple(il,l) ->
       List.iter (add_id accu) il;
       List.iter (collect_id_probaf accu) l
+  | POptimIf(cond, p1,p2) ->
+      collect_id_optim_cond accu cond;
+      collect_id_probaf accu p1;
+      collect_id_probaf accu p2
 
+and collect_id_optim_cond accu (cond, ext) =
+  match cond with
+  | POCProbaFun(_,l) -> List.iter (collect_id_probaf accu) l
+  | POCBoolFun(_,l) -> List.iter (collect_id_optim_cond accu) l
+	
 let rec collect_id_fungroup accu = function
   | PReplRestr(repl_opt, restr, funs) ->
       begin

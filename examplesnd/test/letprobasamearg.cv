@@ -5,3 +5,8 @@ letproba p(x:time,x:time) = P(x).
 
 process
 	0
+
+(* EXPECTED
+Error: The name x has already been used as argument of the same letproba function
+xtime: error in child process (status : 2)
+END *)

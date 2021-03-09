@@ -1400,8 +1400,19 @@ let rec equal_probaf p1 p2 =
   | EpsRand t, EpsRand t' -> t == t'
   | PColl1Rand t, PColl1Rand t' -> t == t'
   | PColl2Rand t, PColl2Rand t' -> t == t'
+  | OptimIf(cond,p1,p2), OptimIf(cond',p1',p2') ->
+      (equal_optim_cond cond cond') &&
+      (equal_probaf p1 p1') && (equal_probaf p2 p2')
   | _ -> false
 
+and equal_optim_cond cond cond' =
+  match cond, cond' with
+  | OCProbaFun(s,l), OCProbaFun(s',l') ->
+      (s = s') && (List.for_all2 equal_probaf l l')
+  | OCBoolFun(s,l), OCBoolFun(s', l') ->
+      (s = s') && (List.for_all2 equal_optim_cond l l')
+  | _ -> false
+    
 let equal_elsefind_facts (bl1,def_list1,t1) (bl2,def_list2,t2) =
   equal_lists (==) bl1 bl2 && 
   equal_def_lists def_list1 def_list2 && 
@@ -3538,3 +3549,46 @@ as well as equalities between products *)
   | _ -> t
 
 
+(* Iterators on probability formulas *)
+
+(* Map *)
+
+let rec map_optim_cond f = function
+  | OCProbaFun(s,l) -> OCProbaFun(s, List.map f l)
+  | OCBoolFun(s,l) -> OCBoolFun(s, List.map (map_optim_cond f) l)
+
+let map_sub_probaf f = function
+  | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
+  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
+  | Maxlength _ as x -> x
+  | Time(g,p) -> Time(g, f p)
+  | Proba(p,l) -> Proba(p, List.map f l)
+  | ActTime(f1,l) -> ActTime(f1, List.map f l)
+  | Length(f1,l) -> Length(f1, List.map f l)
+  | Mul(x,y) -> Mul(f x, f y)
+  | Add(x,y) -> Add(f x, f y)
+  | Sub(x,y) -> Sub(f x, f y)
+  | Div(x,y) -> Div(f x, f y)
+  | Power(x,n) -> Power(f x, n)
+  | Max(l) -> Max(List.map f l)
+  | Min(l) -> Min(List.map f l)
+  | OptimIf(cond,x,y) -> OptimIf(map_optim_cond f cond, f x, f y) 
+
+(* Exists *)
+
+let rec exists_optim_cond f = function
+  | OCProbaFun(_,l) -> List.exists f l
+  | OCBoolFun(_,l) -> List.exists (exists_optim_cond f) l
+	
+let exists_sub_probaf f = function
+  | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
+  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
+  | Maxlength _ ->
+      false
+  | Time(_,p) -> f p
+  | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
+      List.exists f l
+  | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
+      (f p1) || (f p2)
+  | Power(p,n) -> f p
+  | OptimIf(cond,x,y) -> (exists_optim_cond f cond) || (f x) || (f y)

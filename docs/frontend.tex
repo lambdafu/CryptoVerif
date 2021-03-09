@@ -44,8 +44,9 @@ Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt get}, {\tt if}, {\tt implementation}, {\tt in}, 
 {\tt inf}, %used for float infinity
 {\tt inj-event}, 
-{\tt insert}, {\tt length}, {\tt let}, {\tt letfun}, {\tt letproba}, {\tt max}, {\tt maxlength},
-{\tt min}, {\tt new}, {\tt newChannel}, {\tt number}, {\tt orfind}, 
+{\tt insert}, {\tt is-cst}, {\tt length}, {\tt let}, {\tt letfun}, {\tt letproba}, {\tt max}, {\tt maxlength},
+{\tt min}, {\tt new}, {\tt newChannel}, {\tt number}, {\tt optim-if},
+{\tt orfind}, 
 {\tt out}, {\tt param}, {\tt Pcoll1rand}, {\tt Pcoll2rand}, 
 {\tt proba}, {\tt process}, 
 {\tt proof}, {\tt public\_vars}, {\tt query}, {\tt query\_equiv}, {\tt return},
@@ -152,11 +153,8 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 \end{figure}
 
 \begin{figure}
-\def\phf{\phantom{\fungroup = }\mid}
-\def\phfm{\phantom{\funmode = }\mid}
 \def\phpr{\phantom{\nonterm{proba} = }\mid}
-\def\phfb{\phantom{\funbody = }\mid}
-\def\phsa{\phantom{\nonterm{specialarg} = }\mid}
+\def\phcond{\phantom{\nonterm{optimcond} = }\mid}
 \begin{xxalignat}{2}
 &\nonterm{proba} ::= \texttt{(} \nonterm{proba} \texttt{)}
 &&\mid \texttt{time}\\
@@ -195,8 +193,29 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phpr \texttt{Pcoll1rand(}T\texttt{)}
 &&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi\\
 &\phpr \texttt{Pcoll2rand(}T\texttt{)}
-&&
+&&\mid \texttt{optim-if}\ \nonterm{optimcond}\ \texttt{then}\ \nonterm{proba}\ \texttt{else}\ \nonterm{proba}
 \end{xxalignat}\vspace*{-8mm}%
+\begin{align*}
+&\nonterm{optimcond} ::= \texttt{(}\nonterm{optimcond}\texttt{)}\\
+&\phcond \texttt{is-cst(}\nonterm{proba}\texttt{)}\hspace*{11cm}\\
+&\phcond \nonterm{proba}\texttt{ = }\nonterm{proba}\\
+&\phcond \nonterm{proba}\texttt{ <= }\nonterm{proba}\\
+&\phcond \nonterm{proba}\texttt{ >= }\nonterm{proba}\\
+&\phcond \nonterm{proba}\texttt{ < }\nonterm{proba}\\
+&\phcond \nonterm{proba}\texttt{ > }\nonterm{proba}\\
+&\phcond \nonterm{optimcond}\texttt{ \&\& }\nonterm{optimcond}\\
+&\phcond \nonterm{optimcond}\texttt{ || }\nonterm{optimcond}
+\end{align*}
+\caption{Grammar for probabilities}
+\label{fig:syntax2}
+\end{figure}
+
+
+\begin{figure}
+\def\phf{\phantom{\fungroup = }\mid}
+\def\phfm{\phantom{\funmode = }\mid}
+\def\phfb{\phantom{\funbody = }\mid}
+\def\phsa{\phantom{\nonterm{specialarg} = }\mid}
 \begin{align*}
 &\nonterm{repl} ::= \texttt{!} [\nonterm{ident}\texttt{ <=}]\ \nonterm{ident}\\
 &\phantom{\nonterm{repl} =}\mid \texttt{foreach } \nonterm{ident}\texttt{ <= }\nonterm{ident}\texttt{ do }\\
@@ -228,8 +247,8 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phsa \nonterm{string}\\
 &\phsa \texttt{(} \seq{specialarg} \texttt{)}
 \end{align*}
-\caption{Grammar for probabilities and equivalences}
-\label{fig:syntax2}
+\caption{Grammar for equivalences}
+\label{fig:syntax3}
 \end{figure}
 
 \begin{figure}[tp]
@@ -335,7 +354,8 @@ A library file (specified on the command-line by the
 {\tt -lib} option) consists of a list of declarations.
 Notations are summarized in Figure~\ref{fig:syntax0}
 and various syntactic elements are described in 
-Figures~\ref{fig:syntax1}, \ref{fig:syntax2}, and~\ref{fig:syntax3ch}.
+Figures~\ref{fig:syntax1}, \ref{fig:syntax2}, \ref{fig:syntax3},
+and~\ref{fig:syntax3ch}.
 
 Processes are described in a process calculus.
 In this calculus, terms represent computations on bitstrings. 
@@ -1847,7 +1867,7 @@ an oracle $O$ that takes arguments $x_1, \ldots, x_n$ of types
 $T_1, \ldots, T_n$ respectively, and returns the result computed by $\mathit{FP}$.
 The oracle body $\mathit{FP}$ is similar to term, but terminates with
 a $\texttt{return}$ as shown in the grammar of $\funbody$ 
-(Figure~\ref{fig:syntax2}).
+(Figure~\ref{fig:syntax3}).
 
 \item Optionally, in the left-hand side,
 an integer between brackets $\texttt{[}n\texttt{]}$ ($n \geq 0$)
@@ -2618,7 +2638,7 @@ element of {\tt bitstringbot} that is not a bitstring.)
 
 The syntax of probability formulas allows parenthesing and the usual
 algebraic operations \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{\^{ }}.
-(\texttt{\^{ }} is the power, its second argument must be an integer; 
+(\texttt{\^{ }} is the exponentiation, its second argument must be an integer; 
 \texttt{\^{ }} has higher priority than \texttt{*} and \texttt{/}, 
 which have higher priority than \texttt{+} and
 \texttt{-}, as usual), as well as the maximum, denoted 
@@ -2690,6 +2710,16 @@ chosen according to the default distribution $D_T$ for type $T$
 (when $T$ is \texttt{nonuniform}). We have
 \[\frac{1}{|T|} \leq \texttt{Pcoll2rand(}T\texttt{)} = \sum_{a \in T} \Pr[X = a]^2 \leq \texttt{Pcoll1rand(}T\texttt{)}\]
 where $X$ is chosen according to the default distribution $D_T$.
+
+\item $\texttt{optim-if}\ \mathit{condition}\ \texttt{then}\ p_1\ \texttt{else}\ p_2$
+evaluates to $p_1$ when the condition $\mathit{condition}$ is proved to be
+true and to $p_2$ otherwise. Hence, the formula $p_2$ must always be a
+sound estimate, whether the condition is true or not (because it may happen that
+the condition is true and CryptoVerif does not manage to prove it). The formula
+$p_1$ is typically a better estimate valid when the condition holds.
+The grammar for the condition $\mathit{condition}$ is defined in Figure~\ref{fig:syntax2}.
+The condition $\texttt{is-cst(}p\texttt{)}$ is true when $p$ is a constant.
+The other conditions have their usual meaning.
 
 \item $\texttt{time}$ designates the runtime of the environment (attacker).
 

@@ -563,3 +563,7 @@ conditions of find. It creates fresh variables for all variables
 defined in the condition of the find. *)
 val update_args_at_creation : repl_index list -> term -> term
 
+(* Iterators on probabilities *)
+
+val map_sub_probaf : (probaf -> probaf) -> probaf -> probaf
+val exists_sub_probaf : (probaf -> bool) -> probaf -> bool

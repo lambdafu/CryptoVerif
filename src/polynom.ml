@@ -33,7 +33,11 @@ let rec sum p1 = function
   | ((coef,a)::l) ->
       try
 	let (coef',l') = find_monomial a p1 in
-	(coef+.coef',a)::(sum l' l)
+	let coefs = coef +. coef' in
+	if coefs = 0.0 then
+	  sum l' l
+	else
+	  (coefs,a)::(sum l' l)
       with Not_found ->
 	(coef,a)::(sum p1 l)
 
@@ -59,9 +63,13 @@ let rec sub p1 = function
   | ((coef,a)::l) ->
       try
 	let (coef',l') = find_monomial a p1 in
-	(coef'-.coef,a)::(sub l' l)
+	let coefd = coef' -. coef in
+	if coefd = 0.0 then
+	  sub l' l
+	else
+	  (coefd,a)::(sub l' l)
       with Not_found ->
-	(0.-.coef,a)::(sub p1 l)
+	(0. -. coef,a)::(sub p1 l)
 
 (* [product p1 p2] is the polynom [p1 * p2], where [p1] and [p2] are polynoms *)
 
@@ -154,7 +162,68 @@ let power_to_polynom to_polynom to_proba p n =
 		  [1.0,[p_inv f',-n]]
   in
   aux p n
-      
+
+(* Tests. They answer true only when the result is true.
+   In case the result is not know for sure, they answer false. *)
+
+let is_constant = function
+  | [] | [_,[]] -> true
+  | _ -> false
+    
+let is_zero p = (p = [])
+
+let rec is_proba_nonnegative = function
+  | Proba _ | Count _ | OCount _ | Zero | Card _ | EpsFind | EpsRand _
+  | PColl2Rand _ | PColl1Rand _ | AttTime | Time _ | ActTime _
+  | Maxlength _ | TypeMaxlength _ | Length _ ->
+      true
+  | Cst f -> f >= 0.0
+  | Max l -> List.exists is_proba_nonnegative l
+  | Min l -> List.for_all is_proba_nonnegative l
+  | Add(p1,p2) | Mul(p1,p2) | Div(p1,p2) | OptimIf(_, p1, p2) ->
+      (is_proba_nonnegative p1) && (is_proba_nonnegative p2)
+  | Sub _ -> false
+  | Power(p,n) ->
+      (n mod 2 = 0) || (is_proba_nonnegative p)
+    
+let is_factor_nonnegative (f,n) =
+  (n mod 2 = 0) ||
+  (is_proba_nonnegative f)
+    
+let is_monomial_nonnegative (coef,a) =
+  (coef >= 0.0) && (List.for_all is_factor_nonnegative a)
+    
+let is_nonnegative p =
+  List.for_all is_monomial_nonnegative p
+    
+let rec is_proba_positive = function
+  | Card _ | EpsFind | EpsRand _ | PColl2Rand _ | PColl1Rand _
+  | AttTime | Time _ | ActTime _ | Maxlength _ | TypeMaxlength _ ->
+      true
+  | Proba _ | Count _ | OCount _ | Zero | Length _ ->
+      false
+  | Cst f -> f > 0.0
+  | Max l -> List.exists is_proba_positive l
+  | Min l -> List.for_all is_proba_positive l
+  | Add(p1,p2) ->
+      ((is_proba_positive p1) && (is_proba_nonnegative p2)) ||
+      ((is_proba_positive p2) && (is_proba_nonnegative p1))
+  | Mul(p1,p2) | Div(p1,p2) | OptimIf(_, p1, p2) ->
+      (is_proba_positive p1) && (is_proba_positive p2)
+  | Sub _ -> false
+  | Power(p,n) ->
+      is_proba_positive p
+
+let is_factor_positive (f,n) =
+  is_proba_positive f
+
+let is_monomial_positive (coef,a) =
+  (coef > 0.0) && (List.for_all is_factor_positive a)
+
+let is_positive p =
+  (List.for_all is_monomial_nonnegative p) &&
+  (List.exists is_monomial_positive p)
+
 (* 2. Basic operations on probabilities, with simple simplifications *) 
 
 let p_div(x,y) =

@@ -471,7 +471,12 @@ and probaf =
   | Maxlength of game * term
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
+  | OptimIf of optimcond * probaf * probaf
 
+and optimcond =
+  | OCProbaFun of string * probaf list
+  | OCBoolFun of string * optimcond list
+	
 and var_proba =
     { vp_name : string;
       vp_dim : computed_dim;

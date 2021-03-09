@@ -1318,24 +1318,13 @@ let rec add_index_fungroup idx = function
       Fun(c, List.map (add_index_binder idx) inputs, add_index idx t, opt)
 
 let rec add_index_proba idx = function
-  | (AttTime | Time _ | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
-  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
   | (OCount n) as p ->
       print_string ("Warning: reference of oracle count #" ^ n.cname ^ " becomes less precise when adding a replication at the root of the equivalence.\n");
       p
-  | Proba(p,l) -> Proba(p, List.map (add_index_proba idx) l)
-  | ActTime(f,l) -> ActTime(f, List.map (add_index_proba idx) l)
   | Maxlength(g,t) ->
       assert (g == Terms.lhs_game);
       Maxlength(g, add_index idx t)
-  | Length(f,l) -> Length(f, List.map (add_index_proba idx) l)
-  | Mul(x,y) -> Mul(add_index_proba idx x, add_index_proba idx y)
-  | Add(x,y) -> Add(add_index_proba idx x, add_index_proba idx y)
-  | Sub(x,y) -> Sub(add_index_proba idx x, add_index_proba idx y)
-  | Div(x,y) -> Div(add_index_proba idx x, add_index_proba idx y)
-  | Power(x,n) -> Power(add_index_proba idx x, n)
-  | Max(l) -> Max(List.map (add_index_proba idx) l)
-  | Min(l) -> Min(List.map (add_index_proba idx) l)
+  | p -> Terms.map_sub_probaf (add_index_proba idx) p
 
 let add_index_setf_proba idx =
   List.map (function
@@ -1355,20 +1344,9 @@ let add_index_top t (restr_list,fun_list,proba) =
 
 let instan_time add_time p =
   let rec instan_time = function
-    AttTime -> Add(AttTime, add_time)
-  | Time _ -> Parsing_helper.internal_error "unexpected time"
-  | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Maxlength _) as x -> x
-  | Proba(p,l) -> Proba(p, List.map instan_time l)
-  | ActTime(f,l) -> ActTime(f, List.map instan_time l)
-  | Length(f,l) -> Length(f, List.map instan_time l)
-  | Mul(x,y) -> Mul(instan_time x, instan_time y)
-  | Add(x,y) -> Add(instan_time x, instan_time y)
-  | Sub(x,y) -> Sub(instan_time x, instan_time y)
-  | Div(x,y) -> Div(instan_time x, instan_time y)
-  | Power(x,n) -> Power(instan_time x,n)
-  | Max(l) -> Max(List.map instan_time l)
-  | Min(l) -> Min(List.map instan_time l)
+    | AttTime -> Add(AttTime, add_time)
+    | Time _ -> Parsing_helper.internal_error "unexpected time"
+    | p -> Terms.map_sub_probaf instan_time p
   in
   instan_time p
 
@@ -1392,8 +1370,24 @@ let add_repl equiv =
 	  let rm' = [ReplRestr(rrepl_opt, rrestr_list',rfun_list'),rmode] in
 	  let lhs_for_time = ReplRestr(None, lrestr_list',lfun_list') in
 	  let rhs_for_time = ReplRestr(None, rrestr_list',rfun_list') in
+	  let time_add1 =
+	    (* (param-1) * max(time_lhs, time_rhs) *)
+	    Computeruntime.compute_add_time lhs_for_time rhs_for_time param opt2
+	  in
+	  let time_add2 =
+	    (* max(time_lhs, time_rhs) after adding replication,
+	       computed using #O for the various oracles *)
+	    Computeruntime.compute_add_time_totcount lhs_for_time rhs_for_time param opt2
+	  in
 	  let time_add =
-	      Computeruntime.compute_add_time(*_totcount*) lhs_for_time rhs_for_time param opt2
+	    (* [time_add1] and [time_add2] are both sound.
+	       We choose [time_add1] when [param] is a constant.
+	       [time_add2] is better asymptotically when [param] is large.
+	       [time_add1] is better when [param] is small.
+	       (In particular, [time_add1 = 0] when [param = 1].)
+	       We could also use a condition like 
+	       [param <= some small constant]. *)
+	    OptimIf(OCProbaFun("is-cst", [Count param]), time_add1, time_add2)
 	  in
 	  let p'' = List.map (function
 	    | SetProba p1 -> SetProba (Polynom.p_mul(Count param, instan_time time_add p1))

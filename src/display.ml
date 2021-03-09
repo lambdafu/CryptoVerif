@@ -527,7 +527,7 @@ let rec is_time = function
   | Zero | Cst _ | Power _ ->
       false
   | AttTime | Time _ | ActTime _ -> true	
-  | Add(x,y) | Sub(x,y) | Mul(x,y) -> 
+  | Add(x,y) | Sub(x,y) | Mul(x,y) | OptimIf(_,x,y) -> 
       is_time x || is_time y
   | Div(x,y) ->
       is_time x
@@ -668,7 +668,30 @@ and display_proba ?separate_time level = function
 	  display_list (display_proba ?separate_time 0) pl
 	end;
       print_string ")"
-		      
+  | OptimIf(cond,p1,p2) ->
+      print_string "(optim-if ";
+      display_optim_cond ?separate_time cond;
+      print_string " then ";
+      display_proba ?separate_time 0 p1;
+      print_string " else ";
+      display_proba ?separate_time 0 p2;
+      print_string ")"
+
+and display_optim_cond ?separate_time = function
+  | OCProbaFun(s,[p1; p2]) ->
+      display_proba ?separate_time 0 p1;
+      print_string (" "^s^" ");
+      display_proba ?separate_time 0 p2
+  | OCProbaFun(s,[p1]) ->
+      print_string (s^"(");
+      display_proba ?separate_time 0 p1;
+      print_string ")"
+  | OCBoolFun(s,[c1; c2]) ->
+      display_optim_cond ?separate_time c1;
+      print_string (" "^s^" ");
+      display_optim_cond ?separate_time c2
+  | _ -> Parsing_helper.internal_error "display_optim_cond: probability fcts should be unary or binary, boolean fcts should be binary"
+    
 let rec display_monomial = function
     (coef, []) -> print_float coef
   | (coef, (elem, n)::l) -> display_monomial (coef, l);

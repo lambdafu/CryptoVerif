@@ -33,6 +33,7 @@ let return_channel = (dummy_channel, None)
 %token FOREACH
 %token DO
 %token LEQ
+%token GEQ
 %token IF
 %token THEN
 %token ELSE
@@ -98,8 +99,8 @@ let return_channel = (dummy_channel, None)
 %token RBRACE
 %token PROOF
 %token IMPLEMENTATION
-%token READ
-%token WRITE
+%token LESS
+%token GREATER
 %token GET
 %token INSERT
 %token TABLE
@@ -111,7 +112,9 @@ let return_channel = (dummy_channel, None)
 %token QUERY_EQUIV
 %token SPECIAL
 %token NUMBER
-  
+%token OPTIMIF
+%token ISCST  
+
   /* tokens for proofs */
 %token AT
 %token AT_NTH
@@ -169,6 +172,7 @@ let return_channel = (dummy_channel, None)
 %token GUESS
       
 /* Precedence (from low to high) and associativities */
+%nonassoc OPTIMIF
 %left BAR
 %right OR
 %right AND
@@ -469,9 +473,9 @@ progoptlist:
         { $1 :: $3 }
 
 progopt:
-        IDENT WRITE IDENT
+        IDENT GREATER IDENT
         { PWrite($1,$3) }
-|       IDENT READ IDENT
+|       IDENT LESS IDENT
         { PRead($1,$3) }
 
 
@@ -1267,8 +1271,32 @@ probaf:
         { PLength($3, $4), parse_extent() }
 |       LENGTH LPAREN LPAREN identlist RPAREN probaflistopt RPAREN
         { PLengthTuple($4, $6), parse_extent() }
+|       OPTIMIF probaoptimcond THEN probaf ELSE probaf %prec OPTIMIF
+        { POptimIf($2,$4,$6), parse_extent() }
 |       commonprobaf
         { $1 }
+
+probaoptimcond:
+    LPAREN probaoptimcond RPAREN
+    { $2 }
+|   ISCST LPAREN probaf RPAREN
+    { POCProbaFun(("is-cst",parse_extent()), [$3]), parse_extent() }
+|   probaf EQUAL probaf
+    { POCProbaFun(("=",parse_extent()), [$1; $3]), parse_extent() }
+|   probaf LEQ probaf
+    { POCProbaFun(("<=",parse_extent()), [$1; $3]), parse_extent() }
+|   probaf GEQ probaf
+    { POCProbaFun(("<=",parse_extent()), [$3; $1]), parse_extent() }
+|   probaf LESS probaf
+    { POCProbaFun(("<",parse_extent()), [$1; $3]), parse_extent() }
+|   probaf GREATER probaf
+    { POCProbaFun(("<",parse_extent()), [$3; $1]), parse_extent() }
+|   probaoptimcond AND probaoptimcond
+    { POCBoolFun(("&&",parse_extent()), [$1; $3]), parse_extent() }
+|   probaoptimcond OR probaoptimcond
+    { POCBoolFun(("||",parse_extent()), [$1; $3]), parse_extent() }
+|   IDENT LPAREN probaoptimcond RPAREN
+    { POCBoolFun($1, [$3]), parse_extent() }
     
 probaflistopt:
        COMMA probaflist 
@@ -1597,8 +1625,28 @@ oprobaf:
         { PLength($3, $4), parse_extent() }
 |       LENGTH LPAREN LPAREN identlist RPAREN oprobaflistopt RPAREN
         { PLengthTuple($4, $6), parse_extent() }
+|       OPTIMIF oprobaoptimcond THEN oprobaf ELSE oprobaf %prec OPTIMIF
+        { POptimIf($2,$4,$6), parse_extent() }
 |       commonprobaf
         { $1 }
+
+oprobaoptimcond:
+    ISCST LPAREN oprobaf RPAREN
+    { POCProbaFun(("is-cst",parse_extent()), [$3]), parse_extent() }
+|   oprobaf EQUAL oprobaf
+    { POCProbaFun(("=",parse_extent()), [$1; $3]), parse_extent() }
+|   oprobaf LEQ oprobaf
+    { POCProbaFun(("<=",parse_extent()), [$1; $3]), parse_extent() }
+|   oprobaf GEQ oprobaf
+    { POCProbaFun(("<=",parse_extent()), [$3; $1]), parse_extent() }
+|   oprobaf LESS oprobaf
+    { POCProbaFun(("<",parse_extent()), [$1; $3]), parse_extent() }
+|   oprobaf GREATER oprobaf
+    { POCProbaFun(("<",parse_extent()), [$3; $1]), parse_extent() }
+|   oprobaoptimcond AND oprobaoptimcond
+    { POCBoolFun(("&&",parse_extent()), [$1; $3]), parse_extent() }
+|   oprobaoptimcond OR oprobaoptimcond
+    { POCBoolFun(("||",parse_extent()), [$1; $3]), parse_extent() }
 
 oprobaflistopt:
        COMMA oprobaflist 

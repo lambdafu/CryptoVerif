@@ -16,10 +16,6 @@ let rec instan_time get_time p =
   let rec aux = function
     | AttTime -> Add(AttTime, get_time())
     | Time(_,t) -> aux t
-    | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
-    | Proba(p,l) -> Proba(p, List.map aux l)
-    | ActTime(f,l) -> ActTime(f, List.map aux l)
     | (Max _ | Maxlength _) as y ->
 	let accu = ref Polynom.empty_minmax_accu in
 	let rec add_max = function
@@ -39,12 +35,7 @@ let rec instan_time get_time p =
 	in
 	List.iter add_min l;
 	Polynom.p_min (!accu)
-    | Length(f,l) -> Length(f, List.map aux l)
-    | Mul(x,y) -> Mul(aux x, aux y)
-    | Add(x,y) -> Add(aux x, aux y)
-    | Sub(x,y) -> Sub(aux x, aux y)
-    | Div(x,y) -> Div(aux x, aux y)
-    | Power(x,n) -> Power(aux x, n)
+    | p -> Terms.map_sub_probaf aux p
   in
   Polynom.p_sum (List.map (function
     | SetProba p -> aux p

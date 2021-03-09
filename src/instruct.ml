@@ -1197,14 +1197,8 @@ let rec find_funsymb_fg f = function
   | Fun(_,_,r,_) -> find_funsymb f r
 
 let rec find_proba f = function
-    Proba (p,_) -> f = p.prname
-  | Count _ | OCount _ | Cst _ | Zero | Card _ | AttTime | Time _ 
-  | ActTime _ | Maxlength _ |  TypeMaxlength _ | EpsFind | EpsRand _ 
-  | PColl1Rand _ | PColl2Rand _ -> false
-  | Add(x,y) | Sub(x,y) | Mul(x,y) | Div(x,y) ->
-      (find_proba f x) || (find_proba f y)
-  | Power(x,n) -> find_proba f x
-  | Max(l) | Min(l) | Length(_,l) -> List.exists (find_proba f) l
+  | Proba (p,_) -> f = p.prname
+  | p -> Terms.exists_sub_probaf (find_proba f) p
 
 let find_equiv f equiv =
   match equiv.eq_fixed_equiv with

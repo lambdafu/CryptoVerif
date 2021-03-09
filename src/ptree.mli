@@ -110,9 +110,16 @@ type probabilityf =
   | PEpsRand of ident
   | PPColl1Rand of ident
   | PPColl2Rand of ident
+  | POptimIf of probabilitycond_e * probabilityf_e * probabilityf_e
 
 and probabilityf_e = probabilityf * Parsing_helper.extent
 
+and probabilitycond =
+  | POCProbaFun of ident * probabilityf_e list
+  | POCBoolFun of ident * probabilitycond_e list
+
+and probabilitycond_e = probabilitycond * Parsing_helper.extent
+	
 type fungroup =
     PReplRestr of (Types.repl_index option ref(*to store replication index*) * ident option(*index*) * ident(*repetitions*)) (*replication*) option * 
 	(ident * ident(*type*) * ident list(*options*)) list(*restrictions*) * fungroup list

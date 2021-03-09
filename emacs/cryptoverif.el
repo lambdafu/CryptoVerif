@@ -2,7 +2,7 @@
 ;; mode for .cv files 
 ;;
 
-(defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number") "Cryptoverif keywords")
+(defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst") "Cryptoverif keywords")
 
 (defvar cryptoverif-builtin '("restrictions_may_be_equal" "noninteractive" "passive" "default" "small" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "cv_onesession" "real_or_random" "cv_real_or_random" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
@@ -11,7 +11,7 @@
 (defvar cryptoverif-kw-regexp (regexp-opt cryptoverif-kw 'words))
 (defvar cryptoverif-builtin-regexp (regexp-opt cryptoverif-builtin 'words))
 
-(defvar cryptoverif-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=(\\|)=>\\|<=\\|:=\\|->\\|!")
+(defvar cryptoverif-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=(\\|)=>\\|<=\\|:=\\|->\\|!\\|>=\\|<\\|>")
 
 (setq cryptoverifKeywords
  `((,cryptoverif-kw-regexp . font-lock-keyword-face)
@@ -38,12 +38,12 @@
 ;; mode for .ocv files (oracles mode)
 ;;
 
-(defvar cryptoverifo-kw '("independent-of" "new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "run") "Cryptoverif keywords")
+(defvar cryptoverifo-kw '("independent-of" "new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst" "run") "Cryptoverif keywords")
 
 (defvar cryptoverifo-kw-regexp (regexp-opt cryptoverifo-kw 'words))
 ;; the builtins are the same as in the .cv mode
 
-(defvar cryptoverifo-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=(\\|)=>\\|<=\\|:=\\|->\\|!")
+(defvar cryptoverifo-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=(\\|)=>\\|<=\\|:=\\|->\\|!\\|>=\\|<\\|>")
 
 (setq cryptoverifoKeywords
  `((,cryptoverifo-kw-regexp . font-lock-keyword-face)
@@ -70,7 +70,7 @@
 ;; mode for .pcv files (compatibility CryptoVerif and ProVerif)
 ;;
 
-(defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "equation" "proba" "type" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "suchthat" "not" "equivalence" "number" "time" "length") "Cryptoverif and ProVerif common keywords")
+(defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "equation" "proba" "type" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "suchthat" "not" "equivalence" "number" "time" "length" "optim-if" "is-cst") "Cryptoverif and ProVerif common keywords")
 
 (defvar pcv-bad-kw '("independent-of" "lemma" "axiom" "among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "fail" "free" "noninterf" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "maxlength" "max" "min" "newChannel" "return" "query_equiv" "special") "CryptoVerif- or ProVerif-only keywords")
 
@@ -96,7 +96,7 @@
 (defvar pcv-bad-kw-regexp (regexp-opt pcv-bad-kw 'words))
 (defvar pcv-bad-builtin-regexp (regexp-opt pcv-bad-builtin 'words))
 
-(defvar pcv-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=\\|!")
+(defvar pcv-connectives-regexp "\|\|\\|&&\\|<-R\\|<-\\|==>\\|<=\\|!\\|>=\\|<\\|>")
 
 (setq pcvKeywords
  `((,pcv-kw-regexp . font-lock-keyword-face)

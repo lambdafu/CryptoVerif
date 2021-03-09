@@ -536,24 +536,36 @@ let compute_runtime_for g =
   whole_game := Terms.empty_game;
   r
 
+(* [add_restr restr_list t] adds to time [t] the time needed to
+   choose random numbers in [restr_list]. ([t] and the result
+   are polynoms.) *)
+    
+let add_restr restr_list t =
+  if (!Settings.ignore_small_times)>0 then
+    t
+  else
+    Polynom.sum t
+      (time_list (fun (b,_) ->
+	Polynom.probaf_to_polynom 
+	  (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
+	       ActTime(ANew b.btype, [])))) restr_list)
+
+(* [product_repl_opt repl_opt t] multiplies [t] by
+   the number of repetitions specified by [repl_opt]. 
+   ([t] and the result are polynoms.)*)
+      
+let product_repl_opt repl_opt t =
+  match repl_opt with
+  | None -> t
+  | Some b ->
+      Polynom.product t (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
+    
 let rec time_fungroup = function
   | Fun(_,_,t,_) -> time_term t
   | ReplRestr(repl_opt, restr_list, fun_list) ->
       let tfun = time_list time_fungroup fun_list in
-      let tfun_restr =
-	if (!Settings.ignore_small_times)>0 then
-	  tfun
-	else
-	  Polynom.sum tfun
-	    (time_list (fun (b,_) ->
-	      Polynom.probaf_to_polynom 
-		(Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
-		     ActTime(ANew b.btype, [])))) restr_list)
-      in
-      match repl_opt with
-      | None -> tfun_restr
-      | Some b ->
-	  Polynom.product tfun_restr (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
+      let tfun_restr = add_restr restr_list tfun in
+      product_repl_opt repl_opt tfun_restr
 	 
 let compute_runtime_for_fungroup g fg =
   whole_game := g; (* The game does not matter here,
@@ -585,36 +597,37 @@ let compute_add_time lhs rhs mul_param opt2 =
 (* Second version of compute_runtime_for_fungroup using #O *)
 
 let rec time_list2 f = function
-    [] -> (Polynom.zero, Polynom.zero)
+    [] -> ([], Polynom.zero)
   | (a::l) ->
       let (t1,t2) = f a in
       let (t1',t2') = time_list2 f l in
-      (Polynom.sum t1 t1',
+      (t1 @ t1',
        Polynom.sum t2 t2')
 
+(* [time_fungroup fg] returns [tfun, time_restr]
+   where [fg] calls oracle [oname] at most [count] times and 
+   one execution of [oname] takes at most time [time], 
+   for each [(count, oname, time)] in the list [tfun].
+   [time_restr] is the time needed to evaluate random number
+   generations not directly associated to oracles. *)
+	
 let rec time_fungroup = function
   | Fun(oname,_,t,_) ->
-      (Polynom.product (time_term t) (Polynom.probaf_to_polynom (OCount oname)),
+      ([Polynom.probaf_to_polynom (Cst 1.0), oname, time_term t],
+       Polynom.zero)
+  | ReplRestr(repl_opt, restr_list, [Fun (oname,_,t,_)]) ->
+      ([ product_repl_opt repl_opt (Polynom.probaf_to_polynom (Cst 1.0)),
+	 oname, add_restr restr_list (time_term t) ],
        Polynom.zero)
   | ReplRestr(repl_opt, restr_list, fun_list) ->
       let (tfun, totherrestr) = time_list2 time_fungroup fun_list in
-      let t_restr =
-	if (!Settings.ignore_small_times)>0 then
-	  totherrestr
-	else
-	  Polynom.sum totherrestr
-	    (time_list (fun (b,_) ->
-	      Polynom.probaf_to_polynom 
-		(Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
-		     ActTime(ANew b.btype, [])))) restr_list)
+      let t_restr = add_restr restr_list totherrestr in
+      let t_restr_tot = product_repl_opt repl_opt t_restr in
+      let tfun' =
+	List.map (fun (count, oname, time) ->
+	  (product_repl_opt repl_opt count, oname, time)) tfun
       in
-      let t_restr_tot = 
-	match repl_opt with
-	| None -> t_restr
-	| Some b ->
-	    Polynom.product t_restr (Polynom.probaf_to_polynom (Count (Terms.param_from_type b.ri_type)))
-      in
-      (tfun, t_restr_tot)
+      (tfun', t_restr_tot)
 	
 let compute_runtime_for_fungroup_totcount g fg =
   whole_game := g; (* The game does not matter here,
@@ -623,21 +636,36 @@ let compute_runtime_for_fungroup_totcount g fg =
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
   let (tfun, trestr) = time_fungroup fg in
-  let res = Polynom.polynom_to_probaf tfun, Polynom.polynom_to_probaf trestr in
+  let res =
+    List.map (fun (count, oname, t) ->
+      (Polynom.polynom_to_probaf count, oname, Polynom.polynom_to_probaf t)) tfun,
+    Polynom.polynom_to_probaf trestr
+  in
   whole_game := Terms.empty_game;
   res
 
 let max2 (t1,t2) (t1',t2') =
-  (max t1 t1', max t2 t2')
+  (List.map2 (fun (count, oname, t) (_, _, t') ->
+    (count, oname, max t t')) t1 t1',
+   max t2 t2')
     
 let compute_add_time_totcount lhs rhs mul_param opt2 =
-  let fun_time_add1, restr_time_add1 =
+  let tfun, restr_time_add1 =
     match opt2 with
     | Decisional ->
 	let lhs_time = compute_runtime_for_fungroup_totcount Terms.lhs_game lhs in
 	let rhs_time = compute_runtime_for_fungroup_totcount Terms.rhs_game rhs in
 	max2 lhs_time rhs_time
     | Computational -> compute_runtime_for_fungroup_totcount Terms.lhs_game lhs
+  in
+  let fun_time_add1 =
+    Polynom.p_sum
+      (List.map (fun (count, oname, t) ->
+	let count1 = Polynom.p_mul((Sub(Count(mul_param),Cst 1.0)), count) in
+	Polynom.p_mul(OptimIf(OCProbaFun("<=", [ count1; OCount oname ]),
+			      count1, OCount oname),
+		      t)
+	  ) tfun)
   in
   Polynom.p_add (fun_time_add1, Polynom.p_mul((Sub(Count(mul_param),Cst 1.0)), restr_time_add1))
     

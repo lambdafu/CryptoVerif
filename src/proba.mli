@@ -22,8 +22,19 @@ val is_large_term : term -> bool
 
 val card : typet -> probaf
 val card_index : binder -> probaf
+
+(* 3. Evaluation of conditions OptimIf in probabilities.
+   [is_sure_cond to_polynom cond] returns true when the condition
+   [cond] is certainly true. That allows using the [then]
+   branch of the [optim-if] condition; otherwise, the [else]
+   branch is used.
+   [to_polynom] converts a probability formula into a polynom,
+   possibly performing transformation on the way, such as 
+   instantiating variables of the probability formula with their values. *)
+
+val is_sure_cond : (probaf -> polynom) -> optimcond -> bool
     
-(* 3. Computation of probabilities of collisions *)
+(* 4. Computation of probabilities of collisions *)
 
 (* Optimize a probability formula using #O when possible *)
 val optim_probaf : probaf_mul_types -> probaf_mul_types

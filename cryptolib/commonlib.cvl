@@ -3993,7 +3993,7 @@ equiv(gdh(exp))
       foreach ibDDH8 <= nbDDH8 do ODDHb8(m:G,j<=nb) [3] := return(m = exp(g,mult(b[j], b))) |
       foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
     )
-<=(max(1, 4*(#Oa+min(1,#ODDHa5+#ODDHb7))) * max(1, 4*(#Ob+min(1,#ODDHa4+#ODDHb6))) *
+<=(max(1, 4*(#Oa+optim-if #ODDHa5+#ODDHb7=0 then 0 else 1)) * max(1, 4*(#Ob+optim-if #ODDHa4+#ODDHb6=0 then 0 else 1)) *
 	   pGDH(time + (na + nb + 1) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
 	   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8)
@@ -4111,7 +4111,7 @@ equiv(gdh(exp))
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
-<=(2* max(1, 27/4*(#Oa+min(1,#ODDHa5))^2) * 
+<=(2* max(1, 27/4*(#Oa+optim-if #ODDHa5=0 then 0 else 1)^2) * 
 	   pGDH(time + (na+1) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
@@ -4420,7 +4420,7 @@ equiv(gdh(exp))
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
-<=(max(1, 27/4*(#Oa+min(1,#ODDHa5))^2) * 
+<=(max(1, 27/4*(#Oa+optim-if #ODDHa5=0 then 0 else 1)^2) * 
 	   pSQGDH(time + (na+1) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (

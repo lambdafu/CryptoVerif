@@ -46,7 +46,37 @@ let nb_def_var b =
     with Not_found ->
       card_index b
 
-(* 3. Computation of probabilities of collisions *)
+(* 3. Evaluation of conditions OptimIf in probabilities.
+   [to_polynom] converts a probability formula into a polynom,
+   possibly performing transformation on the way, such as 
+   instantiating variables of the probability formula with their values. *)
+
+let rec is_sure_cond to_polynom = function
+  | OCBoolFun("&&", [c1;c2]) ->
+      (is_sure_cond to_polynom c1) && (is_sure_cond to_polynom c2)
+  | OCBoolFun("||", [c1;c2]) ->
+      (is_sure_cond to_polynom c1) || (is_sure_cond to_polynom c2)
+  | OCBoolFun _ ->
+      Parsing_helper.internal_error "Proba.is_sure_cond: only allowed boolean functions && ||"
+  | OCProbaFun("is-cst", [p1]) ->
+      Polynom.is_constant (to_polynom p1)
+  | OCProbaFun(s, [p1; p2]) ->
+      let p = Polynom.sub (to_polynom p2) (to_polynom p1) in
+      begin
+	match s with
+	| "=" -> (* p1 = p2, proved by showing p2 - p1 = 0 *)
+	    Polynom.is_zero p
+	| "<" -> (* p1 < p2, proved by showing p2 - p1 > 0 *)
+	    Polynom.is_positive p
+	| "<=" -> (* p1 <= p2, proved by showing p2 - p1 >= 0 *)
+	    Polynom.is_nonnegative p
+	| _ ->
+	    Parsing_helper.internal_error "Proba.is_sure_cond: only allowed probability functions is-cst = < <="
+      end  
+  | OCProbaFun _ -> 
+      Parsing_helper.internal_error "Proba.is_sure_cond: only allowed probability functions is-cst = < <="
+	
+(* 4. Computation of probabilities of collisions *)
 
 (* Tests if proba_l/proba is considered small enough to eliminate collisions *)
 
@@ -327,6 +357,11 @@ let rec order_of_magnitude_aux probaf =
         (1, min_f), (1, float_of_int (- p.pestimate))
       else
 	zero_interv (* Accept all collisions *)
+  | OptimIf(cond, p1, p2) ->
+      if is_sure_cond Polynom.probaf_to_polynom cond then
+	order_of_magnitude_aux p1
+      else
+	order_of_magnitude_aux p2
   | _ ->
       Parsing_helper.internal_error "Unexpected probability in Proba.is_smaller_proba_type"
 
@@ -619,20 +654,8 @@ let rec instantiate_ri_list accu = function
 
 let copy_probaf transf p =
   let rec aux = function
-  | Time(g,x) -> Time(g, aux x)
-  | (AttTime | Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-     | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
-  | Proba(p,l) -> Proba(p, List.map aux l)
-  | ActTime(f,l) -> ActTime(f, List.map aux l)
   | Maxlength(g,t) -> Maxlength(g, Terms.copy_term transf t)
-  | Length(f,l) -> Length(f, List.map aux l)
-  | Mul(x,y) -> Mul(aux x, aux y)
-  | Add(x,y) -> Add(aux x, aux y)
-  | Sub(x,y) -> Sub(aux x, aux y)
-  | Div(x,y) -> Div(aux x, aux y)
-  | Power(x,n) -> Power(aux x, n)
-  | Max(l) -> Max(List.map aux l)
-  | Min(l) -> Min(List.map aux l)
+  | p -> Terms.map_sub_probaf aux p
   in
   aux p
     
@@ -802,13 +825,8 @@ let occurs_proba any_var_map p =
   let rec aux = function
     | Maxlength(_,t) ->
 	List.exists (fun (b,_) -> Terms.refers_to b t) any_var_map
-    | Zero | Cst _ | Count _ | OCount _ | Card _ | EpsFind | EpsRand _
-    | PColl2Rand _ | PColl1Rand _ | AttTime | TypeMaxlength _ | Time _ -> false
-    | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
-	List.exists aux l
-    | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
-	(aux p1) || (aux p2)
-    | Power(p,n) -> aux p
+    | Time _ -> false
+    | p -> Terms.exists_sub_probaf aux p
   in
   aux p
 
@@ -916,10 +934,6 @@ let rec instan_time restr_indep_map any_var_map_list p =
   let rec aux = function
     | AttTime -> Add(AttTime, get_time())
     | Time _ -> Parsing_helper.internal_error "unexpected time"
-    | (Cst _ | Count _ | OCount _ | Zero | Card _ | TypeMaxlength _
-      | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _) as x -> x
-    | Proba(p,l) -> Proba(p, List.map aux l)
-    | ActTime(f,l) -> ActTime(f, List.map aux l)
     | (Max _ | Maxlength _) as y ->
 	let accu = ref Polynom.empty_minmax_accu in
 	let rec add_max = function
@@ -956,12 +970,12 @@ let rec instan_time restr_indep_map any_var_map_list p =
 	in
 	List.iter add_min l;
 	Polynom.p_min (!accu)
-    | Length(f,l) -> Length(f, List.map aux l)
-    | Mul(x,y) -> Mul(aux x, aux y)
-    | Add(x,y) -> Add(aux x, aux y)
-    | Sub(x,y) -> Sub(aux x, aux y)
-    | Div(x,y) -> Div(aux x, aux y)
-    | Power(x,n) -> Power(aux x, n)
+    | OptimIf(cond, p1,p2) ->
+	if is_sure_cond (fun p -> Polynom.probaf_to_polynom (aux p)) cond then
+	  aux p1
+	else
+	  aux p2
+    | p -> Terms.map_sub_probaf aux p
   in
   aux p
     

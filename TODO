@@ -29,17 +29,15 @@ HIGH PRIORITY
 
 cryptoprim.tex: continue updating with the new def of nominal groups.
 
-When we automatically add a replication on top of an equiv
-statement, automatically choose the best time to add to the adversary
-between compute_add_time and compute_add_time_totcount,
-e.g. via a "min" construct in proba formulas, possibly with
-a hint on when to choose which term in the minimum.
-  optim-if <cond> then <...> else <...>
-  where <cond> can be <proba> = <cst>
-  or                  is-constant(<proba>)
-  The else branch must always be sound. When the condition <cond> is guaranteed to be true,
-  the then branch is also sound, and better.
-  min(1, #O) becomes optim_if #O = 0 then 0 else 1
+Nicer probability formulas:
+- avoid A + -B, write A - B
+- group together time_i = .... + time(context for ...) to simplify further
+(then the line "Applying equivalence ..." should not refer to
+time(context for ...) but to time_i)
+
+TextSecure, first example, Game 60: CV counts at most 5 calls to enc_r
+for each key r_50, while it should count at most 1. (They are in different
+branches, so mutually exclusive.)
 
 Add scripts for HPKE?
 
@@ -74,7 +72,18 @@ will be less precise (but is it really a drawback?)
    As a workaround, I can define another function before the macro
    and use its time in the letproba, but that's not nice.
    I am not sure how to solve this issue.
-   
+
+Be able to specify equalities between probability formulas,
+used for simplifying them. Possible usage:
+- time(enc_r') = time(enc_r) when enc_r' is used for the same function
+as enc_r, just to avoid loop in applications of equiv.
+- solve the issue above with multikey proba: declare a function
+for the multikey proba, expand the macro, and afterwards say that
+the function for the multikey proba is equal to some expression
+depending on single-key proba, which can now use the runtime of
+functions defined inside the macro.
+Syntax: proba equation [forall x1:dim1, ..., xn:dimn;] probaf1 = probaf2. ?
+
 Allow using "letfun"s f in time(f,...) and in terms M in maxlength(M)?
 
 0.2)
@@ -5842,3 +5851,16 @@ DONE 2/3/2021
 
 Allow power in probability formulas. p^n where n is an integer
 DONE 4/3/2021
+
+When we automatically add a replication on top of an equiv
+statement, automatically choose the best time to add to the adversary
+between compute_add_time and compute_add_time_totcount,
+e.g. via a "min" construct in proba formulas, possibly with
+a hint on when to choose which term in the minimum.
+  optim-if <cond> then <...> else <...>
+  where <cond> can be <proba> = <cst>
+  or                  is-constant(<proba>)
+  The else branch must always be sound. When the condition <cond> is guaranteed to be true,
+  the then branch is also sound, and better.
+  min(1, #O) becomes optim_if #O = 0 then 0 else 1
+DONE 9/3/2021

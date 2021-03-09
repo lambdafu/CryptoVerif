@@ -196,6 +196,7 @@ rule token = parse
 | ':' { COLON }
 | '!' { REPL }
 | "<=" { LEQ }
+| ">=" { GEQ }
 | '=' { EQUAL }
 | "<>" { DIFF }
 | "&&" { AND }
@@ -209,8 +210,8 @@ rule token = parse
 | '*' { MUL }
 | '/' { DIV }
 | '^' { POWER }
-| '<' { READ }
-| '>' { WRITE }
+| '<' { LESS }
+| '>' { GREATER }
 | "->" { MAPSTO }
 | ":=" { DEF }
 | "<-" { LEFTARROW }
@@ -219,6 +220,8 @@ rule token = parse
 | '?' { HELP }
 | "inj-event" { INJEVENT }
 | "independent-of" { INDEPOF }
+| "optim-if" { OPTIMIF }
+| "is-cst" { ISCST }
 | eof { EOF }	
 | _ { raise (Error("Illegal character", extent lexbuf)) }
 

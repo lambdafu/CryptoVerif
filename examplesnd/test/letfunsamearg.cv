@@ -3,3 +3,8 @@ letfun f(x:bitstring,x:bitstring) = x.
 
 process
 	in(c,x: bitstring); out(c,f(x))
+
+(* EXPECTED
+Error: The name x already defined before cannot be used here
+xtime: error in child process (status : 2)
+END *)

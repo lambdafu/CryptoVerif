@@ -22,6 +22,13 @@ val product : polynom -> polynom -> polynom
    polynoms and maps product, division, and power to product,
    division, and power respectively. *)
 val power_to_polynom_map : (probaf -> polynom) -> probaf -> int -> polynom
+
+(* Tests. They answer true only when the result is true.
+   In case the result is not know for sure, they answer false. *)
+val is_constant : polynom -> bool
+val is_zero : polynom -> bool
+val is_positive : polynom -> bool
+val is_nonnegative : polynom -> bool
     
 (* 2. Basic operations on probabilities, with simple simplifications *) 
 
