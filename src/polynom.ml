@@ -251,7 +251,12 @@ let p_add(x,y) =
   match x,y with
     Zero, a | a, Zero | Cst 0.0, a | a, Cst 0.0 -> a
   | _ -> Add(x,y)
-  
+
+let p_sub(x,y) =
+  match x,y with
+  | a, Zero | a, Cst 0.0 -> a
+  | _ -> Sub(x,y)
+	
 let rec p_sum = function
   | [] -> Zero
   | [a] -> a
@@ -406,7 +411,20 @@ let rec add_decomp r = function
     [] -> [r]
   | (a::l) ->
       if same_large_factors r a then
-	{ a with small_factors = p_add(a.small_factors, r.small_factors) }::l
+	let new_small_factors =
+	  match r.small_factors with
+	  | Cst coef when coef < 0.0 ->
+	      (* Write [a.small_factors - (-coef)] rather than
+                 [a.small_factors + coef] when [coef < 0] *)
+	      p_sub(a.small_factors, Cst (-. coef))
+	  | Mul(Cst coef, rest) when coef < 0.0 ->
+	      (* Write [a.small_factors - (-coef) * rest] rather than
+                 [a.small_factors + coef * rest] when [coef < 0] *)
+	      p_sub(a.small_factors, p_mul(Cst (-. coef), rest))
+	  | _ ->
+	      p_add(a.small_factors, r.small_factors)
+	in
+	{ a with small_factors = new_small_factors }::l
       else
 	a::(add_decomp r l)
 
@@ -422,7 +440,11 @@ let monomial_decomp_to_probaf l =
   p_sum (List.map (fun a -> p_div(p_mul(a.small_factors, p_prod a.large_factors), p_prod a.denominator)) l)
 
 let polynom_to_probaf x =
-  monomial_decomp_to_probaf (polynom_to_monomial_decomp x)
+  let (positive_part, negative_part) = List.partition (fun (coef, _) -> coef >= 0.0) x in
+  (* Put the positive monomials last, so that they are added first by 
+     [polynom_to_monomial_decomp], and we get (positive term - negative term)
+     in the final probability formula. *)
+  monomial_decomp_to_probaf (polynom_to_monomial_decomp (negative_part @ positive_part))
 
 
 (* [power_to_polynom_map f x n] is the polynom [f (x^n)] where [x] is

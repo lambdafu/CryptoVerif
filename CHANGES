@@ -23,6 +23,7 @@ the arguments of the probability function.
 - CryptoVerif now checks that calls to the same probability function
 have the same number of arguments and compatible dimensions.
 - Added the "letproba" declaration to define probability functions.
+- Nicer probability formulas: write A - B instead of A + -B.
 - Added a macro for DDH with random self reducibility in the standard
 library of cryptographic primitives (it is more limited than other DDH
 macros).

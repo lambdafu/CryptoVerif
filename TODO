@@ -29,11 +29,40 @@ HIGH PRIORITY
 
 cryptoprim.tex: continue updating with the new def of nominal groups.
 
+Is there a bug when a crypto transform also applies collisions whose
+probability depends on the time of the adversary (e.g. collision-resistant
+hash functions)? time(context for game <n>) would be used with two different
+meanings, the one for the crypto transform and the one for the collision,
+so there would be a confusion between the two.
+Bug detected in tests/arinc2021.03.10-02_19_02
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.NOREPLA\
+Y_PROT.cv
+50531:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.REPLAY_\
+PROT.cv
+402680:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.NOREPLAY_P\
+ROT.cv
+632766:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.REPLAY_PRO\
+T.cv
+659689:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
+....
+726753:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
+959374:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
+1244852:Applying equivalence cdh(exp) with variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b. [probability 3 * qH * pCDH(time(context for game 48) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 48))]
+1573136:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 62) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 62))]
+1603887:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 74) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 74))]
+1634386:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 86) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 86))]
+1738259:Applying equivalence cdh(exp) with variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b, eU_1, eU_2, eU_3, eV [probability 3 * qH * max(1, 4 * Naircraft) * max(1, 4 * Nground) * pCDH(time(context for game 49) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 49))]
+1881862:Applying equivalence gdh(exp) [probability pGDH(time(context for game 43) + time + (1 + Nground + 3 * Naircraft) * time(exp), 3 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 43))]
+2075721:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 47) + time + (1 + 4 * Nground + 3 * Naircraft) * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 3 * Naircraft + 4 * qH) + 5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 47))]
+
 Nicer probability formulas:
-- avoid A + -B, write A - B
 - group together time_i = .... + time(context for ...) to simplify further
 (then the line "Applying equivalence ..." should not refer to
 time(context for ...) but to time_i)
+Only when time(context for ...) is used once
 
 TextSecure, first example, Game 60: CV counts at most 5 calls to enc_r
 for each key r_50, while it should count at most 1. (They are in different
@@ -5863,4 +5892,7 @@ a hint on when to choose which term in the minimum.
   The else branch must always be sound. When the condition <cond> is guaranteed to be true,
   the then branch is also sound, and better.
   min(1, #O) becomes optim_if #O = 0 then 0 else 1
+DONE 9/3/2021
+
+avoid A + -B, write A - B
 DONE 9/3/2021
