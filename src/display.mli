@@ -36,7 +36,7 @@ val display_collision : collision -> unit
 val display_pattern : pattern -> unit
 val display_proba : ?separate_time:bool -> int -> probaf -> unit
 val display_polynom : polynom -> unit
-val display_set : setf list -> unit
+val display_set : ?separate_time:bool -> setf list -> unit
 val display_equiv : equiv_nm -> unit
 val display_equiv_with_name : equiv_nm -> unit
 val display_call : Ptree.equiv_call_t -> unit
@@ -55,8 +55,6 @@ val display_query : query * game -> unit
 val display_instruct : instruct -> unit
 
 (*** The next functions are made public so that displaytex can call them ***)
-
-val is_complex_time : probaf -> bool
 
 (* [proba_from_set_m modifier p] converts the probability [p] represented as
 a [setf list] into a probability represented as a [probaf].

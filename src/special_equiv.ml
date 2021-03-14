@@ -4,7 +4,7 @@ open Parsing_helper
 
 
 (* [instan_time get_time p] 
-   - removes [Time(g,t)], keeping just [t] instead
+   - removes [Time(_,_,t)], keeping just [t] instead
    - instantiates the runtime of the adversary [AttTime], using the 
    runtime of the current context returned by [get_time()], 
    - instantiates variables in [Maxlength(g,t)] according to links
@@ -15,7 +15,7 @@ open Parsing_helper
 let rec instan_time get_time p =
   let rec aux = function
     | AttTime -> Add(AttTime, get_time())
-    | Time(_,t) -> aux t
+    | Time(_,_,t) -> aux t
     | (Max _ | Maxlength _) as y ->
 	let accu = ref Polynom.empty_minmax_accu in
 	let rec add_max = function

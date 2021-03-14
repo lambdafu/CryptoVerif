@@ -29,53 +29,72 @@ HIGH PRIORITY
 
 cryptoprim.tex: continue updating with the new def of nominal groups.
 
-Is there a bug when a crypto transform also applies collisions whose
-probability depends on the time of the adversary (e.g. collision-resistant
-hash functions)? time(context for game <n>) would be used with two different
-meanings, the one for the crypto transform and the one for the collision,
-so there would be a confusion between the two.
-Bug detected in tests/arinc2021.03.10-02_19_02
-PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.NOREPLA\
-Y_PROT.cv
-50531:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
-PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.REPLAY_\
-PROT.cv
-402680:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
-PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.NOREPLAY_P\
-ROT.cv
-632766:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
-PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.REPLAY_PRO\
-T.cv
-659689:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
-....
-726753:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
-959374:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
-1244852:Applying equivalence cdh(exp) with variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b. [probability 3 * qH * pCDH(time(context for game 48) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 48))]
-1573136:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 62) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 62))]
-1603887:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 74) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 74))]
-1634386:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 86) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 86))]
-1738259:Applying equivalence cdh(exp) with variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b, eU_1, eU_2, eU_3, eV [probability 3 * qH * max(1, 4 * Naircraft) * max(1, 4 * Nground) * pCDH(time(context for game 49) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 49))]
-1881862:Applying equivalence gdh(exp) [probability pGDH(time(context for game 43) + time + (1 + Nground + 3 * Naircraft) * time(exp), 3 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 43))]
-2075721:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 47) + time + (1 + 4 * Nground + 3 * Naircraft) * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 3 * Naircraft + 4 * qH) + 5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 47))]
-
-Nicer probability formulas:
-- group together time_i = .... + time(context for ...) to simplify further
-(then the line "Applying equivalence ..." should not refer to
-time(context for ...) but to time_i)
-Only when time(context for ...) is used once
+Optimize the runtime computed for conditions of "find": if an expression
+does not use all indices of the find, I do not need to repeat its
+computation at every evaluation of the condition. Count only the
+indices that occur in the expression.
 
 TextSecure, first example, Game 60: CV counts at most 5 calls to enc_r
 for each key r_50, while it should count at most 1. (They are in different
 branches, so mutually exclusive.)
+Test [is_included cur_array tl] too strict? Add to [tl] the indices
+of random variables above the replication bound we are computing?
 
-Add scripts for HPKE?
+Add scripts for HPKE [Benjamin OK]
 
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
 to ProVerif as well for compatibility (but ignore them).
 
 LATER:
-   
+
+Minor pbs in the display of times:
+- it is possible that time_i = time + time(context for game n) = ...
+but CV shows only time_i = ..., because the equality
+time_i = time + time(context for game n) appears after simplification,
+the initial formula is more complex.
+- it is possible that CV shows time_i = ... time_j ...
+and time_j is used only once, so the formula for time_j could
+be expanded directly, because the initial formula for time_i contains
+several occurrences of time_j, but only one remains after simplification.
+- it is also possible that CV shows
+time_i = formula from time_j
+time_i' = same formula from time_j
+because the initial formula contains
+P1(formula from time) and P2(same formula from time)
+(or the 2 formulas become the same after simplification)
+I consider that these points are acceptable.
+
+Be able to specify equalities between probability formulas,
+used for simplifying them. Possible usage:
+- time(enc_r') = time(enc_r) when enc_r' is used for the same function
+as enc_r, just to avoid loop in applications of equiv.
+- solve the issue below with multikey proba
+Syntax: proba equation [forall x1:dim1, ..., xn:dimn;] probaf1 = probaf2. ?
+
+   There is a difficulty when I want to define a macro using multikey
+   probability, and then define the multikey probability from the
+   single key probability using letproba: I need to add the runtime
+   of the context, which refers to functions defined inside the macro
+   so I cannot refer to them in letproba before expanding the macro...
+   Can be solved using proba equation: declare a function
+   for the multikey proba, expand the macro, and afterwards say that
+   the function for the multikey proba is equal to some expression
+   depending on single-key proba, which can now use the runtime of
+   functions defined inside the macro.
+
+Also be able to specify that probaf1 >> probaf2, so that probaf2 is removed
+when probaf1 is present (with the same factor up to a constant)?
+The keyword "proba equation" is not very good for that. What syntax?
+Uniformity with the syntax for equalities?
+Small terms should be eliminated only when there is a bigger term,
+in particular avoid systematically eliminating small terms as I do now.
+
+Or be simpler:
+Display a lighter runtime, of the form (polynom in parameters) *
+O(1) where O(1) is a time that does not depend on parameters
+(constant or may depend on length of bitstrings).
+
 I could also check that probabilities are negligible assuming parameters
 and lengths are polynomial, cardinals of large types are exponential,
 and probas are negligible.
@@ -92,26 +111,6 @@ Drawbacks:
 - I no longer use the automatic addition of replication on top of equiv
 - The runtime of the context in the derivation single-key -> multi-key
 will be less precise (but is it really a drawback?)
-
-   There is a difficulty when I want to define a macro using multikey
-   probability, and then define the multikey probability from the
-   single key probability using letproba: I need to add the runtime
-   of the context, which refers to functions defined inside the macro
-   so I cannot refer to them in letproba before expanding the macro...
-   As a workaround, I can define another function before the macro
-   and use its time in the letproba, but that's not nice.
-   I am not sure how to solve this issue.
-
-Be able to specify equalities between probability formulas,
-used for simplifying them. Possible usage:
-- time(enc_r') = time(enc_r) when enc_r' is used for the same function
-as enc_r, just to avoid loop in applications of equiv.
-- solve the issue above with multikey proba: declare a function
-for the multikey proba, expand the macro, and afterwards say that
-the function for the multikey proba is equal to some expression
-depending on single-key proba, which can now use the runtime of
-functions defined inside the macro.
-Syntax: proba equation [forall x1:dim1, ..., xn:dimn;] probaf1 = probaf2. ?
 
 Allow using "letfun"s f in time(f,...) and in terms M in maxlength(M)?
 
@@ -320,10 +319,6 @@ insert/get use the state (tables + entropy for get when it is not unique
        and the content of the found entry is used)
 replindex: for a first step, you can just not translate them;
       later we may want to associate a session id to each repl.index.
-
-0.8) Display a lighter runtime, of the form (polynom in parameters) *
-O(1) where O(1) is a time that does not depend on parameters
-(constant or may depend on length of bitstrings).
 
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
@@ -5896,3 +5891,40 @@ DONE 9/3/2021
 
 avoid A + -B, write A - B
 DONE 9/3/2021
+
+Is there a bug when a crypto transform also applies collisions whose
+probability depends on the time of the adversary (e.g. collision-resistant
+hash functions)? time(context for game <n>) would be used with two different
+meanings, the one for the crypto transform and the one for the collision,
+so there would be a confusion between the two.
+Bug detected in tests/arinc2021.03.10-02_19_02
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.NOREPLA\
+Y_PROT.cv
+50531:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.AUTHENTICATION.REPLAY_\
+PROT.cv
+402680:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 27) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 27))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.NOREPLAY_P\
+ROT.cv
+632766:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
+PROTOCOL examples/arinc823/publickey/arinc823-public-key.KEY_SECRECY.REPLAY_PRO\
+T.cv
+659689:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 25) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 25))]
+....
+726753:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
+959374:Applying equivalence gdh(exp) with dV0, dU0 [probability pGDH(time(context for game 28) + time + 3 * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 4 * qH) + 2 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 28))]
+1244852:Applying equivalence cdh(exp) with variables: eU_9 -> a, eU_7 -> a, eU_5 -> a, eV_1 -> b. [probability 3 * qH * pCDH(time(context for game 48) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 48))]
+1573136:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 62) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 62))]
+1603887:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 74) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 74))]
+1634386:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 86) + time + (1 + Naircraft + Nground) * time(exp), qH + Naircraft + 2 * Naircraft * qH + Naircraft ^ 2) + 0.5 * Nground ^ 2 / |t_Rand32| + Phash(time + time(context for game 86))]
+1738259:Applying equivalence cdh(exp) with variables: eU_1 -> a, eU_2 -> a, eU_3 -> a, eV -> b, eU_1, eU_2, eU_3, eV [probability 3 * qH * max(1, 4 * Naircraft) * max(1, 4 * Nground) * pCDH(time(context for game 49) + time + (1 + 3 * qH + Nground + 3 * Naircraft) * time(exp)) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 49))]
+1881862:Applying equivalence gdh(exp) [probability pGDH(time(context for game 43) + time + (1 + Nground + 3 * Naircraft) * time(exp), 3 * qH) + 0.5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 43))]
+2075721:Applying equivalence gdh(exp) [probability 4 * pGDH(time(context for game 47) + time + (1 + 4 * Nground + 3 * Naircraft) * time(exp), 2 * Naircraft * qH + Naircraft ^ 2 + 3 * Naircraft + 4 * qH) + 5 * Nground ^ 2 / |t_Rand32| + 9 * Naircraft ^ 2 * PCollKey1 + Phash(time + time(context for game 47))]
+FIXED 10/3/2021
+
+Nicer probability formulas:
+- group together time_i = .... + time(context for ...) to simplify further
+(then the line "Applying equivalence ..." should not refer to
+time(context for ...) but to time_i)
+Only when time(context for ...) is used once
+DONE 11/3/2021

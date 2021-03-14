@@ -3938,15 +3938,33 @@ let rec get_time_map t =
   let indices_exp = one_exp.name_indexes_exp  in
   (args, il, ik, repl_lhs, indices_exp)
 
-let time_computed = ref None
+type time_computed_t =
+  | NotComputedYet
+  | Computed of polynom
+  | SingleUsage
+    
+let time_computed = ref NotComputedYet
 
-let compute_runtime() =
-   match !time_computed with
-    Some t -> t
-  | None ->
-      let tt = Computeruntime.compute_runtime_for_context (!whole_game) (!equiv) get_time_map (List.map fst (!names_to_discharge)) in
-      time_computed := Some tt;
-      tt
+let compute_runtime single_usage =
+  match !time_computed with
+  | Computed t -> t
+  | NotComputedYet ->
+      let tt = Polynom.sum (Computeruntime.compute_runtime_for_context (!whole_game) (!equiv) get_time_map (List.map fst (!names_to_discharge)))
+	  (Polynom.probaf_to_polynom (AttTime))
+      in
+      if single_usage then
+	begin
+	  time_computed := SingleUsage;
+	  tt
+	end
+      else
+	begin
+	  let res = Polynom.probaf_to_polynom (Time (ref "", Context(!whole_game), Polynom.polynom_to_probaf tt)) in
+	  time_computed := Computed res;
+	  res
+	end
+  | SingleUsage ->
+      Parsing_helper.internal_error "Time should be used once and is queried several times"
 
 (* Compute the difference of probability *)
 
@@ -4490,13 +4508,35 @@ let rec rename_term before map one_exp t =
 	   passing t to rename_term; it is called after.
 	   Proba.instan_time only deals with collisions. *)
 
-let rec map_probaf env = function
-    (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ ) as x -> Polynom.probaf_to_polynom x
-  | Proba(p,l) -> Polynom.probaf_to_polynom (Proba(p, List.map (fun prob -> 
-      Polynom.polynom_to_probaf (map_probaf env prob)) l))
+let single_att_time prob =
+  let count_att_time = ref 0 in
+  let rec aux prob =
+    (!count_att_time >= 2) ||
+    (match prob with
+    | AttTime -> incr count_att_time; !count_att_time >= 2
+    | _ -> Terms.exists_sub_probaf aux prob)
+  in
+  ignore (aux prob);
+  !count_att_time <= 1
+	
+let rec map_probaf env prob =
+  let single_att_time_prob = single_att_time prob in
+  let rec aux under_complex_time = function
+    | (Cst _ | Card _ | TypeMaxlength _ | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ ) as x -> Polynom.probaf_to_polynom x
+    | Proba(p,l) ->
+	Polynom.probaf_to_polynom (Proba(p, List.map (fun prob ->
+	  if Proba.is_complex_time prob then
+	    let prob' = Polynom.polynom_to_probaf (aux true prob) in
+	    match prob' with
+	    | Time _ -> prob' (* in case the complex time formula was reduced
+                                 to just the runtime of the adversary *)
+	    | _ -> Time(ref "", Complex, prob')
+	  else
+	    Polynom.polynom_to_probaf (aux false prob)
+	      ) l))
   | ActTime(f, l) -> 
       Polynom.probaf_to_polynom (ActTime(f, List.map (fun prob -> 
-      Polynom.polynom_to_probaf (map_probaf env prob)) l))
+      Polynom.polynom_to_probaf (aux under_complex_time prob)) l))
   | (Max _ | Maxlength _) as y ->
       let accu = ref Polynom.empty_minmax_accu in
       let rec add_max = function
@@ -4520,7 +4560,7 @@ let rec map_probaf env = function
 		) (!map)
 	| x ->
 	    Polynom.add_max accu
-	      (Polynom.polynom_to_probaf (map_probaf env x))
+	      (Polynom.polynom_to_probaf (aux under_complex_time x))
       in
       add_max y;
       Polynom.probaf_to_polynom (Polynom.p_max (!accu))
@@ -4530,13 +4570,13 @@ let rec map_probaf env = function
 	| Min(l) -> List.iter add_min l
 	| x ->
 	    Polynom.add_min accu
-	      (Polynom.polynom_to_probaf (map_probaf env x))
+	      (Polynom.polynom_to_probaf (aux under_complex_time x))
       in
       List.iter add_min l;
       Polynom.probaf_to_polynom (Polynom.p_min (!accu))
   | Length(f,l) ->
       Polynom.probaf_to_polynom (Length(f, List.map (fun prob -> 
-	Polynom.polynom_to_probaf (map_probaf env prob)) l))
+	Polynom.polynom_to_probaf (aux under_complex_time prob)) l))
   | Count p -> 
       begin
 	try
@@ -4569,23 +4609,29 @@ let rec map_probaf env = function
 	  snd env := (c, v') :: (! (snd env));
 	  v'
       end
-  | Mul(x,y) -> Polynom.product (map_probaf env x) (map_probaf env y)
-  | Add(x,y) -> Polynom.sum (map_probaf env x) (map_probaf env y)
-  | Sub(x,y) -> Polynom.sub (map_probaf env x) (map_probaf env y)
+  | Mul(x,y) ->
+      Polynom.product (aux under_complex_time x) (aux under_complex_time y)
+  | Add(x,y) ->
+      Polynom.sum (aux under_complex_time x) (aux under_complex_time y)
+  | Sub(x,y) ->
+      Polynom.sub (aux under_complex_time x) (aux under_complex_time y)
   | Div(x,y) -> Polynom.probaf_to_polynom 
-	(Polynom.p_div(Polynom.polynom_to_probaf (map_probaf env x), 
-		       Polynom.polynom_to_probaf (map_probaf env y)))
-  | Power(x,n) -> Polynom.power_to_polynom_map (map_probaf env) x n
+	(Polynom.p_div(Polynom.polynom_to_probaf (aux under_complex_time x), 
+		       Polynom.polynom_to_probaf (aux under_complex_time y)))
+  | Power(x,n) -> Polynom.power_to_polynom_map (aux under_complex_time) x n
   | Zero -> Polynom.zero
-  | AttTime -> 
-      Polynom.sum (Polynom.probaf_to_polynom (Time (!whole_game, compute_runtime()))) (Polynom.probaf_to_polynom (AttTime))
+  | AttTime ->
+      let single_usage = under_complex_time && single_att_time_prob in
+      compute_runtime single_usage
   | OptimIf(cond, p1, p2) ->
-      if Proba.is_sure_cond (map_probaf env) cond then
-	map_probaf env p1
+      if Proba.is_sure_cond (aux under_complex_time) cond then
+	aux under_complex_time p1
       else
-	map_probaf env p2
+	aux under_complex_time p2
   | Time _ -> Parsing_helper.internal_error "Unexpected time"
-
+  in
+  aux false prob
+    
 let compute_proba ((_,_,_,set,_,_),_) =
   Depanal.reset [] (!whole_game);
   let proba = 
@@ -4796,7 +4842,7 @@ let map_has_exist (((_, lm, _, _, _, _),_) as apply_equiv) map =
    renamings done by [ins] *)    
     
 let rec update_max_length_probaf ins = function
-  | (Time _) as x -> x
+  | (Time(_,(Context _ | Game _),_)) as x -> x
   | (Max _ | Maxlength _) as y ->
       let accu = ref Polynom.empty_minmax_accu in
       let rec add_max = function
@@ -5093,7 +5139,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   equiv_names_lhs_flat := List.concat (!equiv_names_lhs);
   whole_game := g;
   introduced_events := [];
-  time_computed := None;
+  time_computed := NotComputedYet;
   symbols_to_discharge := [];
   encode_funs_for_binders := [];
   encode_funs_for_exps := [];

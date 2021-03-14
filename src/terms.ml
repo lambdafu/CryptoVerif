@@ -1374,7 +1374,14 @@ let equal_action a1 a2 =
   | AOut(tl,t), AOut(tl',t') -> (t == t') && (equal_lists (==) tl tl')
   | AIn n, AIn n' -> n == n'
   | _ -> false
-  
+
+let equal_cat cat cat' = 
+  match cat, cat' with 
+  | Complex, Complex -> true
+  | Context(g), Context(g') -> g == g'
+  | Game(g), Game(g') -> g == g'
+  | _ -> false
+	
 let rec equal_probaf p1 p2 =
   match p1, p2 with
     Proba(p, l), Proba(p',l') -> (p == p') && (equal_lists equal_probaf l l')
@@ -1384,7 +1391,7 @@ let rec equal_probaf p1 p2 =
   | Zero, Zero -> true
   | Card t, Card t' -> t == t'
   | AttTime, AttTime -> true
-  | Time (n,p), Time (n',p') -> (n == n') && (equal_probaf p p')
+  | Time (cnt,cat,p), Time (cnt',cat',p') -> (cnt == cnt') && (equal_cat cat cat') && (equal_probaf p p')
   | ActTime(a,l), ActTime(a',l') -> (equal_action a a') && (equal_lists equal_probaf l l')
   | Add(p1,p2), Add(p1',p2') -> (equal_probaf p1 p1') && (equal_probaf p2 p2')
   | Mul(p1,p2), Mul(p1',p2') -> (equal_probaf p1 p1') && (equal_probaf p2 p2')
@@ -3561,7 +3568,7 @@ let map_sub_probaf f = function
   | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
   | Maxlength _ as x -> x
-  | Time(g,p) -> Time(g, f p)
+  | Time(cnt,cat,p) -> Time(cnt,cat,f p)
   | Proba(p,l) -> Proba(p, List.map f l)
   | ActTime(f1,l) -> ActTime(f1, List.map f l)
   | Length(f1,l) -> Length(f1, List.map f l)
@@ -3585,7 +3592,7 @@ let exists_sub_probaf f = function
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
   | Maxlength _ ->
       false
-  | Time(_,p) -> f p
+  | Time(_,_,p) -> f p
   | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
       List.exists f l
   | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->

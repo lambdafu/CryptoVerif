@@ -466,13 +466,24 @@ and probaf =
 			   This is also the maximum probability of choosing any given element of t in the
 			   standard distribution for that type.  *)
   | AttTime (* Time of the attacker *)
-  | Time of game * probaf (* Time i = runtime of game number i *)
+  | Time of string ref * time_cat * probaf
+     (* Time(cnt,Game(g),t) = runtime of game g + time of the adversary, 
+	which is equal to t
+	Time(cnt,Context(g),t) = runtime of the context for the crypto 
+	transformation applied in game g + time of the adversary, 
+	which is equal to t
+	Time(cnt,Complex,t) = some runtime equal to t *)
   | ActTime of action * probaf list 
   | Maxlength of game * term
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
   | OptimIf of optimcond * probaf * probaf
 
+and time_cat =
+  | Game of game
+  | Context of game
+  | Complex
+      
 and optimcond =
   | OCProbaFun of string * probaf list
   | OCBoolFun of string * optimcond list

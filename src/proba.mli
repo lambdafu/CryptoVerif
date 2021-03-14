@@ -173,3 +173,6 @@ val get_current_state : unit -> simplify_internal_info_t
 val get_and_empty_state : unit -> simplify_internal_info_t
 val restore_state : simplify_internal_info_t -> unit
 val empty_proba_state : simplify_internal_info_t
+
+val is_complex_time : probaf -> bool
+    

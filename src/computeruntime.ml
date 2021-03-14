@@ -522,11 +522,10 @@ let compute_runtime_for_context g equiv map_fun names_discharge =
       let nnewchannel = 2*(countfuns (List.map fst lm)) in
       Polynom.sum tp (Polynom.probaf_to_polynom (Mul(Cst (float_of_int nnewchannel), ActTime(ANewChannel, []))))
   in
-  let r = Polynom.polynom_to_probaf t in
   whole_game := Terms.empty_game;
   get_time_map := (fun t -> raise Not_found);
   names_to_discharge := [];
-  r
+  t
 
 let compute_runtime_for g = 
   whole_game := g;

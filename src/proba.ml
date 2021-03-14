@@ -545,7 +545,7 @@ let get_time() =
   match !time_for_whole_game with
   | Some t -> t
   | None ->
-      let t = Time (!whole_game, Computeruntime.compute_runtime_for (!whole_game)) in
+      let t = Time (ref "", Game(!whole_game), Add(AttTime, Computeruntime.compute_runtime_for (!whole_game))) in
       time_for_whole_game := Some t;
       t
     
@@ -929,10 +929,27 @@ let add_proba_red coll_statement restr_indep_map any_var_map =
    game, in the probability [p] and instantiates variables in
    [Maxlength(g,t)] inside [p] according to [restr_indep_map]
    and [any_var_map_list] *)
+
+let rec is_time = function
+  | Proba _ | Count _ | OCount _ | Card _ | Maxlength _ | TypeMaxlength _
+  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Length _
+  | Zero | Cst _ | Power _ ->
+      false
+  | AttTime | Time _ | ActTime _ -> true	
+  | Add(x,y) | Sub(x,y) | Mul(x,y) | OptimIf(_,x,y) -> 
+      is_time x || is_time y
+  | Div(x,y) ->
+      is_time x
+  | Max l -> List.exists is_time l
+  | Min l -> List.exists is_time l
+
+let is_complex_time = function
+  | AttTime | Time _ | ActTime(_,[]) -> false
+  | p -> is_time p
     
 let rec instan_time restr_indep_map any_var_map_list p =
   let rec aux = function
-    | AttTime -> Add(AttTime, get_time())
+    | AttTime -> get_time()
     | Time _ -> Parsing_helper.internal_error "unexpected time"
     | (Max _ | Maxlength _) as y ->
 	let accu = ref Polynom.empty_minmax_accu in
@@ -975,6 +992,15 @@ let rec instan_time restr_indep_map any_var_map_list p =
 	  aux p1
 	else
 	  aux p2
+    | Proba(f,l) ->
+	Proba(f, List.map (fun p ->
+	  let p' = aux p in
+	  if is_complex_time p' then
+	    (* The time will be displayed on a separate line *)
+	    Time(ref "", Complex, p')
+	  else
+	    p'
+	      ) l)
     | p -> Terms.map_sub_probaf aux p
   in
   aux p
