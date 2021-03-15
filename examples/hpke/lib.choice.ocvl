@@ -1,0 +1,35 @@
+(* Analysing the HPKE Standard - Supplementary Material
+   Joël Alwen; Bruno Blanchet; Eduard Hauck; Eike Kiltz; Benjamin Lipp; 
+   Doreen Riepel
+
+This is supplementary material accompanying the paper:
+
+Joël Alwen, Bruno Blanchet, Eduard Hauck, Eike Kiltz, Benjamin Lipp,
+and Doreen Riepel. Analysing the HPKE Standard. In Anne Canteaut and
+Francois-Xavier Standaert, editors, Eurocrypt 2021, Lecture Notes in
+Computer Science, Zagreb, Croatia, October 2021. Springer. To appear.
+Long version: https://eprint.iacr.org/2020/1499 *)
+
+def boolean_choice(value_t, test) {
+
+  fun test(bool, value_t, value_t) : value_t.
+
+  equation forall x:value_t, y:value_t; test(true, x, y) = x.
+  equation forall x:value_t, y:value_t; test(false, x, y) = y.
+  (* Knowing the equations defined above, this can be deduced, but
+     CryptoVerif can't do this on its own. *)
+  equation forall x:value_t, b:bool; test(b,x,x) = x.
+}
+
+(* Length needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Length, test) {
+
+  expand boolean_choice(value_t, test).
+
+  (* Knowing the equations defined above, this can be deduced, but
+     CryptoVerif can't do this on its own. *)
+  equation forall x:value_t, y:value_t, b:bool; Length(test(b,x,y)) = test (b,Length(x),Length(y)).
+
+}

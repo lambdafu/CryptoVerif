@@ -40,11 +40,12 @@ branches, so mutually exclusive.)
 Test [is_included cur_array tl] too strict? Add to [tl] the indices
 of random variables above the replication bound we are computing?
 
-Add scripts for HPKE [Benjamin OK]
-
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
 to ProVerif as well for compatibility (but ignore them).
+
+Update licence of Kerberos files? (they say they are under Cecill,
+while the rest of cryptoverif is under Cecill-B)
 
 LATER:
 
@@ -5928,3 +5929,6 @@ Nicer probability formulas:
 time(context for ...) but to time_i)
 Only when time(context for ...) is used once
 DONE 11/3/2021
+
+Add scripts for HPKE [Benjamin OK]
+DONE 15/3/2021

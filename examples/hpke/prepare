@@ -1,0 +1,34 @@
+#!/bin/sh
+
+file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+file_exists_or_abort ../../default.ocvl
+file_exists_or_abort lib.truncate.ocvl
+file_exists_or_abort lib.option.ocvl
+file_exists_or_abort lib.choice.ocvl
+file_exists_or_abort lib.gdh.ocvl
+file_exists_or_abort lib.authkem.ocvl
+file_exists_or_abort lib.aead.ocvl
+file_exists_or_abort lib.prf.ocvl
+cat ../../default.ocvl lib.truncate.ocvl lib.option.ocvl lib.choice.ocvl lib.gdh.ocvl lib.authkem.ocvl lib.aead.ocvl lib.prf.ocvl > mylib.ocvl
+
+generate() {
+  MODEL="$1"
+  M4FILE="${MODEL}.m4.ocv"
+  CVFILE="${MODEL}.ocv"
+  file_exists_or_abort ${M4FILE}
+  m4 ${M4FILE} > ${CVFILE}
+}
+
+for NOTION in outsider-cca outsider-auth insider-cca; do
+  generate "dhkem.auth.${NOTION}-lr"
+  generate "hpke.auth.${NOTION}"
+done
