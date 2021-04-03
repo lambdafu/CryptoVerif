@@ -571,7 +571,7 @@ let rec display_proba ?(separate_time = false) level = function
       if level > 3 then print_string ")"
   | Power(x,n) ->
       display_proba ~separate_time 5 x;
-      print_string " ^ ";
+      print_string "^";
       print_int n
   | Zero -> print_string "0"      
   | Cst n -> print_float n

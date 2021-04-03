@@ -34,8 +34,6 @@ new x; O() := ... it causes a soundness bug, cf
 examplesnd/otest/query_equiv_optim_bug.ocv
 examplesnd/otest/query_equiv_optim_bug_usage.ocv
 
-Display: write "^" instead of " ^ ".
-
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
 to ProVerif as well for compatibility (but ignore them).
