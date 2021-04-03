@@ -1,0 +1,52 @@
+(* This file exhibits a bad interaction between the NameTable feature
+   to avoid counting several times usages of the same names and the
+   usage of #O in probabilities.
+   In O4, both calls to enc_r have the same NameTable for k, so only
+   one of them is counted. That would be ok if it were counted for N1*N2 keys.
+   However, the first call to enc_r is counted for #O2 keys,
+   the second one for #O3 keys, so here we should take the sum:
+   #O2 + #O3 keys are used.
+   CryptoVerif incorrectly considers only #O3 keys.
+
+   19/3/2021: fixed, it considers #O1 keys. *)
+
+
+type key [large,fixed].
+type enc_seed [large,fixed].
+
+proba Penc.
+
+expand IND_CPA_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc).
+
+param N1, N2.
+
+process
+(
+      !N1 !N2
+      O1(x: bool) :=
+      if x then
+      (
+         return();
+	 O2(y: bitstring) :=
+	 new k: key;
+	 new n1: enc_seed;
+	 return
+      )
+      else
+      (
+         return();
+	 O3(y: bitstring) :=
+	 new k: key;
+	 new n2: enc_seed;
+	 return
+      )
+ )
+ | (O4(c: bitstring) :=
+ find j2 <= N2, j1 <= N1 suchthat defined(y[j2,j1], k[j2,j1], n1[j2,j1]) && enc_r(y[j2,j1], k[j2,j1], n1[j2,j1]) = c then return(true)
+ orfind j2 <= N2, j1 <= N1 suchthat defined(y[j2,j1], k[j2,j1], n2[j2,j1]) && enc_r(y[j2,j1], k[j2,j1], n2[j2,j1]) = c then return(true)
+ else return(false))
+      
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

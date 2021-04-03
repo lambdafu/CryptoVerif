@@ -73,6 +73,49 @@ let remove_suffix n l =
   let (res, _) = split (List.length l - n) l in
   res
 
+(* [is_included_distinct eq l1 l2] returns true when [l1] is included 
+   in [l2], considered as multisets. [eq] is the equality function 
+
+   [remove_fail eq l1 l2] returns the list representing the multiset
+   [l1] minus [l2]. [eq] is the equality function.
+   [l2] must be included in [l1] (as multisets), otherwise, an assertion 
+   fails *)
+
+let rec remove_one eq idx = function
+  | [] -> raise Not_found
+  | a::l ->
+      if eq a idx then l else
+      a::(remove_one eq idx l)
+
+let remove eq linit lrem =
+  List.fold_left (fun accu i -> remove_one eq i accu) linit lrem  
+
+let is_included_distinct eq lrem linit =
+  try
+    ignore (remove eq linit lrem);
+    true
+  with Not_found ->
+    false
+
+let remove_fail eq linit lrem =
+  try
+    remove eq linit lrem
+  with Not_found -> assert false
+
+(* [get_same eq f l] returns the result of [f x] for all [x] in the list [l],
+   when [f x] has the same value for all such [x]. Otherwise, it raises 
+   [Not_found]. [eq] is used to test equality of the results. *)
+
+let rec get_same eq f = function
+  | [] -> raise Not_found
+  | [a] -> f a
+  | a::l ->
+      let x = get_same eq f l in
+      if eq (f a) x then 
+	x
+      else
+	raise Not_found
+      
 (** [assq_rest a l] returns the value associated with key [a] in the list of
    pairs [l], as well as the list of other elements of [l]. That is,
    [assq_rest a [ ...; (a,b); ...] = (b, lrest)]
@@ -449,11 +492,13 @@ let term_from_binderref (b,l) =
 let binderref_from_binder b =
   (b, List.map term_from_repl_index b.args_at_creation)
 
+let is_repl_index ri t =
+  match t.t_desc with
+    ReplIndex ri' -> ri == ri'
+  | _ -> false
+    
 let is_args_at_creation b l =
-  List.for_all2 (fun ri t -> 
-    match t.t_desc with
-      ReplIndex ri' -> ri == ri'
-    | _ -> false) b.args_at_creation l
+  List.for_all2 is_repl_index b.args_at_creation l
 
 let app f l =
   build_term_type (snd f.f_type) (FunApp(f,l)) 

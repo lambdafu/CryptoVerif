@@ -29,16 +29,12 @@ HIGH PRIORITY
 
 cryptoprim.tex: continue updating with the new def of nominal groups.
 
-Optimize the runtime computed for conditions of "find": if an expression
-does not use all indices of the find, I do not need to repeat its
-computation at every evaluation of the condition. Count only the
-indices that occur in the expression.
+undo optim of query_equiv which uses O() := new x;... instead of
+new x; O() := ... it causes a soundness bug, cf 
+examplesnd/otest/query_equiv_optim_bug.ocv
+examplesnd/otest/query_equiv_optim_bug_usage.ocv
 
-TextSecure, first example, Game 60: CV counts at most 5 calls to enc_r
-for each key r_50, while it should count at most 1. (They are in different
-branches, so mutually exclusive.)
-Test [is_included cur_array tl] too strict? Add to [tl] the indices
-of random variables above the replication bound we are computing?
+Display: write "^" instead of " ^ ".
 
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
@@ -47,29 +43,16 @@ to ProVerif as well for compatibility (but ignore them).
 Update licence of Kerberos files? (they say they are under Cecill,
 while the rest of cryptoverif is under Cecill-B)
 
-LATER:
+Allow more complicated proofs for [unique] annotations, with game
+transformations before the actual proof.
 
-Minor pbs in the display of times:
-- it is possible that time_i = time + time(context for game n) = ...
-but CV shows only time_i = ..., because the equality
-time_i = time + time(context for game n) appears after simplification,
-the initial formula is more complex.
-- it is possible that CV shows time_i = ... time_j ...
-and time_j is used only once, so the formula for time_j could
-be expanded directly, because the initial formula for time_i contains
-several occurrences of time_j, but only one remains after simplification.
-- it is also possible that CV shows
-time_i = formula from time_j
-time_i' = same formula from time_j
-because the initial formula contains
-P1(formula from time) and P2(same formula from time)
-(or the 2 formulas become the same after simplification)
-I consider that these points are acceptable.
+MAYBE:
 
 Be able to specify equalities between probability formulas,
 used for simplifying them. Possible usage:
 - time(enc_r') = time(enc_r) when enc_r' is used for the same function
 as enc_r, just to avoid loop in applications of equiv.
+- |G| = |Z| in prime-order Diffie-Hellman groups.
 - solve the issue below with multikey proba
 Syntax: proba equation [forall x1:dim1, ..., xn:dimn;] probaf1 = probaf2. ?
 
@@ -91,23 +74,30 @@ Uniformity with the syntax for equalities?
 Small terms should be eliminated only when there is a bigger term,
 in particular avoid systematically eliminating small terms as I do now.
 
-Or be simpler:
-Display a lighter runtime, of the form (polynom in parameters) *
-O(1) where O(1) is a time that does not depend on parameters
-(constant or may depend on length of bitstrings).
+Be able give an expected probability with a query, and the proof
+is considered successful when the probability computed by CV is
+at most the one given by the user.
+We could even use this expected probability as guidance, allowing
+elimination of collisions only for terms less than the ones found
+in the expected probability.
 
-I could also check that probabilities are negligible assuming parameters
-and lengths are polynomial, cardinals of large types are exponential,
-and probas are negligible.
-(Somewhat related to the probability dimension check, but has a better
-semantics.)
-Problematic when we give explicit constants (e.g. 2^{-250}) for
-probabilities. When should it be considered negligible?
-   
+Optimize the runtime computed for conditions of "find": if an expression
+does not use all indices of the find, I do not need to repeat its
+computation at every evaluation of the condition. Count only the
+indices that occur in the expression.
+
+LATER:
+
 Use multikey probability by default for special equiv (SPRP, PRF, PRP);
 the probability based on a single key can be defined using letproba.
 Advantage:
 - possible to use a more precise multikey probability when we want
+- yields a more precise probability for collisions: now, collision
+  oracles are !Ncoll Ocoll(...) := ..., with a term Ncoll * pcoll in
+  the probability. If there are Nk keys, we get Nk * Ncoll * pcoll
+  by the automatic addition of the replication.
+  In the multikey setting, we could use #Ocoll * pcoll instead, which
+  is more precise.
 Drawbacks:
 - I no longer use the automatic addition of replication on top of equiv
 - The runtime of the context in the derivation single-key -> multi-key
@@ -120,6 +110,18 @@ Use the improved computation of probabilities for Shoup's lemma
 to show that we can count the elimination of collisions once
 for the whole sequence of games
 => That's interesting but not that easy to justify, see later.
+
+Some reasons why probabilities may not be optimal:
+- 2 oracle calls are incompatible, but the number of calls to
+one of them is optimized more than the other. In this case, we get
+the sum of the 2 numbers, while if we optimized both oracles
+in the same way (hence optimize less one of the two oracles),
+we would get the largest of the 2 numbers.
+The probability formula is not so nice, but the loss is at most
+a small factor.
+- In Simplify1.same_oracle_call, we should use a form of antiunification, 
+to show that more calls are in fact calls to the same oracle.
+The loss is also a small constant factor.
 
 0.3)
 In *_partial equivalences, distinguish the number of transformed
@@ -1153,15 +1155,6 @@ x is defined by "new", and it should be oriented.
 4/09/2013: now works manually; it would still be nice
 to make it work automatically.
 
-EKE:
-- In Simplify1.is_compatible_indices, exploit defined variables using 
-CompatibleDefs2.check_compatible2_deflist to show that indices are
-incompatible.
-- In Simplify1.same_oracle_call, use a form of antiunification, 
-to show that more calls are in fact calls to the same oracle.
-- new proof of EKE in oexamples/OEKE.ocv. In the probability, there is now a term
-  (2 qH0 + 3 qH1) pCDH(...). Try to reduce it to (qH0 + qH1) pCDH(...)
-
 - "Expanding and simplifying" is very slow in
 ~/dev/projects/2014ANRAirbus/ICAO9880-May2017/computational/ATN_functions.cv
 
@@ -1265,6 +1258,71 @@ we translate the input/output calculus into OCaml, functional calculus.
 LOW PRIORITY:
 
 20) Small details
+
+In elimination of collisions, when filter_indices_coll fails to
+reduce the probability sufficiently, I should remember that result to
+avoid computing it again. (Is that possible? Depends on the current
+known facts, so hard to remember and compare quickly...)
+
+CV tends to discharge expressions such as
+gab_3 = exp(g, mult(a[u_105[ri_44]], b[ri_44]))
+with mapping a -> a, b -> b using oracle
+ODDHa(m:G, j<=nb) := return(m = exp(g, mult(b[j], a))
+(j = ri_44, ia = u_105[ri_44])
+while it would get a better probability using the oracle
+ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b)))
+(ib = ri_44, j = u_105[ri_44])
+With the 2nd oracle, it is clear that, for each b, there are
+as many calls to ODDHb as the number of values of m.
+While with the 1st oracle, for each a, there are potentially
+as many calls to ODDHa as the number of values of m and of b.
+It can be solved by manual guidance; would it be possible to automate that?
+
+examplesnd/otest/proba_countO_diffbranch2.ocv
+the number of keys is counted #O1, while #O2 + #O3
+would be slightly better, but CryptoVerif never gets a
+sum of #O when it tries to optimize N1 * ... * Nn, it either
+finds a single oracle or keeps N1 * ... * Nn.
+
+Minor pbs in the display of times:
+- it is possible that time_i = time + time(context for game n) = ...
+but CV shows only time_i = ..., because the equality
+time_i = time + time(context for game n) appears after simplification,
+the initial formula is more complex.
+- it is possible that CV shows time_i = ... time_j ...
+and time_j is used only once, so the formula for time_j could
+be expanded directly, because the initial formula for time_i contains
+several occurrences of time_j, but only one remains after simplification.
+- it is also possible that CV shows
+time_i = formula from time_j
+time_i' = same formula from time_j
+because the initial formula contains
+P1(formula from time) and P2(same formula from time)
+(or the 2 formulas become the same after simplification)
+I consider that these points are acceptable.
+
+Or be simpler:
+Display a lighter runtime, of the form (polynom in parameters) *
+O(1) where O(1) is a time that does not depend on parameters
+(constant or may depend on length of bitstrings).
+
+I could also check that probabilities are negligible assuming parameters
+and lengths are polynomial, cardinals of large types are exponential,
+and probas are negligible.
+(Somewhat related to the probability dimension check, but has a better
+semantics.)
+Problematic when we give explicit constants (e.g. 2^{-250}) for
+probabilities. When should it be considered negligible?
+   
+- transf_crypto: I could allow to use variable that occurs in a query
+mapped to a random variable in the LHS, provided the LHS and RHS
+provide an oracle that leaks the random variable in question.
+(The same oracle in the LHS and RHS.)
+It's not essential because I can get the same effect by using
+new y; let x = y in and using x in the query
+(that's even more general because it allows corruption oracles
+which add a variable definition in the RHS, which would not
+be allowed by the extension above).
 
 - Infer (1)
 collision x <-R Z; y <-R Z; forall X: subG; 
@@ -5932,3 +5990,216 @@ DONE 11/3/2021
 
 Add scripts for HPKE [Benjamin OK]
 DONE 15/3/2021
+note: the change on Jan 26, 2021 (record statements earlier, so that they are available in the initial simplification of the RHS of an equivalence) causes an increase of PCollKey in the probabilities for DHKEM, because the RHS is initially simplified, while before the simplification happened later, together with an other simplification using the same collision.
+
+TextSecure, first example, Game 60: CV counts at most 5 calls to enc_r
+for each key r_50, while it should count at most 1. (They are in different
+branches, so mutually exclusive.)
+Test [is_included cur_array tl] too strict? Add to [tl] the indices
+of random variables above the replication bound we are computing?
+
+Strange change as a consequence of fixing the pb above:
+diff tests/test2021.03.13-16_14_38 tests/test2021.03.15-22_09_46 :
+PROTOCOL examples/basic/signedDH.pcv
+208477c208475
+< Applying equivalence cdh(exp) with b, a [probability (2 * NA ^ 2 * NB ^ 2 + 2 * NB ^ 3 * NA + NA ^ 2 * NB + NA ^ 2 * qH * NB + 2 * NB ^ 2 * qH * NA) * pCDH(time_3)]
+---
+> Applying equivalence cdh(exp) with b, a [probability (2 * NA ^ 2 * NB ^ 2 + 2 * NB ^ 3 * NA + NA ^ 2 * NB + NA ^ 2 * qH * NB + 2 * NB ^ 2 * qH * NA + NA ^ 3 * NB) * pCDH(time_3)]
+coming from the equality test using physical equality of compat_info:
+an oracle counted NA * NA is considered the same call as an oracle
+counted NA (as a result of a call to Depanal.same_oracle_call).
+Several things to fix:
+- same_oracle_call should use the count of the most general of the 2 oracles
+(cf below)
+- both oracles should in fact be counted NA by removing more indices
+(cf below)
+
+!N !N new k
+|
+!i<=N   if cond then oracle(k[i,j[i]]) else oracle(k[h[i],i])
+The indices of k determine cur_array at the test in both oracles,
+so FDiffBranch takes a max. -> one oracle call for each k.
+However, k[1,2] can be used twice: for i = 1 and cond = true
+and for i = 2 and cond = false
+=> be stricter. Keep all indices in the considered name, but flag them
+   with DeterminedByAboveRandom (for those of "new" above),
+   NotCounted (for those currently removed by
+make_count or Depanal.filter_indices), or Counted.
+FDiffBranch can take a max when cur_array is included in the indices
+of the considered name, flagged DeterminedByAboveRandom or Counted
+at the same position, so that when the indices flagged
+DeterminedByAboveRandom or Counted are the same, the cur_array is
+the same as well.
+
+Perhaps better: I should distinguish the case of replication bound
+above an oracle call with no "new" just before the oracle
+  => no NameTable; the indices are the indices used in the expression
+     (subset of the current array indices at the oracle call)
+     can use filtering by Depanal.filter_indices
+the case of counting "new"
+  => perhaps better to deal with those at the point of *creation*
+  of the names, instead of the point of call to the oracle
+the case of counting total oracle calls
+
+Structure:
+dest_t =
+  | ForNew of binder
+  | ForExp
+
+count_flag_t =
+  | DeterminedByAboveRandom
+  | NotCounted
+  | Counted
+   
+count_t =
+    { name_table_above_opt : (binder * binder) list list option;
+      indices : (term * count_flag_t) list } 
+
+     count : (repl_index * dest_t * count_t) list;
+        (* Replication binders of the right member of the equivalence,
+	   whether they should be counter for a new or for the modified term,
+	   and number of times each of them is repeated. *)
+     count_calls : channel * count_t;
+        (* Oracle name and number of calls to this oracle. *)
+	
+
+type compat_info =
+  | CompatFacts of Depanal.compat_info_elem * (Depanal.compat_info_elem * bool) list ref
+  | NoCompatInfo
+
+type count_elem =
+    { el_compat_info_ref : compat_info;
+      el_name_table_above_opt : (binder * binder) list list option;
+      el_indices : (term * count_flag_t) list;
+      el_count : monomial }
+
+FElem of count_elem ref
+
+ForNew _ => NoCompatInfo
+ForExp => CompatFacts
+
+make_count:
+longest_common_suffix / remove_suffix is too strict,
+I should remove all indices that are defined by previous restrictions
+(they are not necessarily the suffix because of indices of find)
+=> When I set name_table_opt to None, I remove all indices determined
+by previous restrictions (random variables), including those determined
+because their subterms are determined.
+   BEWARE! In fact, removing all such indices without care can break the
+   criterion [cur_array included in determined indices] to take the max
+   in case FDiffBranch.
+   ! iA <= NA new a;
+      if cond then find jx <= NA suchthat x[jx] = exp(g, mult(b[jx], a)
+              else find jA <= NA suchthat ... x = exp(g, mult(b[..],a[jA])
+   In the "then" branch, we have NA calls for each a (varying jx)
+   in the "else", branch, we have NA calls for each a (varying iA)
+   The indices (determined or current) are iA, jx (resp. iA, jA),
+   so cur_array = [iA] is always included in those.
+   However, I should not take the max: I can have almost 2 NA calls
+   for the same a:
+   suppose cond = true iff iA = 1. The then branch makes NA calls for a[1].
+   and the else branch makes NA-1 calls for a[1] (for each iA <> 1).
+
+When I set name_table_opt to Some nt, I must be more careful, because
+I want that all entries that have the same name_table_opt are included
+in the same count. For that, I should use rev_subst_name_indexes:
+when the rev_subst_name_indexes for the random variables just above
+contain i, index i of the current sequence is determined from the indices
+above, and can be removed.
+Since rev_subst_name_indexes must be the same when the name table is the same,
+the obtained count will be the same.
+
+same_oracle_call: I should update not only the compatibility information,
+but also the cardinal (fields el_indices_det_above, el_indices_for_this_count,
+el_count) to use the cardinal of the more general of the 2 calls
+Bug exhibited in examplesnd/otest/bug_same_oracle_call.ocv
+   
+when I compute a replication bound, I need to make a sum only when
+both expressions have the same name table above the considered replication
+bound; otherwise, I can always take a max (because they apply to different
+names above, so do not contribute to the number of executions per these names).
+
+transf_crypto: Bad interaction between the mechanism to avoid taking
+the sum (NameTable _/CompatFacts _) and the usage of #O in proba formulas?
+and FDiffBranch with the test cur_array included in list of indices as well?
+=> NameTable _ could cause problems if we had the same name (physically the
+same variable) created under different oracles in different branches of
+a test:
+if ... then ... O1() := new n ... else ... O2() := new n
+Bug exhibited in examplesnd/otest/proba_countO_diffbranch2.ocv
+=> For CompatFacts and FDiffBranch:
+It seems that I am very lucky: although I may choose wrongly to
+take a max, Polynom.max will overapproximate this max into a sum
+in case the probability formula uses different oracle names,
+so the result is correct in the end...
+=> This problem is fixable by first filtering according to the monomial
+(elem.el_count: probaf), computing as I currently do within terms
+that share the same monomial, and then making the sum.
+That should also be faster than the current code.
+That guarantees that I always compute a sum when counts are encoded
+using different oracles.
+(That was indirectly obtained by the overapproximation in Polynom.max,
+but I think it is nicer to make it clearer.)
+DONE 19/3/2021
+
+Indices at same position (in is_included_same_position)
+That's definitely what I want for the names above:
+they are indices of a common name table, I want to make sure that
+if I use the same names, I get the same values of the indices in cur_array.
+I should use that same mapping of indices in same_oracle_call,
+is_compatible_indices.
+That makes less sense for the counted indices.
+They are always a subset of cur_array (at the creation of the name for names,
+at the expression for oracles).
+  Mapping each index to the first counted index of the same type is fine.
+DONE 24/3/2021
+
+PROTOCOL examples/basic/signedDH.pcv
+CV does not detect that
+gab_3 = exp(g, mult(a[u_105[ri_44]], b[ri_44]))
+gab_3 = exp(g, mult(a[u_102[ri_44]], b[ri_44]))
+are mutually exclusive, because u_102 and u_105 cannot be defined
+for the same index.
+=> add the list of defined variables in the compatibility information.
+   DONE 25/3/2021
+   Does not have the desired effect, because CV is unable to detect
+   that u_102 and u_105 cannot be defined for the same index.
+FIXED 25/3/2021: the compatibility information was not computed in transf_crypto
+
+examples/hpke/dhkem.auth.outsider-cca-lr.ocv
+1042646c1042646
+< Applying equivalence gdh(exp) with variables: sk -> a, z_5 -> b [probability Adv_GDH(time_1, 2 * Qh * Qdperuser + N * #OADecap + N * #OAEncap + 3 * Qh * N) + (#OAEncap + N) * PDistRerandom + (N ^ 2 + 2 * #OAEncap * Qeperuser) * PCollKey]
+---
+> Applying equivalence gdh(exp) with variables: sk -> a, z_5 -> b [probability Adv_GDH(time_1, 2 * Qh * Qdperuser + N * #OADecap + N * #OAEncap + 3 * Qh * Qeperuser) + (#OAEncap + N) * PDistRerandom + (N ^ 2 + 2 * #OAEncap * N) * PCollKey]
+In fact the number of DDH queries should be 2 Qh instead of 2 * Qh * Qdperuser + N * #OADecap + N * #OAEncap + 3 * Qh * Qeperuser
+filter_indices seems not to filter enough indices. (It filters some, but not all.)
+DONE 25/3/2021 improved filter_indices, by requiring the oracle call to be determined,
+not its indices. Partly solves the issue: for HPKE, I also 
+need to increase the allowed probability of collisions.
+
+GDH: CV sometimes used ODDHa1(m:G, m':G) := return(m = exp(m', a))
+to discharge m = exp(g,a). That's stupid, it should just use exp(g,a).
+FIXED 25/3/2021, by adding oracles OAeq, OBeq to the definition of GDH.
+
+ODHa9: add #ODHa9 * time(exp) to the runtime of the context
+DONE 25/3/2021
+
+I should use filter_indices, is_compatible_indices also for creations of names
+DONE 26/3/2021
+
+Use known facts at oracle2 to do the matching in Depanal.match_oracle_call
+and to determine common facts.
+DONE 29/3/2021
+
+Improve usage of same_oracle_call: subsume_oracle_call.
+When 2 disjoint oracles are added, and then one oracle is added that
+subsumes both, we should remove both origina oracles. Currently,
+we remove only one.
+DONE 30/3/2021
+
+Better matching modulo eq & simp_facts
+DONE 30/3/2021
+
+optimize the computation of simp_facts in match_oracle_call,
+to avoid repeating it.
+DONE 31/3/2021

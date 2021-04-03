@@ -1,0 +1,40 @@
+(* Counting bug: CryptoVerif counts 1 call to the encryption oracle,
+   while there are N.
+   Reason: 
+   - Oracle O makes N calls to the encryption oracle
+   - Oracle O2 makes 1 call to the encryption oracle, which is a particular
+   case of the call made in O.
+   CV detects that the call in O2 is a particular case of the call in O
+   by Depanal.same_oracle_call, but it keeps the number of calls
+   of O2 instead of the one of O.
+
+   19/3/2021: fixed.
+ *)
+
+type key [large, fixed].
+type nonce [large, fixed].
+proba Penc.
+
+expand IND_CPA_sym_enc_nonce(key, bitstring, bitstring, nonce, enc, dec, injbot, Z, Penc).
+
+param N.
+
+process
+      Ostart() :=
+      new k: key;
+      return();
+      ((
+      !N
+      O(x: bitstring) :=
+      new n: nonce;
+      return(enc(x, k, n))
+      ) | (
+      O2(y: bitstring) :=
+      find j <= N suchthat defined(x[j],n[j]) && y = x[j] then
+      return(enc(x[j], k, n[j]))
+      ))
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

@@ -1014,3 +1014,36 @@ type oracle_struct =
       otype: typet list(*types of indices*) * typet list(*types of arguments*) * typet list option(*type of result*);
       onext: oracle_struct list }
       
+(* Structure for counting replication bounds and oracle calls in transf_crypto *)
+
+type count_flag_t =
+  | NotCounted
+  | Counted
+
+type counted_indices = (repl_index * count_flag_t) list
+      
+(* Information to decide whether numbers of oracle calls should be added,
+   or taken a max, or merged: use [Depanal.is_compatible_indices] to 
+   determine whether we should take a sum (they are compatible) 
+   or a max (they are incompatible, i.e. both oracles cannot be called 
+   with the same indices) *)
+
+type compat_info_elem = term(* oracle call that is made or random variable that is created*) *
+      term list(* true facts *) *
+      term list(* defined variables, stored as terms Var(b,l) *) *
+      term list(* above indices*) *
+      repl_index list(* all indices *) * 
+      repl_index list(* initial indices *) * 
+      repl_index list(* used indices *) * 
+      counted_indices(* really used indices *)
+
+type count_elem =
+    { el_compat_info : compat_info_elem;
+      mutable el_incompatible : count_elem list;
+      el_name_table_above_opt : (binder * binder) list list option;
+      el_indices_above : term list;
+      el_indices : counted_indices;
+      el_count : monomial;
+      mutable el_active : bool;
+      mutable el_color : int;
+      mutable el_index : int }

@@ -149,12 +149,12 @@ let equal_find_compos_probaf
    Used for various definitions of a variable with their
    find_compos probability in Transf.global_dep_anal. *)
 
-let match_term3 next_f t t' () = Proba.match_term_any_var None next_f t t' ()
+let match_term_any_var next_f t t' () = Proba.match_term_any_var None next_f t t' ()
     
 let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
   try
     let probaf_inst = 
-      Terms.ri_auto_cleanup (match_term3 (match_term3 (fun () ->
+      Terms.ri_auto_cleanup (match_term_any_var (match_term_any_var  (fun () ->
 	instantiate_find_compos_probaf probaf
 	  ) t2 t2') t1 t1')
     in
@@ -176,30 +176,36 @@ let matches_proba_info (t1, t2, probaf) (t1', t2', probaf') =
 
    The functions [lookup] and [find_common] help computing the
    commun true facts. 
-   [lookup next_f t l] calls [next_f true] when an instance of
+   [lookup match_fun next_f t l] calls [next_f true] when an instance of
    [t] occurs in [l]. Otherwise, it calls [next_f false].
-   [find_common next_f [] l1 l2] calls [next_f common]
+   [find_common_aux match_fun next_f [] l1 l2] calls [next_f common]
    where [common] is the list of elements of [l1]
-   whose instance occurs in [l2]. *)
+   whose instance occurs in [l2].
+   [find_common match_fun l1 l2] returns the list of elements of [l1]
+   whose instance occurs in [l2].
+ *)
 
-let rec lookup next_f t = function
+let rec lookup match_fun next_f t = function
   | [] -> (* Not found *) next_f false
   | a::l ->
       try 
-	match_term3 (fun () -> (* Found *) next_f true) t a ()
+	match_fun (fun () -> (* Found *) next_f true) t a ()
       with NoMatch ->
-	lookup next_f t l
+	lookup match_fun next_f t l
 
-let rec find_common next_f accu l1 l2 =
+let rec find_common_aux match_fun next_f accu l1 l2 =
   match l1 with
   | [] -> next_f accu
   | t::l ->
-      lookup (fun found ->
+      lookup match_fun (fun found ->
 	let accu' = if found then t::accu else accu in
-	find_common next_f accu' l l2
+	find_common_aux match_fun next_f accu' l l2
 	  ) t l2
-	
-      
+
+let find_common match_fun l1 l2 =
+  find_common_aux match_fun (fun accu -> accu) [] l1 l2
+
+    
 let matches_term_coll c c' = 
   try 
     if c.t_var != c'.t_var then
@@ -210,16 +216,16 @@ let matches_term_coll c c' =
 	  match c.t_lopt,c'.t_lopt with
 	  | None, None -> next_f ()
 	  | Some l, Some l' ->
-	      Match_eq.match_term_list match_term3 next_f l l' ()
+	      Match_eq.match_term_list match_term_any_var next_f l l' ()
 	  | _ -> raise NoMatch
 	in
-	match_lopt (match_term3 (match_term3 (match_term3 (fun () -> 
+	match_lopt (match_term_any_var (match_term_any_var (match_term_any_var (fun () -> 
 	  let proba_inst = Proba.copy_probaf_mul_types Terms.Links_RI c.t_proba in
 	  if not (Proba.equal_probaf_mul_types proba_inst c'.t_proba) then
 	    (* For speed, we do not reconsider other ways to match the 3 terms,
 	       so we raise Not_found rather than NoMatch *)
 	    raise Not_found;
-	  find_common (fun common_facts -> common_facts) [] c.t_true_facts c'.t_true_facts
+	  find_common match_term_any_var c.t_true_facts c'.t_true_facts
 	      ) c.t_side_cond c'.t_side_cond) c.t_indep c'.t_indep) c.t_charac c'.t_charac) ();
       end
   with NoMatch -> raise Not_found
@@ -229,7 +235,28 @@ let get_index_size b =
 
 let greater_size b1 b2 = compare (get_index_size b2) (get_index_size b1)
 
-(* Filter out the indices that are unique knowing other indices 
+(* [order_indices] prepares the initial list of indices for [filter_indices_coll] 
+   The initial list of indices is a reordering of the list of all indices.
+   We start with the larger indices (to eliminate them first) and among
+   the indices of the same size, with those that are not in [used_indices]
+   (also to eliminate them first).
+   The goal is to try to remove large indices
+   of [used_indices], perhaps at the cost of adding more
+   smaller indices of [all_indices]. *)
+let order_indices all_indices used_indices =
+  (* Sort used_indices and all_indices in decreasing size *)
+  let used_indices_sort = List.sort greater_size used_indices in
+  let all_indices_sort = List.sort greater_size all_indices in
+  (* Remove elements of all_indices that are in used_indices *)
+  let all_indices_sort_minus_used_indices = List.filter (fun b -> not (List.memq b used_indices_sort)) all_indices_sort in
+  (* Build a list by merging indices from [all_indices] and [used_indices].
+     When indices are of the same size, we put elements of all_indices first,
+     so that they will be eliminated, except if they are now necessary
+     because they replace some larger index eliminated before. *)
+  List.merge greater_size all_indices_sort_minus_used_indices used_indices_sort 
+
+    
+(* [filter_indices_coll] filter out the indices that are unique knowing other indices 
    (useful for reducing the probabilities of collision) 
 
    true_facts must not contain if/let/find/new. 
@@ -243,12 +270,30 @@ let greater_size b1 b2 = compare (get_index_size b2) (get_index_size b1)
    and try to eliminate the indices in order. At each step, we check that all
    indices in the initial useful indices (used_indices) are uniquely 
    determined. 
+
+
+   - [call_terms] represents the oracle call or collision test that is performed.
+   - [above_indices] represents indices that are fixed because they determine
+   random variables above the replication index with want to bound: we bound
+   the number of calls for the same value of [above_indices].
+   
+   We show that, assuming the indices in [above_indices] are fixed and the
+   counted indices are fixed, we get the same [call_terms] even if the other indices vary.
+   To do that, we create a second copy of the other indices, and write ren(t) for
+   the term obtained by replacing the other indices with their second copy.
+   We show that [above_indices = ren(above_indices)], [true_facts], (ren(true_facts)]
+   imply [call_terms = ren(call_terms)], by assuming [call_terms <> ren(call_terms)]
+   and deriving a contradiction.
    *)
 
 
-let filter_indices_coll true_facts used_indices initial_indices =
+let filter_indices_coll above_indices call_terms true_facts used_indices initial_indices =
   (* Filter the indices *)
-  (*print_string "Filter_indices_coll\nKnowing\n";
+  (*print_string "Filter_indices_coll ";
+  Display.display_list Display.display_term call_terms;
+  print_string " above indices ";
+  Display.display_list Display.display_term above_indices;
+  print_string "\nKnowing\n";
   List.iter (fun f -> Display.display_term f; print_newline()) true_facts;
   print_string "used_indices: ";
   Display.display_list Display.display_repl_index used_indices;
@@ -272,23 +317,28 @@ let filter_indices_coll true_facts used_indices initial_indices =
 	  b::l
   in
   let initial_indices' = remove_first_indices initial_indices in
-  let used_indices_term = List.map Terms.term_from_repl_index used_indices in
   let rec filter_indices_rec = function
       [] -> ()
     | first_index::rest_indices ->
-	List.iter (fun b -> 
-	  let b' = Facts.new_repl_index b in
-	  Terms.ri_link b (TLink (Terms.term_from_repl_index b')))
+	List.iter (fun b ->
+	  if not (List.exists (Terms.is_repl_index b) above_indices) then
+	    let b' = Facts.new_repl_index b in
+	    Terms.ri_link b (TLink (Terms.term_from_repl_index b')))
 	  (first_index::(!useless_indices));
 	let true_facts' = List.map (Terms.copy_term Terms.Links_RI) true_facts in
-	let used_indices_term' = List.map (Terms.copy_term Terms.Links_RI) used_indices_term in 
+	let call_terms' = List.map (Terms.copy_term Terms.Links_RI) call_terms in
+	let above_indices' = List.map (Terms.copy_term Terms.Links_RI) above_indices in
 	Terms.ri_cleanup();
-	let diff_fact = Terms.make_or_list (List.map2 Terms.make_diff used_indices_term used_indices_term') in
-	let facts = diff_fact :: (true_facts' @ true_facts) in
+	let diff_fact = Terms.make_or_list (List.map2 Terms.make_diff call_terms call_terms') in
+	let eq_facts = List.map2 Terms.make_equal above_indices above_indices' in
+	let facts = diff_fact :: eq_facts @ (true_facts' @ true_facts) in
 	try
 	  (*print_string "index: "; Display.display_repl_index first_index; *)
-	  ignore (Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts));
+	  let proba_state = Proba.get_current_state() in
+	  ignore (Terms.auto_cleanup (fun () ->
+	    Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts));
 	  (* The index cannot be removed *)
+	  Proba.restore_state proba_state;
 	  (*print_string " kept\n";*)
 	  useful_indices := (!useful_indices) @ [first_index];
 	  filter_indices_rec rest_indices
@@ -339,6 +389,10 @@ I compare the probabilities by [equal_probaf_mul_types]
 and avoid merging in case they are different.
    *)
 
+let get_terms_opt = function
+  | None -> []
+  | Some l -> l
+      
 let matches coll coll' =
   Terms.ri_auto_cleanup (fun () ->
     try 
@@ -349,11 +403,11 @@ let matches coll coll' =
 	(* If we removed no index, this is certainly true *)
 	Some { coll with t_true_facts = common_facts }
       else
-	let really_used_indices'' = filter_indices_coll common_facts coll.t_used_indices coll.t_initial_indices in
+	let really_used_indices'' = filter_indices_coll [] (coll.t_indep :: coll.t_charac :: coll.t_side_cond :: (get_terms_opt coll.t_lopt)) common_facts coll.t_used_indices coll.t_initial_indices in
 	if Terms.equal_lists (==) coll.t_proba.p_ri_list really_used_indices'' then
 	  begin
 	  (*
-	  print_string "Simplify.matches ";
+	  print_string "Depanal.matches ";
 	  Display.display_term coll.t_charac;
 	  print_string " with ";
 	  Display.display_term coll.t_indep;
@@ -366,7 +420,7 @@ let matches coll coll' =
 	else
 	  begin
 	  (*
-	  print_string "Simplify.matches ";
+	  print_string "Depanal.matches ";
 	  Display.display_term coll.t_charac;
 	  print_string " with ";
 	  Display.display_term coll.t_indep;
@@ -414,27 +468,9 @@ let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt prob
 	t_charac = t1; t_indep = t2; t_var = b; t_lopt = lopt;
 	t_proba = Proba.optim_probaf probaf_mul_types }
     else
-      (* Try to reduce the list of used indices. 
-	 The initial list of indices is a reordering of the list of all indices.
-	 We start with the larger indices (to eliminate them first) and among
-	 the indices of the same size, with those that are not in used_indices
-	 (also to eliminate them first).
-	 The goal is to try to remove large indices
-	 of used_indices, perhaps at the cost of adding more
-         smaller indices of all_indices. *)
-      let initial_indices =
-	  (* Sort used_indices and all_indices in decreasing size *)
-	  let used_indices_sort = List.sort greater_size used_indices in
-	  let all_indices_sort = List.sort greater_size all_indices in
-	  (* Remove elements of all_indices that are in used_indices *)
-	  let all_indices_sort_minus_used_indices = List.filter (fun b -> not (List.memq b used_indices_sort)) all_indices_sort in
-	  (* Build a list by merging indices from all_indices and used_indices.
-	     When indices are of the same size, we put elements of all_indices first,
-	     so that they will be eliminated, except if they are now necessary
-	     because they replace some larger index eliminated before. *)
-	  List.merge greater_size all_indices_sort_minus_used_indices used_indices_sort 
-      in
-      let really_used_indices = filter_indices_coll true_facts used_indices initial_indices in
+      (* Try to reduce the list of used indices. *)
+      let initial_indices = order_indices all_indices used_indices in
+      let really_used_indices = filter_indices_coll [] (t2::t1::side_condition::(get_terms_opt lopt)) true_facts used_indices initial_indices in
       (* OLD: I can forget the facts without losing precision when I removed no index
 	 (initial_indices == really_used_indices);
 	 Now, if I removed no index, the probability will be too large to eliminate collisions. *)
@@ -1094,12 +1130,6 @@ let try_two_directions f t1 t2 =
        been filled. For use from cryptotransf.ml.
 *)
 
-type compat_info_elem = term * term list * 
-      repl_index list(* all indices *) * 
-      repl_index list(* initial indices *) * 
-      repl_index list(* used indices *) * 
-      repl_index list(* really used indices *)
-
 (* true_facts0 must not contain if/let/find/new. 
    if the initial indices contain "noninteractive" indices, we try
    to eliminate them, even by adding "interactive" indices, as follows: 
@@ -1117,55 +1147,42 @@ type compat_info_elem = term * term list *
    but to a subproduct of [t].
    *)
 
-let filter_indices t lhs_instance true_facts0 all_indices used_indices =
+let rec get_counted = function
+  | [] -> []
+  | (a,Counted)::l ->
+      a::(get_counted l)
+  | _::l ->
+      get_counted l
+    
+let filter_indices lhs_instance true_facts defined_vars above_indices all_indices used_indices =
   let proba_state = Proba.get_current_state() in
-  (* Collect all facts that are known to be true *)
-  let true_facts = 
-    try
-      true_facts0 @ (Facts.get_facts_at (DTerm t))
-    with Contradiction ->
-      [Terms.make_false()]
-  in
-  let used_indices' = List.map Terms.repl_index_from_term used_indices in
-  (* Try to reduce the list of used indices. 
-     The initial list of indices is a reordering of the list of all indices.
-     We start with the larger indices (to eliminate them first) and among
-     the indices of the same size, with those that are not in used_indices
-     (also to eliminate them first).
-     The goal is to try to remove large indices
-     of used_indices, perhaps at the cost of adding more
-     smaller indices of all_indices. *)
-  let initial_indices =
-      (* Sort used_indices and all_indices in decreasing size *)
-      let used_indices_sort = List.sort greater_size used_indices' in
-      let all_indices_sort = List.sort greater_size all_indices in
-      (* Remove elements of all_indices that are in used_indices *)
-      let all_indices_sort_minus_used_indices = List.filter (fun b -> not (List.memq b used_indices_sort)) all_indices_sort in
-      (* Build a list by merging indices from all_indices and used_indices.
-	 When indices are of the same size, we put elements of all_indices first,
-	 so that they will be eliminated, except if they are now necessary
-	 because they replace some larger index eliminated before. *)
-      List.merge greater_size all_indices_sort_minus_used_indices used_indices_sort 
-  in
-  (* Try to remove useless indices using true_facts *)
-  let really_used_indices = filter_indices_coll true_facts used_indices' initial_indices in
+  let used_indices' = get_counted used_indices in
+  (* Try to remove useless indices using [true_facts] *)
+  let initial_indices = order_indices all_indices used_indices' in
+  let really_used_indices = filter_indices_coll above_indices [lhs_instance] true_facts used_indices' initial_indices in
   if really_used_indices == initial_indices then
     begin
       (* I removed no index, I can just leave things as they were *)
       Proba.restore_state proba_state;
-      (used_indices, (lhs_instance, true_facts, all_indices, initial_indices, used_indices', used_indices'))
+      (used_indices,
+       (lhs_instance, true_facts, defined_vars,
+	above_indices, all_indices, initial_indices, used_indices', used_indices))
     end
   else
-    (List.map Terms.term_from_repl_index really_used_indices, 
-     (lhs_instance, true_facts, all_indices, initial_indices, used_indices', really_used_indices))
+    let updated_indices =
+      List.map (fun (i,flag) ->
+	(i, if flag = Counted && not (List.memq i really_used_indices) then NotCounted else flag)
+	  ) used_indices
+    in
+    (updated_indices, 
+     (lhs_instance, true_facts, defined_vars,
+      above_indices, all_indices, initial_indices, used_indices', updated_indices))
 
 (***** Test if two expressions can be evaluated with the same value of *****
        certain indices. 
        (useful for reducing the probabilities in the crypto transformation) 
        For use from cryptotransf.ml.
 *)
-
-(* TO DO Also exploit defined variables using CompatibleDefs2.check_compatible2_deflist *)
 
 let rec find_same_type b = function
     [] -> raise Not_found 
@@ -1177,11 +1194,69 @@ let rec find_same_type b = function
 	let (bim, rest_r) = find_same_type b r in
 	(bim, b''::rest_r)
 
+(* Build a mapping of indices between 2 oracle calls. 
+   We always use the same mapping when we want to determine whether 2 oracle
+   calls may be executed with the same value of the counted indices
+   (below in [is_compatible_indices] and in [Transf_crypto.is_incomp_diffbranch].
+
+   The indices in [above_indices] at the same positions are always equal,
+   because we count the number of calls to oracles for each random variable
+   whose indices are in [above_indices]: if the random variable is the same,
+   then its name is the same and its indices are the same. So we can map
+   freely indices in [above_indices] *at the same positions* to each other.
+
+   For counted indices (which do not occur in [above_indices]),
+   the mapping must be coherent: 
+   - we have the same mapping independently of which oracle call we present 
+   first and which second
+   - if i is mapped to i'  in the mapping from O1 to O2,
+   and i' is mapped to i'' in the mapping from O2 to O3,
+   then i must be mapped to i'' in the mapping from O1 to O3.
+   This is guaranteed by mapping each counted index to first counted index 
+   of the other oracle that is not used yet and has the same type.
+   *)
+	  
+let build_idx_mapping (above_indices1, used_indices1) (above_indices2, used_indices2) =
+  let rest_indices = ref (get_counted used_indices2) in
+  (* The above indices correspond to the same name table, so they must
+     match: the lists [above_indices1] and [above_indices2] have the same length. *)
+  let above_indices = List.combine above_indices1 above_indices2 in
+  List.map (fun (i, count_flag) ->
+    match count_flag with
+    | Counted ->
+	(* An index that is counted never appears in the [above_indices] *)
+	begin
+	  try 
+	    let (i', rest') = find_same_type i (!rest_indices) in
+	    rest_indices := rest';
+	    (i, Some i')
+	  with Not_found ->
+	    (i, None)
+	end
+    | NotCounted ->
+	try
+	  if List.exists (fun (t,t') ->
+	    Terms.is_repl_index i t && Terms.is_repl_index i t') above_indices then
+	    (i, Some i)
+	  else
+	    let (_,t') = List.find (fun (t,t') ->
+	      (Terms.is_repl_index i t) &&
+	      (match t'.t_desc with
+	      | ReplIndex _ -> true
+	      | _ -> false)
+		) above_indices in
+	    match t'.t_desc with
+	    | ReplIndex i' -> (i,Some i')
+	    | _ -> (i, None)
+	with Not_found ->
+	  (i, None)
+	) used_indices1
+
 let is_compatible_indices 
-    (t1, true_facts1, all_indices1, _, _, really_used_indices1) 
-    (t2, true_facts2, all_indices2, _, _, really_used_indices2) =
+    (t1, true_facts1, defined_vars1, above_indices1, all_indices1, _, _, really_used_indices1) 
+    (t2, true_facts2, defined_vars2, above_indices2, all_indices2, _, _, really_used_indices2) =
   (*
-  print_string "Simplify.is_compatible_indices ";
+  print_string "Depanal.is_compatible_indices ";
   Display.display_term t1;
   print_string " with ";
   Display.display_term t2;
@@ -1191,27 +1266,41 @@ let is_compatible_indices
        respect types. *)
   if (!Terms.current_bound_ri) != [] then
     Parsing_helper.internal_error "current_bound_ri should be cleaned up (simplify, filter_indices)";
-  let really_used_indices1' = ref really_used_indices1 in
-  List.iter (fun b -> 
-    if List.memq b really_used_indices2 then
-      try
-	let (b', rest_really_used_indices1) = find_same_type b (!really_used_indices1') in
-	really_used_indices1' := rest_really_used_indices1;
-	Terms.ri_link b (TLink (Terms.term_from_repl_index b'))
-      with Not_found -> 
-	let b' = Facts.new_repl_index b in
-	Terms.ri_link b (TLink (Terms.term_from_repl_index b'))
-    else
-      let b' = Facts.new_repl_index b in
-      Terms.ri_link b (TLink (Terms.term_from_repl_index b'))
-	) all_indices2;
+  let mapping = build_idx_mapping (above_indices2, really_used_indices2) (above_indices1, really_used_indices1) in
+  List.iter (fun (i, im) ->
+    match im with
+    | Some i' -> 
+	Terms.ri_link i (TLink (Terms.term_from_repl_index i'))
+    | None -> 
+	let i' = Facts.new_repl_index i in
+	Terms.ri_link i (TLink (Terms.term_from_repl_index i'))
+	  ) mapping;
   let true_facts2' = List.map (Terms.copy_term Terms.Links_RI) true_facts2 in
+  let defined_vars2' = List.map (fun t ->
+    Terms.binderref_from_term (Terms.copy_term Terms.Links_RI t)) defined_vars2 in
+  (* when we bound the replication parameter of an oracle, 
+     2 oracles calls need to be counted simultaneously only when the 
+     indices of the names above the currently considered replication are the same *)
+  let eq_above_idx =
+    List.map2 (fun t1 t2 ->
+      Terms.make_equal t1 (Terms.copy_term Terms.Links_RI t2)
+	) above_indices1 above_indices2
+  in
   Terms.ri_cleanup();
   try
+    let fact_accu = eq_above_idx @ true_facts1 @ true_facts2' in
+    let fact_accu =
+      List.fold_left (fun accu t ->
+	let br = Terms.binderref_from_term t in
+	List.fold_left (fun accu' br' ->
+	  Incompatible.both_def_add_fact accu' br br'
+	    ) accu defined_vars2'
+	  ) fact_accu defined_vars1
+    in
     ignore (Terms.auto_cleanup (fun () -> 
-      Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (true_facts1 @ true_facts2')));
+      Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) fact_accu));
     (* The terms t1 and t2 are compatible: they may occur for the same indices *)
-    (* print_string " true\n";  *)
+    (* print_string " true\n"; *)
     Proba.restore_state proba_state;
     true
   with Contradiction ->
@@ -1252,28 +1341,49 @@ Then we replace both calls with
   for all indices in t1 and common_facts such that common_facts holds, call t1
 This is more general than t1 and t2 and yields the same cardinal as t1. *)
 
-let match_oracle_call 
-    (t1, true_facts1, all_indices1, initial_indices1, used_indices1, really_used_indices1) 
-    (t2, true_facts2, all_indices2, initial_indices2, used_indices2, really_used_indices2) =
+let match_oracle_call simp_facts2 
+    (t1, true_facts1, defined_vars1, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1) 
+    (t2, true_facts2, defined_vars2, above_indices2, all_indices2, initial_indices2, used_indices2, really_used_indices2) =
+  
   (*
-  print_string "Simplify.same_oracle_call ";
+  print_string "Depanal.match_oracle_call ";
   Display.display_term t1;
   print_string " with ";
   Display.display_term t2;
     *)
+  let match_fun next_f t t' () = Facts.match_term_list3 simp_facts2 next_f [t] [t'] () in
+  (* Note: we cannot use the facts at oracle1 to help the match succeed.
+     First, we would need to use their instance of these facts found by the match
+     itself, so that would be more complicated.
+     Moreover, for example, if oracle1 is f(x[i]) with known fact x[i] = y[i,j]
+     which is not true at oracle2  and oracle2 is f(y[i,j]), with i,j mapped to i,j
+     by the matching, oracle2 cannot be considered as an instance of oracle1,
+     because oracle1 is counted N times, while oracle2 can be executed
+     N N' times (N = bound of i, N' = bound of j).
+     (To be precise, to have i,j mapped to i,j, we need to have some other argument of f
+     z[i,j] with z[i,j] = z'[i] on both sides, so that the filtering eliminates index j
+     even after keeping the common facts.)
+     *)
   Terms.auto_cleanup(fun () ->
     try
-      match_term3 (fun () -> 
-	let common_facts = find_common (fun common_facts -> common_facts) [] true_facts1 true_facts2 in
+      Facts.match_term_list3 simp_facts2 (fun () -> 
+	let common_facts = find_common match_fun true_facts1 true_facts2 in
+	let common_def_vars = find_common match_fun defined_vars1 defined_vars2 in
 	Terms.ri_cleanup();
+        (* Check that we can remove the same indices using common_facts as with all facts *)
 	let proba_state = Proba.get_current_state() in
-      (* Check that we can remove the same indices using common_facts as with all facts *)
-	let really_used_indices1' = filter_indices_coll common_facts used_indices1 initial_indices1 in
-	let r1 = Terms.equal_lists (==) really_used_indices1 really_used_indices1' in
+	let r1 =
+	  let counted_used_indices1 = get_counted really_used_indices1 in
+	  ((* Nothing was removed by [filter_indices] so we have nothing to check *)
+	  Terms.equal_lists (==) used_indices1 counted_used_indices1) ||
+	  ((* Otherwise, redo the removal of indices using [common_facts] *)
+	  let really_used_indices1' = filter_indices_coll above_indices1 [t1] common_facts used_indices1 initial_indices1 in
+	  Terms.equal_lists (==) counted_used_indices1 really_used_indices1')
+	in
 	if r1 then
 	  begin
 	  (*
-	  print_string "Simplify.same_oracle_call ";
+	  print_string "Depanal.match_oracle_call ";
 	  Display.display_term t1;
 	  print_string " with ";
 	  Display.display_term t2;
@@ -1282,12 +1392,12 @@ let match_oracle_call
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts;
 	  *)
-	    Some (t1, common_facts, all_indices1, initial_indices1, used_indices1, really_used_indices1)
+	    Some (t1, common_facts, common_def_vars, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1)
 	  end
 	else
 	  begin
 	  (*
-	  print_string "Simplify.same_oracle_call ";
+          print_string "Depanal.match_oracle_call ";
 	  Display.display_term t1;
 	  print_string " with ";
 	  Display.display_term t2;
@@ -1315,19 +1425,20 @@ let match_oracle_call
 	    Proba.restore_state proba_state;
 	    None
 	  end
-	  ) t1 t2 ()
+	    ) (above_indices1 @ [t1]) (above_indices2 @ [t2]) ()
+	(* Match the [above_indices] first to increase the chances of finding
+	   the right indices at the first try *)
     with NoMatch ->
-      (*
-	print_string "Simplify.same_oracle_call ";
-	Display.display_term t1;
-	print_string " with ";
-	Display.display_term t2;
-	print_string " fails\n";*)
+      (* 
+      print_string "Depanal.match_oracle_call ";
+      Display.display_term t1;
+      print_string " with ";
+      Display.display_term t2;
+      print_string " fails\n";
+      print_string "True facts 2:\n";
+      List.iter (fun t ->
+	 Display.display_term t; print_newline()) true_facts2;
+      print_string "simp_facts:\n";
+      Facts.display_facts simp_facts; *)
       None
     )
-
-let same_oracle_call call1 call2 =
-  match match_oracle_call call1 call2 with
-    None -> match_oracle_call call2 call1
-  | r -> r
-

@@ -6,7 +6,13 @@
 open Types
 
 let whole_game = ref Terms.empty_game
-let whole_game_middle = ref Terms.empty_game
+(* Dummy game to designate the game just after the crypto transformation,
+   before auto_sa_rename. Only its physical address is important *)
+let whole_game_middle =
+  { proc = Forgotten { text_display = ""; tex_display = None };
+    expanded = false;
+    game_number = -1;
+    current_queries = [] }
 let whole_game_next = ref Terms.empty_game
 
 exception OneFailure of failure_reason
@@ -1179,7 +1185,8 @@ type one_exp =
            the right member of the equivalence and b' is its image in 
            the transformed process. The indexes at creation of b' are cur_array_exp *)
      cur_array_exp : repl_index list; 
-        (* Value of cur_array at this expression in the process. *)
+        (* Value of cur_array at this expression in the process (including
+           replication and find indices). *)
      name_indexes_exp : (binder list * term list) list; 
         (* Values of indexes of names in this expression *)
      before_transfo_array_ref_map : (binderref * binderref) list;
@@ -1206,9 +1213,6 @@ type one_exp =
      after_transfo_input_vars_exp : (binder * term) list ;
         (* List of (b,t) where b is a binder defined by an input in the 
            right member of the equivalence and the term t is its image in the process *)
-     all_indices : repl_index list;
-        (* The list of array and find indices at the program point of the 
-	   transformed expression *)
      before_exp_instance : term option;
      product_rest : (funsymb * term option * term option * (funsymb * term) option) option
        (* In case the source_exp_instance is a product, and source_exp
@@ -1228,6 +1232,21 @@ type one_exp =
 	  *)
    }
 
+type dest_t =
+  | ForNew of binder
+  | ForExp
+
+type count_t =
+    { name_table_above_opt : (binder * binder) list list option;
+      indices_above : term list;
+      indices : counted_indices } 
+      (* Represents a number of repetitions, for computing a replication bound
+	 or the number of calls to an oracle.
+	 The number of repetitions is the product of the bounds
+	 of the product of indices stored in [indices] with flag [Counted].
+	 The associated name table [name_table_above_opt] serves in optimizing repetitions
+	 across several such records: when several records have different name tables above the considered replication, we can take their maximum instead of their sum. *)
+
 type mapping =
    { mutable expressions : one_exp list; (* List of uses of this expression, described above *)
      before_transfo_name_table : (binder * binder) list list;
@@ -1246,17 +1265,11 @@ type mapping =
      target_cur_array : repl_index list; (* cur_array in the right member of the equivalence *)
      target_exp : term; (* Right-member expression in the equivalence *)
      target_args : binder list; (* Input arguments in right-hand side of equivalence *)
-     count : (repl_index * (binder * binder) list list option * term list) list;
+     count : (repl_index * dest_t * count_t) list;
         (* Replication binders of the right member of the equivalence, 
-	   and number of times each of them is repeated, with associated name
-	   table: when several repl. binders have the same name table, they
-           should be counted only once.
-	   The number of repetitions is the product of the bounds
-	   of the indices stored in the "term list" component. *)
-     count_calls : channel * (binder * binder) list list option * term list;
-        (* Oracle name and number of calls to this oracle, with associated name
-	   table: when several repl. binders have the same name table, they
-           should be counted only once. *)
+	   and number of times each of them is repeated. *)
+     count_calls : channel * count_t;
+        (* Oracle name and number of calls to this oracle. *)
      mutable encode_fun_for_indices : funsymb option
    }
 
@@ -1462,11 +1475,6 @@ let new_repl_index3 t =
 let new_repl_index4 ri =
   Terms.create_repl_index "ri" ri.ri_type
 
-let rec make_prod = function
-    [] -> Cst 1.0
-  | [a] -> Count (Terms.param_from_type a.t_type)
-  | (a::l) -> Mul (Count (Terms.param_from_type a.t_type), make_prod l)
-
 let rec longest_common_suffix above_indexes current_indexes =
   match above_indexes with
     [] -> 0
@@ -1475,16 +1483,82 @@ let rec longest_common_suffix above_indexes current_indexes =
       let l_cur = Terms.len_common_suffix first_above_indexes current_indexes in
       max l_rest l_cur
 
-let rec make_count repl ordered_indexes before_transfo_name_table =
-  match repl, ordered_indexes, before_transfo_name_table with
-    [],[],[] -> []
-  | (repl1::repll,index1::indexl,nt1::ntl) ->
-      let len = longest_common_suffix indexl index1 in
-      (repl1, 
-       (if nt1 == [] then None else Some before_transfo_name_table), 
-       Terms.remove_suffix len index1) :: (make_count repll indexl ntl)
+let rec make_count repl ordered_indexes rev_subst_name_indexes before_transfo_name_table =
+  match repl, ordered_indexes, rev_subst_name_indexes, before_transfo_name_table with
+    [],[],[],[] -> []
+  | (repl1::repll,index1::indexl,rev_subst_index1::rev_subst_indexl,nt1::ntl) ->
+      let entry = 
+	match nt1 with
+	| [] -> assert false
+	| (_,first_name)::_ ->
+	    let idx_above =
+	      match rev_subst_indexl with
+	      | [] -> []
+	      | rev_subst_next::_ -> rev_subst_next
+	    in
+	    let idx_current = List.rev_map (fun i ->
+	      (i, if List.exists (Terms.is_repl_index i) idx_above then NotCounted else Counted)
+		) first_name.args_at_creation
+	    in
+	    (repl1, ForNew first_name,
+	     { name_table_above_opt = Some ntl;
+	       indices_above = idx_above;
+	       (* The field [indices] always contains the current replication indices in
+                  reverse order *)
+	       indices = idx_current })
+      in
+      entry :: (make_count repll indexl rev_subst_indexl ntl)
   | _ -> Parsing_helper.internal_error "make_count" 
 
+(* Find the array indices that are really useful in the term t *)
+
+let rec used_indices indices t =
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) -> 
+      List.iter (used_indices indices) l
+  | ReplIndex i ->
+      begin
+	try
+	  let used_ref = List.assq i indices in
+	  used_ref := true
+	with Not_found ->
+	  assert false
+      end
+  | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _  | EventE _ | GetE _ | InsertE _ ->
+      Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.used_indices)"
+
+let make_count_exp ch torg repl ordered_indexes rev_subst_name_indexes before_transfo_name_table =
+  match repl, ordered_indexes, rev_subst_name_indexes, before_transfo_name_table with
+  | (repl1::repll,index1::indexl,rev_subst_index1::rev_subst_indexl,nt1::ntl) ->
+      (* [index1] must be the current array indices at [torg] *) 
+      let top_indices_used =
+	List.map (fun t -> (Terms.repl_index_from_term t, ref false)) index1
+      in
+      (* Mark the indices that are really useful (they occur in [torg]) *)
+      used_indices top_indices_used torg;
+      let idx_above = List.concat indexl in
+      let idx_current =
+	List.rev_map (fun (i, used_ref) ->
+	  (i, if (not (!used_ref)) ||
+	         List.exists (Terms.is_repl_index i) idx_above then NotCounted else Counted)
+	    ) top_indices_used
+      in
+      let entry = 
+	(repl1, ForExp,
+	 { name_table_above_opt = Some ntl;
+	   indices_above = idx_above;
+	   (* The field [indices] always contains the current replication indices in
+              reverse order *)
+	   indices = idx_current })
+      in
+      entry :: (make_count repll indexl rev_subst_indexl ntl),
+      (ch, { name_table_above_opt = None;
+	     indices_above = [];
+	     (* The field [indices] always contains the current replication indices in
+                reverse order *)
+	     indices = List.rev_map (fun (i, used_ref) -> (i,if !used_ref then Counted else NotCounted)) top_indices_used})
+  | _ -> assert false  
+	
 let check_same_args_at_creation = function
     [] -> ()
   | (a::l) -> 
@@ -1711,21 +1785,6 @@ and get_def_vars_pat accu = function
       List.fold_left get_def_vars_pat accu l
   | PatEqual t -> get_def_vars accu t
 
-
-(* Find the array indices that are really useful in the term t *)
-
-let rec used_indices indices used t =
-  try
-    let index = List.find (Terms.equal_terms t) indices in
-    if not (List.memq index (!used)) then
-      used := index :: (!used)
-  with Not_found ->
-    match t.t_desc with
-      Var(_,l) | FunApp(_,l) -> 
-	List.iter (used_indices indices used) l
-    | ReplIndex _ -> ()
-    | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _  | EventE _ | GetE _ | InsertE _ ->
-	Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.used_indices)"
 
 (* [has_repl_index t] returns true when [t] contains a replication index *)
 
@@ -2085,7 +2144,6 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
 	cur_array_exp = cur_array;
 	before_transfo_input_vars_exp = input_env;
 	after_transfo_input_vars_exp = after_transfo_input_vars_exp;
-	all_indices = cur_array;
 	before_exp_instance = before_exp_instance;	
 	product_rest = product_rest
 	  }
@@ -2256,32 +2314,17 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		  let count, count_calls = 
 		    match exp.name_indexes_exp with
 		      (_::_,top_indices)::_ -> (* The down-most sequence of restrictions is not empty *)
-			make_count repl' (List.map snd exp.name_indexes_exp) before_transfo_name_table,
-			(ch, None, List.map Terms.term_from_repl_index exp.cur_array_exp)
-		        (* Another solution would be:
-			   (ch, Some before_transfo_name_table, top_indices)
+			make_count repl' (List.map snd exp.name_indexes_exp) (List.map snd rev_subst_name_indexes) before_transfo_name_table,
+			(ch, { name_table_above_opt = None;
+			       indices_above = [];
+			       indices = List.map (fun i ->
+				 (i, Counted)
+				   ) exp.cur_array_exp })
+		        (* Another solution would use top_indices instead of
+			   exp.cur_array_exp
 		           It's not clear a priori which one is smaller... *)
 		    | ([], top_indices)::rest -> 
-		        (* Filter the indices that are really useful *)
-			let used = ref [] in
-			used_indices top_indices used torg;
-		        (* I need to keep the indices in the same order as the initial
-	                   order (for cur_array), that's why I don't use (!used) directly.
-			   I also need the property that if t refers to an element to cur_array,
-			   it also refers to the following ones, so that a suffix of cur_array
-			   is kept *)
-		        let top_indices' = List.filter (fun t -> List.memq t (!used)) top_indices in
-		        (*
-			  print_string "Term: ";
-			  Display.display_term torg;
-			  print_string "\nIndices before filtering: ";
-			  Display.display_list Display.display_term top_indices;
-			  print_string "\nIndices used: ";
-			  Display.display_list Display.display_term top_indices';
-			  print_string "\n";
-			  *)
-			make_count repl' (top_indices'::(List.map snd rest)) before_transfo_name_table,
-			(ch, None, top_indices')
+			make_count_exp ch torg repl' (List.map snd exp.name_indexes_exp) (List.map snd rev_subst_name_indexes) before_transfo_name_table
 		    | [] ->
 		        (* There is no replication at all in the LHS => 
 			   the expression must be evaluated once *)
@@ -2297,8 +2340,10 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 			      print_string "There is no replication in the LHS of the equivalence, and the expression occurs several times in the game.\n";
 			    raise NoMatch
 			  end;
-			make_count repl' [] before_transfo_name_table,
-			(ch, None, [])
+			[],
+			(ch, { name_table_above_opt = None;
+			       indices_above = [];
+			       indices = [] })
 		  in
 
 	          (* verify that all restrictions will be correctly defined after the transformation *)
@@ -3912,11 +3957,12 @@ let do_crypto_transform p =
   let r' =
     if !Settings.use_known_equalities_crypto then
       begin
+	let r = Terms.move_occ_process r in
 	Def.build_def_process None r;
+	Incompatible.build_compatible_defs r;
 	let r' = update_def_list_simplif r in
-	(* Cannot cleanup here because it may delete information
-	   in the initial game, needed to compute the probabilities.
-	   Terms.empty_def_process r; *)
+	Def.empty_def_process r;
+	Incompatible.empty_comp_process r;
 	r'
       end
     else
@@ -3934,7 +3980,7 @@ let rec get_time_map t =
   (* Number of indexes at that expression in the equivalence *)
   let ik = List.length mapping.before_transfo_name_table in
   (* Replication indices of the LHS of the equivalence *)
-  let repl_lhs = List.map (fun (brepl, _,_) -> brepl) mapping.count in
+  let repl_lhs = List.map (fun (brepl, _, _) -> brepl) mapping.count in
   let indices_exp = one_exp.name_indexes_exp  in
   (args, il, ik, repl_lhs, indices_exp)
 
@@ -4024,99 +4070,81 @@ type count_get =
 
 let rec get_repl_from_count b_repl = function
     [] -> raise Not_found
-  | ((b, ntopt, v)::l) -> 
-      if b_repl == Terms.param_from_type b.ri_type then
-	(ntopt, v)
+  | ((b, dest, count_v)::l) -> 
+      if (b_repl == Terms.param_from_type b.ri_type) && (dest == ForExp) then
+	count_v
       else
 	get_repl_from_count b_repl l
 
-let get_oracle_count c (c', ntopt, v) =
+let get_oracle_count c (c', count_v) =
   if c == c' then
-    (ntopt, v)
+    count_v
   else
     raise Not_found
 
+(* Structure for counting replication bounds and oracle calls *)
 
-(* Information to decide whether numbers of oracle calls should be added,
-   or taken a max, or merged.
-   - NameTable nt: when several oracle calls have the same nt, 
-   we count only one of them (they are calls to the same oracle) 
-   - CompatFacts(t,tl,all_indices,used_indices): use 
-   Simplify1.is_compatible_indices to determine whether we should
-   take a sum (they are compatible) or a max (they are incompatible,
-   i.e. both oracles cannot be called with the same indices)
-   - NoCompatInfo: we take the sum (the worst case).
-   *)
-type compat_info =
-    NameTable of (binder * binder) list list
-  | CompatFacts of Depanal.compat_info_elem * (Depanal.compat_info_elem * bool) list ref
-  | NoCompatInfo
-
+type el_link_t =
+  | Elem of count_elem
+  | ElLink of el_link_t ref
+      
 type formula =
-    FElem of (compat_info ref * term list * probaf)
+    FElem of el_link_t ref
   | FZero
   | FPlus of formula * formula
   | FDiffBranch of repl_index list * formula * formula
 
-let seen_compat_info = ref []
+let rec get_elem link =
+  match !link with
+  | Elem el -> el
+  | ElLink link -> get_elem link
 
-let get_repl_from_map true_facts b_repl exp =
-  let (mapping, one_exp) = find_map exp in
-  let (ntopt, v) = 
-    match b_repl with
-      ReplCount p -> get_repl_from_count p mapping.count
-    | OracleCount c -> get_oracle_count c mapping.count_calls
-  in
-  match ntopt with
-    None -> 
-      let (v', compat_info_elem) =
-	match one_exp.before_exp_instance with
-	| None -> Parsing_helper.internal_error "before_exp_instance should be set when the crypto transformation completes"
-	| Some before_exp_instance ->
-	    Depanal.filter_indices exp before_exp_instance true_facts one_exp.all_indices v
-      in
-      let rec find_same_calls = function
-	  [] -> (* Not_found, add it *)
-	    let compat_info_ref = ref (CompatFacts(compat_info_elem, ref [])) in
-	    seen_compat_info := compat_info_ref :: (!seen_compat_info);
-	    (compat_info_ref, v')
-	| (a::rest) ->
-	    match !a with
-	      CompatFacts(compat_info2,_) -> 
-		begin
-		  match Depanal.same_oracle_call compat_info_elem compat_info2 with
-		    Some compat_info' ->
-		      (* Found *)
-		      a := CompatFacts(compat_info', ref []);
-		      (a, v')
-		  | None ->
-		      (* Look in the rest of the list *)
-		      find_same_calls rest
-		end
-	    | _ ->
-		Parsing_helper.internal_error "seen_compat_info should contain only CompatFacts"
-      in
-      find_same_calls (!seen_compat_info)
-  | Some nt ->
-      (ref (NameTable nt), v)
+let get_elem1 link =
+  match !link with
+  | Elem el -> el
+  | ElLink link -> assert false
 
-let add_elem e f =
-  match f with
-    FZero -> FElem e
-  | _ -> FPlus(FElem e, f)
+(* Display functions, for debugging *)
 
-let add f1 f2 =
-  match f1,f2 with
-    FZero, _ -> f2
-  | _, FZero -> f1
-  | _ -> FPlus(f1,f2)
-
-let add_diff_branch cur_array f1 f2 =
-  match f1,f2 with
-    FZero, _ -> f2
-  | _, FZero -> f1
-  | _ -> FDiffBranch(cur_array, f1, f2)
-
+let display_count_link count_link =
+  let count_el = get_elem count_link in
+  let (lhs_instance, _, _, _, _, _, _, _) = count_el.el_compat_info in
+  Display.display_term lhs_instance;
+  if (!Settings.debug_cryptotransf) > 2 then
+    begin
+      print_string " Indices above: ";
+      Display.display_list Display.display_term count_el.el_indices_above;
+      print_string " Indices: ";
+      Display.display_list (fun (i,flag) ->
+	Display.display_repl_index i;
+	print_string
+	  (match flag with
+	  | NotCounted -> " ign"
+	  | Counted -> " cnt")
+	  ) count_el.el_indices;
+      print_string " Count: ";
+    end
+  else
+    print_string "  ";
+  Display.display_proba 0 (Polynom.polynom_to_probaf [1.0,count_el.el_count]);
+  print_newline()
+	
+let rec display_formula ind = function
+  | FElem count_link ->
+      print_string ind;
+      display_count_link count_link
+  | FZero ->
+      print_string (ind^"0\n")
+  | FPlus(f1,f2) ->
+      print_string (ind^"Plus\n");
+      display_formula (ind^"  ") f1;
+      display_formula (ind^"  ") f2
+  | FDiffBranch(cur_array,f1,f2) ->
+      print_string (ind^"DiffBranch ");
+      Display.display_list Display.display_repl_index cur_array;
+      print_newline();
+      display_formula (ind^"  ") f1;
+      display_formula (ind^"  ") f2
 
 (* Optimize the number of calls to oracles using #O *)
 
@@ -4141,7 +4169,7 @@ and find_oracles_br state (b,l) =
 	(List.for_all2 Terms.equal_terms (Terms.lsuffix (List.length l') l) l')
   in
   if can_improve_current_candidate &&
-    (List.for_all (fun t -> List.exists (Terms.equal_terms t) state.remaining_indices) l)
+    (Terms.is_included_distinct Terms.equal_terms l state.remaining_indices)
   then
     try
       state.current_candidate <- Some (Computeruntime.get_oracle b, l)
@@ -4158,8 +4186,7 @@ let rec find_all_oracles state ttransf =
     | None -> state
     | Some (ch, l) ->
 	let new_state =
-	  { remaining_indices = List.filter (fun t ->
-	      not (List.exists (Terms.equal_terms t) l)) state.remaining_indices;
+	  { remaining_indices = Terms.remove_fail Terms.equal_terms state.remaining_indices l;
 	    found_oracles = ch :: state.found_oracles;
 	    current_candidate = None }
 	in
@@ -4168,22 +4195,276 @@ let rec find_all_oracles state ttransf =
 	
 let get_opt_probaf indices ttransf =
   if (not (!Settings.use_oracle_count_in_result)) || (List.length indices <= 1) then
-    make_prod indices
+    Polynom.build_monomial (List.map (fun i -> Count (Terms.param_from_type i.ri_type)) indices)
   else
     let state =
-      { remaining_indices = indices;
+      { remaining_indices = List.map Terms.term_from_repl_index indices;
 	found_oracles = [];
 	current_candidate = None }
     in
     let state' = find_all_oracles state ttransf in
-    Polynom.p_prod ((List.map (fun t -> Count (Terms.param_from_type t.t_type)) state'.remaining_indices) @
-		    (List.map (fun ch -> OCount ch) state'.found_oracles))
+    Polynom.build_monomial
+      ((List.map (fun t -> Count (Terms.param_from_type t.t_type)) state'.remaining_indices) @
+       (List.map (fun ch -> OCount ch) state'.found_oracles))
 	
+	
+let seen_compat_info = ref []
+let seen_names_count = ref []
+    
+(* Equality of name tables *)
+	
+let equal_nt1 la1 la2 =
+  (List.length la1 == List.length la2) && 
+  (List.for_all2 (fun (b1, b1') (b2, b2') ->
+    (b1 == b2) && (b1' == b2')) la1 la2)
+
+let equal_ntl la1 la2 =
+  (List.length la1 == List.length la2) && 
+  (List.for_all2 equal_nt1 la1 la2)
+
+(* May raise Contradiction when [call2] is unreachable *)
+let match_oracle_call_list list1  call2 =
+  if list1 = [] then None else
+  let proba_state = Proba.get_current_state() in
+  let (t2, true_facts2, defined_vars2, above_indices2, all_indices2, initial_indices2, used_indices2, really_used_indices2) = call2.el_compat_info in
+  let simp_facts2 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts2 in
+  try
+    let el_ref_found = 
+      List.find (fun el_ref ->
+	let call1 = get_elem1 el_ref in
+	match Depanal.match_oracle_call simp_facts2 call1.el_compat_info call2.el_compat_info with
+	| Some common_compat_info ->
+	    el_ref := Elem { call1 with el_compat_info = common_compat_info };
+	    true
+	| None -> false
+	      ) list1
+    in
+    Some el_ref_found
+  with Not_found ->
+    Proba.restore_state proba_state;
+    None
+    
+let get_repl_from_map true_facts0 b_repl exp =
+  let (mapping, one_exp) = find_map exp in
+  let count_v = 
+    match b_repl with
+      ReplCount p -> get_repl_from_count p mapping.count
+    | OracleCount c -> get_oracle_count c mapping.count_calls
+  in
+  let before_exp_instance =
+    match one_exp.before_exp_instance with
+    | None -> Parsing_helper.internal_error "before_exp_instance should be set when the crypto transformation completes"
+    | Some before_exp_instance -> before_exp_instance
+  in
+  (* Collect all facts that are known to be true *)
+  let true_facts = 
+    try
+      true_facts0 @ (Facts.get_facts_at (DTerm exp))
+    with Contradiction ->
+      [Terms.make_false()]
+  in
+  (* Collect all variables known to be defined *)
+  let defined_vars =
+    try
+      List.map Terms.term_from_binderref (Facts.get_def_vars_at (DTerm exp))
+    with Contradiction ->
+      []
+  in
+  let (indices_kept, compat_info_elem) = Depanal.filter_indices before_exp_instance true_facts defined_vars count_v.indices_above one_exp.cur_array_exp count_v.indices in
+  let el =
+    { el_compat_info = compat_info_elem;
+      el_incompatible = [];
+      el_name_table_above_opt = count_v.name_table_above_opt;
+      el_indices_above = count_v.indices_above;
+      el_indices = indices_kept;
+      el_count = get_opt_probaf (Depanal.get_counted indices_kept) exp;
+      el_active = true;
+      el_color = 0;
+      el_index = -1 }
+  in
+  (* Invariant: all elements of [!seen_compat_info] are of the form
+     [ref (Elem el)]. We use [ElLink] only for elements we remove from
+     [!seen_compat_info]. *)
+
+  (* Oracle calls with different name tables, they cannot correspond to
+     the same oracle call *)
+  let (same_nt, different_nt) =
+    List.partition (fun el_ref ->
+      match (get_elem1 el_ref).el_name_table_above_opt, el.el_name_table_above_opt with
+      | Some nt1, Some nt2 -> equal_ntl nt1 nt2
+      | _ -> true
+	    ) (!seen_compat_info)
+  in
+  try
+    match match_oracle_call_list same_nt el with
+    | Some el_ref -> el_ref
+    | None ->
+	let el_ref' = ref (Elem el) in
+	let same_nt' =
+	  List.filter (fun el_ref ->
+	    try 
+	      match match_oracle_call_list [el_ref'] (get_elem1 el_ref) with
+	      | Some el_ref' ->
+		  el_ref := ElLink el_ref';
+		  false
+	      | None -> true
+	    with Contradiction ->
+	      (* In fact, [el_ref] is not executable, remove it *)
+	      false
+		  ) same_nt
+	in
+	seen_compat_info := el_ref' :: same_nt' @ different_nt;
+	el_ref'
+  with Contradiction ->
+    (* In fact, this oracle [el] is not executable *)
+    raise Not_found
+
+
+let rec find_new_in_count p b_new = function
+  | [] -> raise Not_found
+  | (b_repl', ForNew b_new', count_v)::_
+      when Terms.param_from_type b_repl'.ri_type == p && b_new' == b_new ->
+	count_v
+  | _::rest ->
+      find_new_in_count p b_new rest
+
+(* Finding one entry with "b_repl, ForNew b_new" is enough:
+   the other entries are identical since when there is common
+   name in 2 name tables, the other names above and in the same
+   group of "new" must be the same, and the rev_subst_name_indexes
+   must be the same. *)
+	
+let rec find_new_in_map p b_new = function
+  | [] -> raise Not_found
+  | entry::rest ->
+      try
+	find_new_in_count p b_new entry.count
+      with Not_found ->
+	find_new_in_map p b_new rest
+
+let eq_ch (c1,tl1) (c2, tl2) =
+  (c1 == c2) && (Terms.equal_term_lists tl1 tl2)
+
+let rec get_oracle_idx_for_nodes lidx desired_result = function
+  | [] -> raise Not_found
+  | n::rest -> 
+      let rec aux n = 
+	match n.definition with
+	| DInputProcess({ i_desc = Input((c,tl) as ch,_,_) })
+	    when (List.length tl > 1) &&
+	  (Terms.is_included_distinct Terms.equal_terms tl lidx) &&
+	  (match desired_result with
+	  | None -> true
+	  | Some ch' -> eq_ch ch ch') ->
+	      if rest == [] then ch else
+	      begin
+		try
+		  (* Check that we can get the same result for the other nodes *)
+		  ignore (get_oracle_idx_for_nodes lidx (Some ch) rest);
+		  ch
+		with Not_found ->
+		  next n
+	      end	    
+	| _ ->
+	    next n
+      and next n =
+	match n.above_node with
+	| None -> raise Not_found
+	| Some n' -> aux n'
+      in
+      aux n
+
+let get_oracle lidx b =
+  get_oracle_idx_for_nodes lidx None b.def
+
+let get_opt_probaf_for_new indices b_new =
+  if (not (!Settings.use_oracle_count_in_result)) || (List.length indices <= 1) then
+    Polynom.build_monomial (List.map (fun i -> Count (Terms.param_from_type i.ri_type)) indices)
+  else
+    try
+      let indices_terms = List.map Terms.term_from_repl_index indices in
+      let (ch, idx_for_ch) = get_oracle indices_terms b_new in
+      let remaining_indices = Terms.remove_fail Terms.equal_terms indices_terms idx_for_ch in
+      Polynom.build_monomial
+	((OCount ch)::
+	 (List.map (fun t -> Count (Terms.param_from_type t.t_type)) remaining_indices))
+    with Not_found -> 
+      Polynom.build_monomial (List.map (fun i -> Count (Terms.param_from_type i.ri_type)) indices)
+      
+let get_repl_from_map_new b_repl b_new =
+  try
+    List.assq b_new (!seen_names_count)
+  with Not_found ->
+    let count_v =
+      match b_repl with
+      | ReplCount p ->
+	  find_new_in_map p b_new (!map)
+      | OracleCount _ -> raise Not_found
+    in
+    let br_new = Terms.binderref_from_binder b_new in
+    (* Collect all facts that are known to be true.
+       Considering all definitions of [b_new] replaces the use of 
+       [Depanal.same_oracle_call] done in [get_repl_from_map]
+       for counting oracle calls.
+       It is slightly less precise, because we get only the common
+       known facts directly, so we may filter fewer indices. 
+       In [get_repl_from_map], we consider 2 oracle calls to be
+       the same only if the common known facts allow to filter
+       the same indices as the ones at one of the 2 oracle calls. *)
+    let true_facts =
+      try
+	Facts.facts_from_defined None [br_new]
+      with Contradiction ->
+	[Terms.make_false()]
+    in
+    (* Collect all variables known to be defined *)
+    let defined_vars =
+      try
+	List.map Terms.term_from_binderref (Facts.def_vars_from_defined None [br_new])
+      with Contradiction ->
+	[]
+    in
+    let term_new = Terms.term_from_binderref br_new in
+    let (indices_kept, compat_info_elem) = Depanal.filter_indices term_new true_facts defined_vars count_v.indices_above b_new.args_at_creation count_v.indices in
+    let el =
+      { el_compat_info = compat_info_elem;
+	el_incompatible = [];
+	el_name_table_above_opt = count_v.name_table_above_opt;
+	el_indices_above = count_v.indices_above;
+	el_indices = indices_kept;
+	el_count = get_opt_probaf_for_new (Depanal.get_counted indices_kept) b_new;
+	el_active = true;
+	el_color = 0;
+	el_index = -1 }
+    in
+    let el_ref = ref (Elem el) in
+    seen_names_count := (b_new, el_ref) :: (!seen_names_count);
+    el_ref
+  
+    
+let add_elem e f =
+  match f with
+    FZero -> FElem e
+  | _ -> FPlus(FElem e, f)
+
+let add f1 f2 =
+  match f1,f2 with
+    FZero, _ -> f2
+  | _, FZero -> f1
+  | _ -> FPlus(f1,f2)
+
+let add_diff_branch cur_array f1 f2 =
+  match f1,f2 with
+    FZero, _ -> f2
+  | _, FZero -> f1
+  | _ -> FDiffBranch(cur_array, f1, f2)
+
+
 let rec repl_count_term cur_array true_facts b_repl t =
   let accu' = 
     try
-      let (compat_info, v) = get_repl_from_map true_facts b_repl t in
-      FElem (compat_info, v, get_opt_probaf v t)
+      let el_ref = get_repl_from_map true_facts b_repl t in
+      FElem el_ref
     with Not_found -> 
       FZero
   in
@@ -4243,8 +4524,14 @@ let rec repl_count_term cur_array true_facts b_repl t =
 	   (match p2opt with
 	   | None -> FZero
 	   | Some p2 -> repl_count_term cur_array true_facts b_repl p2)) 
-  | ResE(_, p) ->
-      repl_count_term cur_array true_facts b_repl p
+  | ResE(b, p) ->
+      let count_p = repl_count_term cur_array true_facts b_repl p in
+      begin
+	try
+	  add_elem (get_repl_from_map_new b_repl b) count_p
+	with Not_found ->
+	  count_p
+      end
   | EventE(t,p) -> 
       add (repl_count_term cur_array true_facts b_repl t)
 	(repl_count_term cur_array true_facts b_repl p)
@@ -4282,7 +4569,14 @@ let rec repl_count_process cur_array b_repl p =
 and repl_count_oprocess cur_array b_repl p = 
   match p.p_desc with
     Yield | EventAbort _ -> FZero
-  | Restr(_,p) -> repl_count_oprocess cur_array b_repl p
+  | Restr(b,p) ->
+      let count_p = repl_count_oprocess cur_array b_repl p in
+      begin
+	try
+	  add_elem (get_repl_from_map_new b_repl b) count_p
+	with Not_found ->
+	  count_p
+      end
   | Test(t,p1,p2) ->
       add (repl_count_term cur_array [] b_repl t)
 	(add_diff_branch cur_array (repl_count_oprocess cur_array b_repl p1) (repl_count_oprocess cur_array b_repl p2)) 
@@ -4312,166 +4606,313 @@ and repl_count_oprocess cur_array b_repl p =
 	(repl_count_oprocess cur_array b_repl p) 
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
+(* [formula_to_coef f]
+   The formula [f] contains elements that all have the same monomial
+   [el_count] (see [formula_to_polynom] below).
+   We want to compute the sum of all elements in [f], except
+   that we take the max when two elements are incompatible
+   (cannot be both executed), either
+   - by 
+   [not (Depanal.is_compatible_indices el1.el_compat_info el2.el_compat_info)]
+   - because they are in different branches of a test, as specified by
+   [FDiffBranch(cur_array, f1, f2)], provided [cur_array] appears
+   at the same positions in the determined or counted indices in
+   both elements, as verified by 
+   [is_included_same_position cur_array el1.el_indices el2.el_indices].
 
-(* Convert a "formula" to a list of list of elements,
-   where the inner list is to be understood as a sum, and
-   the outer list is to be understood as a maximum *)
+   Since the monomial is always the same, we just need to compute
+   the coeficient for this monomial, counting 1 for each element
+   in the formula. The desired coefficient is then the size of the
+   maximum set of compatible elements in the formula.
 
-let equal_nt1 la1 la2 =
-  (List.length la1 == List.length la2) && 
-  (List.for_all2 (fun (b1, b1') (b2, b2') ->
-    (b1 == b2) && (b1' == b2')) la1 la2)
+   To do that, we build a graph whose nodes are the elements in the
+   formula, and two nodes are linked by an edge when they are incompatible.
+   Then we compute the size of the maximum independent set for this graph.
 
-let equal_ntl la1 la2 =
-  (List.length la1 == List.length la2) && 
-  (List.for_all2 equal_nt1 la1 la2)
+   Tarjan, R. E.; Trojanowski, A. E. (1977), Finding a maximum independent set,
+   SIAM Journal on Computing, 6 (3): 537–546, doi:10.1137/0206038.
+   http://i.stanford.edu/pub/cstr/reports/cs/tr/76/550/CS-TR-76-550.pdf
+   provides a good algorithm for that, in O(2^(n/3)).
+   Here, for simplicity, we implement a more naive algorithm in O(2^n).
+   (Note: this is the dual of the well-known maximal clique problem.
+   It is an NP-complete problem.)
+      *)
 
-let filter_compat1 compat_info known_res lsum =
-  List.filter (fun (compat_info_ref, _, _) ->
-    match !compat_info_ref with
-      CompatFacts (compat_info2, known_res2) -> 
+let rec component_to_coef = function
+  | [] -> 0
+  | [n] ->
+      if n.el_active then 1 else 0
+  | n::rest ->
+      if not n.el_active then
+	component_to_coef rest
+      else
 	begin
-	  try 
-	    List.assq compat_info (!known_res2)
-	  with Not_found ->
-	    try
-	      List.assq compat_info2 (!known_res)
-	    with Not_found ->
-	      let r = Depanal.is_compatible_indices compat_info compat_info2 in
-	      known_res2 := (compat_info, r) :: (!known_res2);
-	      r
+	  n.el_active <- false;
+	  (* [coef1] corresponds to the case in which the maximum 
+             independent set does not contain [n] *)
+	  let coef1 = component_to_coef rest in
+	  let deactivated = ref [] in
+	  List.iter (fun el ->
+	    if el.el_active then
+	      begin
+		deactivated := el :: !(deactivated);
+		el.el_active <- false
+	      end
+		) n.el_incompatible;
+	  (* [coef2] corresponds to the case in which the maximum 
+             independent set contains [n], so it does not contain
+	     the nodes incompatible with [n], which have been 
+	     temporarily deactivated. *)
+	  let coef2 = 1 + component_to_coef rest in
+	  List.iter (fun el -> el.el_active <- true) (!deactivated);
+	  n.el_active <- true;
+	  max coef1 coef2
 	end
-    | _ -> true) lsum
-
-let add_repl_count ((compat_info_ref, _, _) as elem) lsum = 
-  match !compat_info_ref with
-    NameTable n1 ->
-      if List.exists (fun (compat_info_ref2,_,_) -> 
-	match !compat_info_ref2 with
-	  NameTable n2 -> equal_ntl n1 n2
-	| _ -> false) lsum then
-	[lsum]
+	
+(* [get_component component_ref node] gets a connected component from [node]. 
+   The nodes of the component are stored in [component_ref]. 
+   All nodes must initially have color 0. The nodes of the component
+   have color 2 after the computation. *)
+	
+let rec get_component component_ref node =
+  if node.el_color = 0 then
+    begin
+      node.el_color <- 1;
+      component_ref := node :: (!component_ref);
+      List.iter (get_component component_ref) node.el_incompatible;
+      node.el_color <- 2
+    end
+      
+(* [graph_to_coef nodes] splits the graph of nodes [nodes]
+   into connected components, and computes the sum of the
+   coefficients for each component. *)
+	
+let rec graph_to_coef = function
+  | [] -> 0
+  | node :: rest ->
+      if not node.el_active then
+	graph_to_coef rest
       else
-	[elem::lsum]
-  | CompatFacts (compat_info,known_res) ->
-      if List.exists (fun (compat_info_ref2, _, _) ->
-	compat_info_ref == compat_info_ref2) lsum then
-	(* The same oracle call already appears in lsum *)
-	[lsum]
+	let component_ref = ref [] in
+	get_component component_ref node;
+	let component = !component_ref in
+	List.iter (fun el -> el.el_color <- 0) component;
+	let coef1 = component_to_coef component in
+	List.iter (fun el -> el.el_active <- false) component;
+	let coef2 = graph_to_coef rest in
+	coef1 + coef2
+	
+let is_incomp_diffbranch cur_array el1 el2 =
+  let mapping = Depanal.build_idx_mapping
+      (el1.el_indices_above, el1.el_indices)
+      (el2.el_indices_above, el2.el_indices)
+  in
+  List.for_all (fun b -> List.exists (fun (i1, i2opt) ->
+    match i2opt with
+    | Some i2 -> b == i2 && b == i1
+    | _ -> false) mapping) cur_array
+
+
+(* [set_idx (idx, nodes) formula] sets in the index of
+   all nodes in the formula. 
+   [idx] is first index to use, 
+   [nodes] is the list of already seen nodes.
+   It returns the first unused index, to use next,
+   as well as the list of nodes in [nodes] and [formula]. *)
+let rec set_idx ((idx, nodes) as accu) = function
+  | FZero -> accu
+  | FElem e ->
+      let e = get_elem e in
+      if e.el_index = -1 then
+	begin
+	  e.el_index <- idx; (idx+1, e::nodes)
+	end
       else
-	let lfilter = filter_compat1 compat_info known_res lsum in
-	if List.length lfilter == List.length lsum then
-	  (* lfilter = lsum *)
-	  [elem::lsum]
-	else
-	  [elem::lfilter; lsum]
-  | _ ->
-    [elem::lsum]
+	accu
+  | FPlus(f1,f2)| FDiffBranch(_, f1, f2) ->
+      set_idx (set_idx accu f1) f2
 
-let eq (compat_info_ref1,_,_) (compat_info_ref2,_,_) =
-  compat_info_ref1 == compat_info_ref2
+(* [iter_f func formula] applies function [func] to
+   each element in [formula] *)
+let rec iter_f f = function
+  | FZero -> ()
+  | FElem e -> f (get_elem e)
+  | FPlus(f1,f2)| FDiffBranch(_, f1, f2) ->
+      iter_f f f1;
+      iter_f f f2
 
-let inc a b =
-  List.for_all (fun aelem -> List.exists (fun belem -> eq aelem belem) b) a
-
-(* Be careful to write tail-recursive functions to avoid a stack overflow *)
-    
-let rec append_no_include a l =
-  match a with
-    [] -> l
-  | (a1::ar) ->
-      let a1_l =
-	if List.exists (inc a1) l then 
-	  l
-	else
-	  a1::(List.filter (fun a2 -> not (inc a2 a1)) l)
-      in
-      append_no_include ar a1_l
-    
-let rec add_repl_countl_aux accu elem = function
-    [] -> accu
-  | (a::l) ->
-      let accu' = append_no_include (add_repl_count elem a) accu in
-      add_repl_countl_aux accu' elem l
-
-let add_repl_countl elem l = add_repl_countl_aux [] elem l
-
-(* merge_count computes the count corresponding to l1 + l2, 
-   where l1 and l2 are lists of lists of pairs (nt, v).
-   This is done by adding each element of l1 to each element of l2 *)
-
-let rec add_list eleml l =
-  match eleml with
-    [] -> l
-  | (a::eleml') -> add_list eleml' (add_repl_countl a l)
-
-(* Tail recursive variant of 
-   List.concat (List.map (fun a -> add_list a l2) l1).
-   It may reorder the elements *)
-
-let merge_count l1 l2 =
-  List.fold_left (fun accu a -> List.rev_append (add_list a l2) accu) [] l1
-
-(* Test whether cur_array is included in a list of terms tl *)
-
-let is_included cur_array tl =
-  List.for_all (fun b -> List.exists (fun t ->
-    match t.t_desc with
-      ReplIndex(b') when b == b' -> true
-    | _ -> false) tl) cur_array
-
-(* filter_compat cur_array l keeps the elements of l that do not contain
-   cur_array, so must be taken in a sum and not in a max in "append" below.
-   Useless [] elements are removed. *)
-
-let rec filter_compat_aux accu cur_array = function
-    [] -> accu
-  | (lsum::rest) ->
-      let accu' = 
-	let lsum' = List.filter (fun (nt,tl,_) -> not (is_included cur_array tl)) lsum in
-	if accu != [] && lsum' == [] then accu else lsum'::accu
-      in
-      filter_compat_aux accu' cur_array rest 
-
-let filter_compat cur_array l = filter_compat_aux [] cur_array l
-
-(* Like l1 @ l2 but removes useless empty lists
-   This is important for the speed of the probability evaluation... 
-   Note that taking the max between different branches of if/let/find is valid
-   only when the current replication indices at the find appear in the product
-   (because both branches cannot be executed for the same value of these 
-   indices). Otherwise, I take the sum. *)
-let append cur_array l1 l2 =
-  if l1 = [[]] then l2 else 
-  if l2 = [[]] then l1 else
-  let l1compat_in_l2 = filter_compat cur_array l2 in
-  let l2compat_in_l1 = filter_compat cur_array l1 in
-  List.rev_append (merge_count l1 l1compat_in_l2)
-    (merge_count l2 l2compat_in_l1)
-
-let rec formula_to_listlist = function
-    FZero -> [[]]
-  | FElem e -> [[e]]
+let rec build_incomp_fdiffbranch incomp_matrix = function
+  | FZero | FElem _ -> ()
   | FPlus(f1,f2) ->
-      merge_count (formula_to_listlist f1) (formula_to_listlist f2)
+      build_incomp_fdiffbranch incomp_matrix f1;
+      build_incomp_fdiffbranch incomp_matrix f2;
+      iter_f (fun el1 ->
+	iter_f (fun el2 ->
+	  let i1 = el1.el_index in
+	  let i2 = el2.el_index in
+	  incomp_matrix.(i1).(i2) <- false;
+	  incomp_matrix.(i2).(i1) <- false
+	       ) f2
+	  ) f1
   | FDiffBranch(cur_array, f1, f2) ->
-      append cur_array (formula_to_listlist f1) (formula_to_listlist f2)
+      build_incomp_fdiffbranch incomp_matrix f1;
+      build_incomp_fdiffbranch incomp_matrix f2;
+      iter_f (fun el1 ->
+	iter_f (fun el2 ->
+	  let i1 = el1.el_index in
+	  let i2 = el2.el_index in
+	  if incomp_matrix.(i1).(i2) &&
+	    (not (is_incomp_diffbranch cur_array el1 el2))
+	  then
+	    begin
+	      incomp_matrix.(i1).(i2) <- false;
+	      incomp_matrix.(i2).(i1) <- false
+	    end
+	       ) f2
+	  ) f1
 
-(* Convert a list of list of (nt, count) corresponding to
-   the number of usages of a repl. binder into a polynom
-   (the first list is a max, the second one a sum) *)
+let rec build_incomp_depanal incomp_matrix = function
+    [] -> ()
+  | el1::rest ->
+      build_incomp_depanal incomp_matrix rest;
+      List.iter (fun el2 ->
+	let i1 = el1.el_index in
+	let i2 = el2.el_index in
+	if not (incomp_matrix.(i1).(i2)) &&
+	  not (Depanal.is_compatible_indices el1.el_compat_info el2.el_compat_info) then
+	  begin
+	    incomp_matrix.(i1).(i2) <- true;
+	    incomp_matrix.(i2).(i1) <- true
+	  end
+	    ) rest
+	
+let formula_to_coef f =
+  iter_f (fun el -> el.el_index <- -1) f;
+  let (nidx,nodes) = set_idx (0,[]) f in
+  (* Initially consider all elements as incompatible *)
+  let incomp_matrix = Array.make_matrix nidx nidx true in
+  (* Mark all nodes compatible, except those always 
+     in different branches of FDiffBranches, with cur_array
+     occurring at the same positions. 
+     It is important to proceed in this way, in case the
+     same node occurs at several positions (due to the 
+     Depanal.same_oracle_call test), some compatible
+     according to FDiffBranch, some not: it should be considered
+     compatible in this case *)
+  build_incomp_fdiffbranch incomp_matrix f;
+  (* Mark nodes incompatible when Depanal.is_compatible_indices
+     says it. *)
+  build_incomp_depanal incomp_matrix nodes;
+  (* Translate the matrix into an adjacency list *)
+  List.iter (fun el1 ->
+    el1.el_incompatible <-
+       List.filter (fun el2 ->
+	 let i1 = el1.el_index in
+	 let i2 = el2.el_index in
+	 incomp_matrix.(i1).(i2)
+	   ) nodes
+      ) nodes;
+  (* Now the graph is built *)
+  List.iter (fun el -> el.el_color <- 0) nodes;
+  graph_to_coef nodes
 
-let rec count_to_poly_aux accu = function
-    [] -> accu
-  | ((_,_,v)::l) -> count_to_poly_aux (Polynom.sum (Polynom.probaf_to_polynom v) accu) l
+(* [partition_formula p f] returns (f1,f2) where f1
+   contains the part of [f] whose elements satisfy [p],
+   and f2 is the rest of [f]. *)
+    
+let rec partition_formula p = function
+  | (FElem elem) as e ->
+      if p elem then
+	(e, FZero)
+      else
+	(FZero, e)
+  | FZero ->
+      (FZero, FZero)
+  | FPlus (f1, f2) ->
+      let (f1, f1') = partition_formula p f1 in
+      let (f2, f2') = partition_formula p f2 in
+      (add f1 f2, add f1' f2')
+  | FDiffBranch(cur_array, f1, f2) ->
+      let (f1, f1') = partition_formula p f1 in
+      let (f2, f2') = partition_formula p f2 in
+      (add_diff_branch cur_array f1 f2, add_diff_branch cur_array f1' f2')
 
-let count_to_poly l = count_to_poly_aux Polynom.zero l
+(* [get_one_elem f] returns [None] when [f] contains 
+   no element, and [Some elem] when [f] contains
+   at least one element [elem]. *)
+	
+let rec get_one_elem = function
+  | FZero -> None
+  | FElem elem -> Some elem
+  | FPlus(f1,f2) | FDiffBranch(_,f1,f2) ->
+      begin
+	match get_one_elem f1 with
+	| (Some _) as x -> x
+	| None -> get_one_elem f2
+      end
 
-let rec countl_to_poly_aux accu = function
-    [] -> accu
-  | v::l -> countl_to_poly_aux (Polynom.max (count_to_poly v) accu) l
+(* Elements that different [el_name_table_above_opt] necessarily
+   correspond to different values of the above replication index,
+   so we can take a max between them. To do that, we partition the
+   formula according to the value of [el_name_table_above_opt],
+   and take the max of the obtained coefficient.
+   (All elements in [f] here have the same monomial [el_count], 
+   see [formula_to_polynom] below, so it is enough to compute the
+   coefficient of this monomial.) *)
+	
+let rec formula_to_coef_partition_name_table f =
+  match get_one_elem f with
+  | None ->
+      0
+  | Some elem ->
+      match (get_elem elem).el_name_table_above_opt with
+      | None -> formula_to_coef f
+      | Some nt ->
+	  let (f_this_nt, f_rest) = 
+	    partition_formula (fun elem' ->
+	      match (get_elem elem').el_name_table_above_opt with
+	      | None -> assert false
+	      | Some nt' -> equal_ntl nt nt') f
+	  in
+	  let coef1 = formula_to_coef f_this_nt in
+	  let coef_rest = formula_to_coef_partition_name_table f_rest in
+	  max coef1 coef_rest
 
-let countl_to_poly l = countl_to_poly_aux Polynom.zero l
+(* [formula_to_polynom f] converts the formula [f] into a polynom.
+   It first partitions the formula [f] into elements that have the
+   same monomial [el_count] and computes the coefficient of these
+   monomials. There are two motivations for doing that:
+   1/ we want a fairly simple result, so we will not combine max
+   with polynoms. Hence, when we have two terms with different
+   monomials, we can only add them. The max will be taken only
+   on the coefficients (when possible).
+   (Before, this was done using Polynom.max, but the implementation
+   that first partitions the formula is more efficient, because
+   the runtime of [formula_to_coef] is exponential in the size
+   of the formula, so it is better to call [formula_to_coef] with
+   small formulas.)
+   2/ this is needed for soundness: when we use different #O values
+   inside monomials corresponding to the same indices, we must take
+   the sum, not the max. Example:
+   !N1 !N2 if ... then ... O1() := new n ... else ... O2() := new n
+   the number created N's is bounded by #O1 + #O2, not by max(#O1, #O2);
+   it could also be bounded by N1 * N2, and this case we can take the
+   max between the "then" and the "else" which can both create N1 * N2
+   times n, but are mutually exclusive.
+*)
+	    
+let rec formula_to_polynom f =
+  match get_one_elem f with
+  | None ->
+      Polynom.zero
+  | Some elem ->
+      let monomial = (get_elem elem).el_count in
+      let (f_this_monomial, f_rest) =
+	partition_formula (fun elem' -> Polynom.same_monomial (get_elem elem').el_count monomial) f
+      in
+      let coef = float_of_int (formula_to_coef_partition_name_table f_this_monomial) in
+      (coef, monomial)::(formula_to_polynom f_rest)
+    
 
 let rec rename_term before map one_exp t =
   match t.t_desc with
@@ -4549,7 +4990,7 @@ let rec map_probaf env prob =
 		    if g == Terms.lhs_game then
 		      !whole_game, true
 		    else if g == Terms.rhs_game then
-		      !whole_game_middle, false
+		      whole_game_middle, false
 		    else
 		      Parsing_helper.internal_error "Maxlength should refer to the LHS or the RHS of the equivalence"
 		  in
@@ -4583,10 +5024,27 @@ let rec map_probaf env prob =
 	  List.assq p (! (fst env))
 	with Not_found ->
 	  seen_compat_info := [];
+	  seen_names_count := [];
 	  let v = repl_count_process [] (ReplCount p) (Terms.get_process (!whole_game)) in
+	  if (!Settings.debug_cryptotransf) > 1 then
+	    begin
+	      if (!seen_compat_info) != [] then
+		begin
+		  assert((!seen_names_count) = []);
+		  print_string ("List of oracles for "^p.pname^"\n");
+		  List.iter display_count_link (!seen_compat_info)
+		end
+	      else if (!seen_names_count) != [] then
+		begin
+		  print_string ("List of names for "^p.pname^"\n");
+		  List.iter (fun (_,el_ref) -> display_count_link el_ref) (!seen_names_count)
+		end
+	      else
+		print_string ("Nothing for "^p.pname^"\n")
+	    end;
 	  seen_compat_info := [];
-	  let v = formula_to_listlist v in
-	  let v' = countl_to_poly v in
+	  seen_names_count := [];
+	  let v' = formula_to_polynom v in
 	  fst env := (p, v') :: (! (fst env));
 	  v'
       end
@@ -4597,15 +5055,18 @@ let rec map_probaf env prob =
 	with Not_found ->
 	  seen_compat_info := [];
 	  let v = repl_count_process [] (OracleCount c) (Terms.get_process (!whole_game)) in
+	  if (!Settings.debug_cryptotransf) > 1 then
+	    begin
+	      if (!seen_compat_info) != [] then
+		begin
+		  print_string ("List of oracles for #"^c.cname^"\n");
+		  List.iter display_count_link (!seen_compat_info)
+		end
+	      else
+		print_string ("Nothing for #"^c.cname^"\n")
+	    end;
 	  seen_compat_info := [];
-	  let v = formula_to_listlist v in
-	  (*
-	  List.iter (fun l ->
-	    List.iter (fun (_,v) -> Display.display_proba 0 (make_prod v); print_string " + ") l;
-	    print_newline();
-	    ) v;
-	  *)
-	  let v' = countl_to_poly v in
+	  let v' = formula_to_polynom v in
 	  snd env := (c, v') :: (! (snd env));
 	  v'
       end
@@ -4848,7 +5309,7 @@ let rec update_max_length_probaf ins = function
       let rec add_max = function
 	| Max(l) -> List.iter add_max l
 	| (Maxlength(g,t)) as x ->
-	    if g == !whole_game_middle then
+	    if g == whole_game_middle then
 	      match t.t_desc with
 	      | Var(b,_) ->
 		  begin
@@ -4887,12 +5348,16 @@ type trans_res =
 | TFailurePrio of to_do_t * ((binder * binder) list * failure_reason) list
 
 let transfo_finish apply_equiv p q =
+  (* Compute the probability before doing the game transformation,
+     so that the information in the initial process is not destroyed
+     by the computation of information on the transformed process
+     when we do [update_def_list_simplif] *)
+  let proba' = compute_proba apply_equiv in
+  print_string "Proba. computed "; flush stdout;
   let g' = { proc = RealProcess (do_crypto_transform p);
 	     expanded = false;
 	     game_number = -1;
 	     current_queries = q } in
-  whole_game_middle := g';
-  let proba' = compute_proba apply_equiv in
   let ins' = [DCryptoTransf(apply_equiv, Detailed(Some (!gameeq_name_mapping, [], !stop_mode),
 						  (match !user_term_mapping with
 						    None -> None
@@ -5146,7 +5611,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   let vcounter = Terms.get_var_num_state() in
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
-  Improved_def.improved_def_game None false g;
+  Improved_def.improved_def_game None true g;
   if !Settings.optimize_let_vars then
     incompatible_terms := incompatible_defs p;
   let result = 
@@ -5207,9 +5672,8 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
     end
   in
   (* Cleanup to save memory *)
-  Improved_def.empty_improved_def_game false g;
+  Improved_def.empty_improved_def_game true g;
   whole_game := Terms.empty_game;
-  whole_game_middle := Terms.empty_game;
   whole_game_next := Terms.empty_game;
   equiv := empty_equiv;
   equiv_names_lhs_opt := [];

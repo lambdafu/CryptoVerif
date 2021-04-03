@@ -26,6 +26,18 @@ let rec find_monomial m = function
       let (coef',l') = find_monomial m l in
       (coef',x::l')
 
+let rec build_monomial = function
+  | [] -> []
+  | a::l ->
+      let m = build_monomial l in
+      try
+	let n = List.assoc a m in
+	(* m = (a,n)::(remove_factor (a,n) m) 
+	   replace it with (a,n+1)::(remove_factor (a,n) m) *)
+	(a,Parsing_helper.add_check_overflow ovf_exp Parsing_helper.dummy_ext 1 n)::(remove_factor (a,n) m) 
+      with Not_found ->
+	(a,1)::m
+      
 (* [sum p1 p2] is the polynom [p1 + p2], where [p1] and [p2] are polynoms *)
 	
 let rec sum p1 = function

@@ -52,16 +52,6 @@ let rec time_list f = function
 
 let poly1 = Polynom.probaf_to_polynom (Cst 1.0)
 	
-let rec get_same f = function
-  | [] -> raise Not_found
-  | [a] -> f a
-  | a::l ->
-      let x = get_same f l in
-      if f a == x then 
-	x
-      else
-	raise Not_found
-      
 let rec get_oracle_for_node b n =
   match n.definition with
   | DInputProcess({ i_desc = Input((c,tl),_,_) }) ->
@@ -78,7 +68,7 @@ let rec get_oracle_for_node b n =
       | Some n' -> get_oracle_for_node b n'
 
 let get_oracle b =
-  get_same (get_oracle_for_node b) b.def
+  Terms.get_same (==) (get_oracle_for_node b) b.def
 
 type state_t =
     { remaining_indices: repl_index list;
@@ -107,7 +97,7 @@ and find_oracles_br state (b,l) =
 	    (List.for_all2 (==) (Terms.lsuffix (List.length li') li) li')
       in
       if can_improve_current_candidate &&
-	(List.for_all (fun ri -> List.memq ri state.remaining_indices) li)
+	(Terms.is_included_distinct (==) li state.remaining_indices)
       then
 	try
 	  state.current_candidate <- Some (get_oracle b, li)
@@ -116,12 +106,6 @@ and find_oracles_br state (b,l) =
   else
     List.iter (find_oracles state) l
 
-let rec remove_one idx = function
-  | [] -> assert false
-  | a::l ->
-      if a == idx then l else
-      a::(remove_one idx l)
-      
 let rec find_all_oracles state tl =
   if List.length state.remaining_indices <= 1 then state else
   begin
@@ -130,7 +114,7 @@ let rec find_all_oracles state tl =
     | None -> state
     | Some (ch, li) ->
 	let new_state =
-	  { remaining_indices = List.fold_left (fun accu i -> remove_one i accu) state.remaining_indices li;
+	  { remaining_indices = Terms.remove_fail (==) state.remaining_indices li;
 	    found_oracles = ch :: state.found_oracles;
 	    current_candidate = None }
 	in
@@ -158,7 +142,7 @@ let rec find_all_oracles_def_list state def_list =
     | None -> state
     | Some (ch, li) ->
 	let new_state =
-	  { remaining_indices = List.fold_left (fun accu i -> remove_one i accu) state.remaining_indices li;
+	  { remaining_indices = Terms.remove_fail (==) state.remaining_indices li;
 	    found_oracles = ch :: state.found_oracles;
 	    current_candidate = None }
 	in

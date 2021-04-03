@@ -1,25 +1,96 @@
-(* One-Encryption Key Exchange *)
+(* One-Encryption Key Exchange
+
+   The guidance has been revised to obtain a more precise probability:
+   (NU + NS)/|passwd| + (qH0 + qH1)pCDH(time...) + O(t_A^2)/|hash1| + O(t_A^2)/|G|,
+   where t_A is the runtime of the adversary
+   This is optimal except for the exact expression of the time argument of
+   pCDH and the constants in O(t_A^2).
+
+   The hash, encryption, and decryption queries are performed by the adversary,
+   so qH0, qH1, qE, qD \in O(t_A).
+
+   NP is the number of sessions of the protocol the adversary passively observes,
+   NP << t_A
+
+   NS and NU are the number of sessions of the server/user the adversary
+   actively interferes with. NS, NU << NP.
+
+   |Z| = |G| = p-1 where the Diffie-Hellman group has prime order p.
+   (G excludes the neutral element, Z excludes 0.) *)
 
 (* Proof indications *)
 
 proof {
-set maxIterSimplif = 3;
-set uniqueBranchReorganize = false;
-show_game occ;
+allowed_collisions pest90;
+   (* Allow eliminating collisions of probability q^2 / |Z|, q^2 / |G|, q^2 / |hash1|,
+   where q is a number of queries (qH0, qH1, qE, qD, NS, NU, NP):
+   |G|, |Z|, |hash1| are considered to be >= 2^256
+   The numbers of queries are considered to be <= 2^80 or <= 2^70
+   so q^2/|G| <= 2^-96 or 2^-116 < 2^-90.
+   q^3/|G| or q/|passwd| are not allowed (at this point).
+
+   Since q \in O(t_A) and |Z| = |G|, we will get terms for probabilities of collisions
+   O(t_A^2)/|hash1| + O(t_A^2)/|G|.
+   *)
+show_game;
 insert after "OH_1" "let concat(x11,x12,x13,x14,x15) = x1_1 in"; (* just after OH_1(..):= *)
 crypto rom(h1);
-show_game occ;
+show_game;
 insert after "OS2" "find j <= NU suchthat defined(X[j]) && X[j] = X_s then else find jh <= qH1 suchthat defined(x11[jh], x12[jh], x13[jh], x14[jh], r_2[jh]) && (U = x11[jh]) && (S = x12[jh]) && (X_s = x13[jh]) && (Y = x14[jh]) && (auth_s = r_2[jh]) then event_abort Auth"; (* just after OS2(..):= *)
 simplify;
 crypto icm(enc);
-show_game occ;
-insert_event Encrypt 550; (* beginning of the branch "find ... && (pw = ke[..]) then .." in OC2 *)
-show_game occ;
+show_game;
+insert_event Encrypt after "pw0 = ke\\["; (* beginning of the branch "find ... && (pw0 = ke[..]) then .." in OC2 *)
+show_game;
 insert after "OH(" "let concat(x01,x02,x03,x04,x05) = x1 in"; (* just after OH(..) := *)
 crypto rom(h0);
+(* This part is done manually to improve the CDH term of the probability;
+   otherwise, it could be done by "auto" *)
 SArename Y_u;
-auto;
-set uniqueBranchReorganize = true;
+crypto group_to_exp_strict(exp) *;
+show_game;	    
+(* We rewrite the "find" at the beginning of OH_1, to capture exactly the
+conditions that can be eliminated by CDH. 
+- We replace K_u, K_s, Kp with their values exp(g, mult(x[i],y[j])) for some exponents x,y. (If you like, you can have CryptoVerif do that in the "find" at the beginning of OH_1 by running 
+  remove_assign binder K_u;
+  remove_assign binder K_s;
+  remove_assign binder Kp;
+but it is not really necessary as long as you use the values of K_u, K_s, Kp in the rewritten condition inserted below.)
+- Instead of returning some r_i[...], we execute event_abort cdh. We will later
+show that this event cannot happen using CDH.
+- Hence we do need to require the definition r_i[...]
+- Furthermore, we also do not require the definition of K_u[...] (or K_u_i[...] if you ran "remove_assign binder K_u") and of indices u_i[...], we replace them by a fresh index we look for using "find".
+- Therefore, the condition can be true as soon as the exponents have been computed and the arguments of the hash query are well chosen: the conditions are of the form: 
+i,j suchthat defined(x[i], y[j]) && (x14 = exp(g, x[i])) && (x13 = exp(g, y[j])) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x[i], y[j])))
+for some exponents x,y. That allows eliminating similar conditions in the rest of the game.
+- We test x15 = exp(g, mult(x[i], y[j])) as last condition, so that the test is executed only when x13 and x14 are the right public keys. CryptoVerif then realizes that the test is made for a single i,j for each hash query.
+ *)
+insert before "find \\[unique\\] u_7 "
+  "          find ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_3[ri_8]) && (x14 = exp(g, x_3[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_3[ri_8], x[ri_7]))) then
+            event_abort cdh
+          orfind ri_7 <= NU, ri_9 <= qD suchthat defined(x[ri_7], X[ri_7], x_2[ri_9]) && (x14 = exp(g, x_2[ri_9])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_2[ri_9], x[ri_7]))) then
+            event_abort cdh
+          orfind ri_7 <= NU, ri_10 <= NS suchthat defined(x[ri_7], y[ri_10], X[ri_7], Y[ri_10]) && (x14 = Y[ri_10]) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(y[ri_10], x[ri_7]))) then
+            event_abort cdh
+          orfind ri_7 <= NU, ri_11 <= NP suchthat defined(x[ri_7], yp[ri_11], X[ri_7], Yp[ri_11]) && (x14 = Yp[ri_11]) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(yp[ri_11], x[ri_7]))) then
+            event_abort cdh
+          orfind ri_6 <= NP suchthat defined(yp[ri_6], xp[ri_6], Xp[ri_6], Yp[ri_6]) && (x14 = Yp[ri_6]) && (x13 = Xp[ri_6]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(xp[ri_6], yp[ri_6]))) then
+            event_abort cdh";
+(* We rewrite the "find" at the beginning of OH in a similar way *)
+insert before "find \\[unique\\] u_70 "
+  "          find ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_3[ri_70]) && (x04 = exp(g, x_3[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_3[ri_70], x[ri_69]))) then
+            event_abort cdh
+          orfind ri_67 <= NU, ri_71 <= qD suchthat defined(X[ri_67], x[ri_67], x_2[ri_71]) && (x04 = exp(g, x_2[ri_71])) && (x03 = X[ri_67]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_2[ri_71], x[ri_67]))) then
+            event_abort cdh
+          orfind ri_65 <= NU, ri_72 <= NS suchthat defined(X[ri_65], Y[ri_72], x[ri_65], y[ri_72]) && (x04 = Y[ri_72]) && (x03 = X[ri_65]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(y[ri_72], x[ri_65]))) then
+            event_abort cdh
+          orfind ri_63 <= NU, ri_73 <= NP suchthat defined(X[ri_63], Yp[ri_73], x[ri_63], yp[ri_73]) && (x04 = Yp[ri_73]) && (x03 = X[ri_63]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[ri_73], x[ri_63]))) then
+            event_abort cdh";
+simplify;
+success; (* Prove secrecy and authentication, the probabilities of events cdh, Auth, Encrypt are still to bound. However, the probabilities that follow will not be multiplied by 2 for secrecy *)
+crypto cdh(exp);
+crypto exp'_to_group(exp) *;
+(* End of the part done manually to improve the CDH term *)
 show_game;
 move array X_5; (* variable chosen at the end of OC2 and not used immediately *)
 move binder r;
@@ -33,27 +104,30 @@ merge_branches;*)
 move array X_4; (* variable chosen in OS1 and not used immediately *)
 (*show_game;
 merge_arrays X_1 Y_1;*)
-show_game occ;
-insert 110 "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_2[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_2[jh'])  && (kd[jd] = pw0) then";
-show_game occ;
-insert_event Auth2 157;
+show_game;
+insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_2[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_2[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
 simplify;
 merge_branches;
+allowed_collisions pest20;
+  (* Allow eliminating collisions with probability 
+     (NU + NS)/|passwd| <= 2^70/2^90 = 2^20.
+     Do not allow eliminating collisions with probability 
+     q/|passwd| <= 2^80/2^90 = 2^10 for q = NP, qE, qD, qH0, qH1.  *)
 simplify coll_elim(variables: pw0);
 success
 }
 
 (* Parameter and type declarations *)
 
-param NU, NS [small].
-param NP [passive].
+param NU, NS [size70].
+param NP [size80].
 
-type Z [large, bounded].
-type G [large, bounded].
-type passwd [password, bounded].
+type Z [pcoll256, bounded].
+type G [pcoll256, bounded].
+type passwd [pcoll90, bounded].
 
-type hash0 [fixed,large].
-type hash1 [fixed,large].
+type hash0 [fixed].
+type hash1 [fixed,pcoll256].
 type host [bounded].
 
 (* Computational Diffie-Hellman *)
@@ -75,7 +149,7 @@ type hashkey [fixed].
 
 fun concat(host, host, G, G, G): bitstring [data].
 
-expand ROM_hash_large(hashkey, bitstring, hash0, h0, hashoracle0, qH0).
+expand ROM_hash(hashkey, bitstring, hash0, h0, hashoracle0, qH0).
 
 expand ROM_hash_large(hashkey, bitstring, hash1, h1, hashoracle1, qH1).
 
@@ -157,6 +231,38 @@ process
 	 run processS(hk0, hk1, ck, pw0) |
 	 run processPassive(hk0, hk1, ck, pw0) | 
 	 run enc_dec_oracle(ck) | run hashoracle0(hk0) | run hashoracle1(hk1))
+
+(* Results
+
+RESULT Proved event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s up to probability (NS + qH1 * NU + qH1 ^ 2) / |hash1| + (qE * NP + qE * NS + NS * qH1 + 3 * NU * qH1 + NS * qH0 + 3 * NU * qH0 + NP * qH0 + 20 * NP * qH1 + qD * qH0 + qD * qH1 + 3 * qD * NP + 16 * NU * NP + 4.5 * NP ^ 2 + 8 * NS ^ 2 + 0.5 * qD ^ 2 + 3 * qD * NU + 11 * NU ^ 2 + 9 * NS * NU + 5 * NS * qD + 6 * NS * NP) / |Z| + (2 * NU * NS + 2 * qD * NS + 2 * NU * NP + 2 * qD * NP + 2 * qD * qE + 5 * qH0 * NU + 7 * qH1 * NU + 3 * NU * qD + 10 * NU ^ 2 + 4 * NP * NS + 3 * NS ^ 2 + 3 * NS * qE + 2.5 * NP ^ 2 + 3 * NP * qE + 3 * NU * qE + 1.5 * qE ^ 2 + 2.5 * qD ^ 2 - NU - qD - NP - qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
+RESULT Proved inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s up to probability (NS + qH1 * NU + qH1 ^ 2) / |hash1| + (qE * NP + qE * NS + NS * qH1 + 3 * NU * qH1 + NS * qH0 + 3 * NU * qH0 + NP * qH0 + 20 * NP * qH1 + qD * qH0 + qD * qH1 + 3 * qD * NP + 16 * NU * NP + 4 * qD * NS + 8 * NU * NS + 4.5 * NP ^ 2 + 10.5 * NU ^ 2 + 8 * NS ^ 2 + 0.5 * qD ^ 2 + 5 * NS * NP + 3 * qD * NU) / |Z| + (2 * NU * NS + 2 * qD * NS + 2 * NU * NP + 2 * qD * NP + 2 * qD * qE + 5 * qH0 * NU + 7 * qH1 * NU + 3 * NU * qD + 10 * NU ^ 2 + 4 * NP * NS + 3 * NS * qE + 2.5 * NP ^ 2 + 3 * NP * qE + 3 * NU * qE + 1.5 * qE ^ 2 + 2.5 * qD ^ 2 + 3.5 * NS ^ 2 - NU - qD - NP - qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
+RESULT Proved secrecy of sk_s && sk_u up to probability (2 * NS + 2 * qH1 * NU + qH1 ^ 2) / |hash1| + (2 * qE * NP + 2 * qE * NS + 2 * NS * qH1 + 6 * NU * qH1 + 2 * NS * qH0 + 6 * NU * qH0 + 2 * NP * qH0 + 40 * NP * qH1 + 2 * qD * qH0 + 2 * qD * qH1 + 5 * qD * NP + 30 * NU * NP + 7 * qD * NS + 15 * NU * NS + 8 * NP ^ 2 + 20 * NU ^ 2 + 15.5 * NS ^ 2 + 0.5 * qD ^ 2 + 9 * NS * NP + 5 * qD * NU) / |Z| + (4 * NU * NS + 4 * qD * NS + 4 * NU * NP + 4 * qD * NP + 4 * qD * qE + 10 * qH0 * NU + 14 * qH1 * NU + 6 * NU * qD + 20 * NU ^ 2 + 8 * NP * NS + 5.5 * NS ^ 2 + 5 * NS * qE + 4.5 * NP ^ 2 + 5 * NP * qE + 5 * NU * qE + 2.5 * qE ^ 2 + 4.5 * qD ^ 2 - NS - 2 * NU - 2 * qD - 2 * NP - 2 * qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
+RESULT time_1 = (qH0 + qH1) * time(let concat) + qH0 ^ 2 * time(= bitstring, maxlength(game 49: x1), maxlength(game 49: x1)) + qH1 ^ 2 * time(= bitstring, maxlength(game 49: x1_1), maxlength(game 49: x1_1)) + time + (1 + qH0 + qH1 + 2 * NU + NS + 2 * NP + qD) * time(exp)
+
+RESULT Proved event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + p_coll1 + p_coll2 + (NS * NP + NS * qD + NS * NU + 0.5 * NU ^ 2) / |Z|
+RESULT Proved inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + p_coll1 + p_coll2 + 0.5 * NS ^ 2 / |G|
+RESULT Proved secrecy of sk_s && sk_u up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2p_coll1 + p_coll2 
+where
+p_coll1: collisions eliminated before proving secrecy
+p_coll2: collisions eliminated after proving secrecy, to prove that events are not 
+executed (do not need to be multiplied by 2 for secrecy).
+
+Let q = qE + qD + qH0 + qH1 + NS + NU + NP = O(t_A). 
+I can overapproximate the probabilities as follows:
+Proved 
+event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') 
+and 
+inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k) 
+with public variables sk_u, sk_s up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + k q^2 / |G| + q^2 / |hash1| 
+Proved secrecy of sk_s && sk_u up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2k q^2 / |G| + q^2 / |hash1| 
+for some small integer k. (k = 21 might work, I need to check it mechanically.)
+*)
+
 
 (* EXPECTED
 All queries proved.

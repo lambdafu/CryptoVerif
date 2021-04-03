@@ -33,6 +33,22 @@ val lsuffix : int -> 'a list -> 'a list
    Raises an internal error if [l] contains fewer than [n] elements *)
 val remove_suffix : int -> 'a list -> 'a list
 
+(* [is_included_distinct eq l1 l2] returns true when [l1] is included 
+   in [l2], considered as multisets. [eq] is the equality function *)
+val is_included_distinct : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
+
+(* [remove_fail eq l1 l2] returns the list representing the multiset
+   [l1] minus [l2]. [eq] is the equality function.
+   [l2] must be included in [l1] (as multisets), otherwise, an assertion 
+   fails *)
+val remove_fail : ('a -> 'a -> bool) -> 'a list -> 'a list -> 'a list
+
+(* [get_same eq f l] returns the result of [f x] for all [x] in the list [l],
+   when [f x] has the same value for all such [x]. Otherwise, it raises 
+   [Not_found]. [eq] is used to test equality of the results. *)
+
+val get_same :  ('b -> 'b -> bool) -> ('a -> 'b) -> 'a list -> 'b
+    
 (** [assq_rest a l] returns the value associated with key [a] in the list of
    pairs [l], as well as the list of other elements of [l]. That is,
    [assq_rest a [ ...; (a,b); ...] = (b, lrest)]
@@ -190,7 +206,8 @@ val build_transformed_game : ?expanded: bool -> inputprocess -> game -> game
                    
 val app : funsymb -> term list -> term
 val merge_types : typet -> typet -> typet
-    
+
+val is_repl_index : repl_index -> term -> bool
 val is_args_at_creation : binder -> term list -> bool
 
 val is_restr : binder -> bool

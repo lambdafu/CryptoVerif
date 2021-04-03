@@ -1,5 +1,17 @@
 open Types
 
+(* 0. Operations on monomials *)
+
+(* [same_monomial m1 m2] returns true when [m1] and [m2]
+   are equal monomials. *)
+val same_monomial : monomial -> monomial -> bool
+    
+(* [build_monomial l] returns a monomial representing the
+   product of the probabilities in [l]. [l] must contain
+   only basic probabilities, considered as variables of
+   polynomials. *)
+val build_monomial : probaf list -> monomial
+  
 (* 1. Operations on polynoms *)
 
 val zero : polynom

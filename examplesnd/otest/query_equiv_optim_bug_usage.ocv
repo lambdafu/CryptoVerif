@@ -1,0 +1,33 @@
+param N, N'.
+type nonce [fixed].
+
+fun f(nonce, bitstring): bitstring.
+fun f'(nonce, bitstring): bitstring.
+
+const A, B: bitstring.
+
+equiv
+   !N x <-R nonce; O(y:bitstring) := return(f(x,y)) |
+   !N' Otest() := return(A) [all]
+   <=(0)=>
+   !N x <-R nonce; O(y:bitstring) := return(f'(x,y)) |
+   !N' Otest() := find i <= N suchthat defined(x[i]) && (find j <=N suchthat defined(y[j]) && j = i then false else true) then return(B) else return(A).
+
+
+fun is_not_B(bitstring):bool.
+equation is_not_B(B) = false.
+
+event bad.
+query event(bad) ==> false.
+
+set autoMove = false.
+set diffConstants = false.
+
+process
+   O1() :=
+   x <-R nonce;
+   return;
+   O2() :=
+   if is_not_B(A) then event_abort bad else return();
+   O3(y:bitstring) :=
+   return(f(x,y))

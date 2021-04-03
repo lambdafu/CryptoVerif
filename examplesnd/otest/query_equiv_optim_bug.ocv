@@ -1,0 +1,14 @@
+param N, N'.
+type nonce [fixed].
+
+fun f(nonce, bitstring): bitstring.
+
+const A, B: bitstring.
+
+query_equiv
+   !N x <-R nonce; O(y:bitstring) := return(f(x,y)) |
+   !N' Otest() := return(A) [all]
+   <=(?)=>
+   !N x <-R nonce; O(y:bitstring) := return(f(x,y)) |
+   !N' Otest() := find i <= N suchthat defined(x[i]) && (find j <=N suchthat defined(y[j]) && j = i then false else true) then return(B) else return(A)
+   

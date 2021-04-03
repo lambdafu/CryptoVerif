@@ -1,0 +1,44 @@
+(* Although the 2 calls to enc are in different branches of a test,
+   the current replication index at the test, i, does not occur at the
+   same position in the indices of k in both branches.
+   For this reason, the same key k[.,.] can be used twice. 
+   E.g. k[1,2] can be used with i = 1 and x = true, 
+   as well as i = 2 and x = false.
+   Hence the number of encryption per key should be 2. *)
+
+type key [large, fixed].
+type nonce [large, fixed].
+proba Penc.
+
+expand IND_CPA_sym_enc_nonce(key, bitstring, bitstring, nonce, enc, dec, injbot, Z, Penc).
+
+param N.
+
+process
+      (!N
+      !N
+      Ostart(sel: bitstring) :=
+      new k: key;
+      return())
+      |
+      (!i <= N
+      O(x: bool, sel0: bitstring) :=
+      if x then
+      (
+      	 find j <= N suchthat defined(k[i,j], sel[i,j]) && sel[i,j] = sel0 then
+         new n: nonce;
+	 return(enc(sel0,k[i,j],n))
+      )
+      else
+      (
+      	 find j <= N suchthat defined(k[j,i], sel[j,i]) && sel[j,i] = sel0 then
+         new n: nonce;
+	 return(enc(sel0,k[j,i],n))
+      )
+      )
+      
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

@@ -1,0 +1,84 @@
+(* The goal of this example is to check that there is no counting
+error for random variables (here b) used only in oracles
+that make array references to them (here 
+  ODDHa(m:G, j<=nb) := return(m = exp(g, mult(b[j], a)))
+There is currently no problem because CryptoVerif refuses to apply 
+the crypto transformation when such variables are present. *)
+
+def CDH_explicit_counts(G, Z, g, exp, exp', mult, pCDH) {
+
+(* the CDH assumption *) 
+
+param na, naDDH, nb, nbDDH, naDH9, nbDH9.
+
+equiv(cdh(exp))
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [10] := return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [10] := return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b))) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) [2] := return(exp(g, mult(b, x)))
+    )
+<=(pCDH(time, na, nb, naDDH, nbDDH))=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bool = true in return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
+      	      if defined(kb[j]) then return(m = exp'(g, mult(b[j], a))) else 
+              if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false) |
+      foreach iaDH9 <= naDH9 do ODHa9(x:Z) := return(exp'(g, mult(a, x)))
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bool = true in return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
+      	      if defined(ka[j]) then return(m = exp'(g, mult(a[j], b))) else 
+              if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false) |
+      foreach ibDH9 <= nbDH9 do ODHb9(x:Z) := return(exp'(g, mult(b, x)))
+    ).
+
+}
+
+type G [large, bounded].
+type Z [large, bounded].
+
+proba pCDH.
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+expand CDH_explicit_counts(G, Z, g, exp, exp', mult, pCDH).
+
+param NA, NB.
+channel cA1, cA2, cA3, cA4, cB1, cB2.
+
+proof {
+  crypto cdh(exp) a b
+  }
+
+let processA =
+  !NA
+  in(cA1, ());
+  new a: Z;
+  let ga = exp(g,a) in
+  out(cA2, ga);
+  in(cA3, (x: G, sel0: bitstring));
+  find j <= NB suchthat defined(b[j],sel[j]) && sel[j] = sel0 then
+  out(cA4, x = exp(g, mult(b[j],a))).
+
+let processB =
+  !NB
+  in(cB1, sel: bitstring);
+  new b : Z;
+  out(cB2, ()).
+
+process
+  processA | processB
+
+(* EXPECTED
+Error: Cryptographic transformation failed
+xtime: error in child process (status : 2)
+END *)

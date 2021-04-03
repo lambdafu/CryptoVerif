@@ -15,6 +15,11 @@ val filter_ifletfindres : term list -> term list
    because we need to compute a variant of apply_reds in dependency analyses. *)
 val match_term : simp_facts -> binder list -> (unit -> 'a) -> term -> term -> unit -> 'a
 
+(* [match_term_list3] is used to match oracle calls in [Depanal].
+   It considers all replication indices as variables.
+   It cleans up the links only in case of failure of matching. *)
+val match_term_list3 : simp_facts -> (unit -> 'a) -> term list -> term list -> unit -> 'a
+    
 (* set to true by the functions below when they reduce the term *)
 val reduced : bool ref
 

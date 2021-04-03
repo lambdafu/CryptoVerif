@@ -2477,7 +2477,23 @@ let get_facts_full_block_cases pp  =
 let current_max_priority = ref 0
 let priority_list = ref []
 
-let rec match_term2 next_f simp_facts bl t t' =
+
+(* [match_term_list2 next_f simp_facts bl_opt l l'] finds
+   [\sigma] such that [l\sigma = l'] modulo the equational theory and the 
+   equalities in [simp_facts].
+   When [bl_opt = None], all replication indices are considered as variables.
+   When [bl_opt = Some bl], the replication indices in [bl] are considered as variables. *)
+let match_term_list2 next_f simp_facts bl_opt l l' =
+  let is_v v =
+    match bl_opt with
+    | None -> true
+    | Some bl -> List.memq v bl
+  in
+  let get_var_link t () =
+    match t.t_desc with
+    | ReplIndex (v) when (is_v v) -> Some(v.ri_link, false)
+    | _ -> None
+  in
   (* [copy_term t] returns a copy of term [t] with
      the links in replication indices in [bl] followed.
      When not all replication indices have a link, raises [NoMatch]:
@@ -2485,7 +2501,7 @@ let rec match_term2 next_f simp_facts bl t t' =
      equality test to determine whether the matching succeeds. *)
   let rec copy_term t =
     match t.t_desc with
-    | ReplIndex(v) when (List.memq v bl) ->
+    | ReplIndex(v) when (is_v v) ->
 	begin
 	  match v.ri_link with
 	  | NoLink -> raise NoMatch
@@ -2496,59 +2512,70 @@ let rec match_term2 next_f simp_facts bl t t' =
 	Terms.build_term2 t (Var(b, List.map copy_term l))
     | FunApp(f,l) ->
 	Terms.build_term2 t (FunApp(f, List.map copy_term l))
-    | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in match_term2"
-  in	  
-  match t.t_desc with
-    ReplIndex(v) when (List.memq v bl) ->
-      begin
-	if t'.t_type != v.ri_type then
-	  raise NoMatch;
-	match v.ri_link with
-	  NoLink -> Terms.ri_link v (TLink t')
-	| TLink t -> if not (Terms.simp_equal_terms simp_facts true t t') then raise NoMatch
-      end;
-      next_f ()
-  | ReplIndex(v) ->
-      begin
-	match t'.t_desc with
-	  ReplIndex(v') when v == v' -> next_f()
-	| _ -> if not (Terms.simp_equal_terms simp_facts true t t') then raise NoMatch else next_f()
-      end
-  | _ ->
-      match copy_term t with
-      | tinst ->
-	  (* term [t] is fully instantiated, just test equality;
-	     we can be more precise using [simp_facts] *)
-	  if not (Terms.simp_equal_terms simp_facts true tinst t') then raise NoMatch else next_f()
-      | exception NoMatch ->
-	  (* term [t] is not fully instantiated, try to instantiate it *)
-	  match t.t_desc, t'.t_desc with
-	  | Var(v,l), Var(v',l') when v == v' ->
-	      match_term_list2 next_f simp_facts bl l l'
-	  | FunApp(f,l), FunApp(f',l') when f == f' ->
-	      match_term_list2 next_f simp_facts bl l l'
-	  | _ ->
-	      raise NoMatch
+    | _ -> Parsing_helper.internal_error "If, find, let, and new should not occur in match_term_list2"
+  in
+  (* [aux] makes a pass over [t], [t'] trying to guess
+     the instantiation of [t] that would make it equal to [t'].
+     Then it calls [next_f()]. 
+     [aux] itself never raises [NoMatch], but [next_f()] may raise [NoMatch] *)
+  let rec aux next_f t t' () = 
+    match t.t_desc with
+      ReplIndex(v)  ->
+	if is_v v then
+	  begin
+	    match v.ri_link with
+	      NoLink -> Terms.ri_link v (TLink t')
+	    | TLink t -> ()
+	  end;
+	next_f ()
+    | Var(v,l) ->
+	begin
+	  match t'.t_desc with
+	  | Var(v',l') when v == v' ->
+	      Match_eq.match_term_list aux next_f l l' ()
+	  | _ -> 
+	      let t' = Terms.try_no_var simp_facts t' in
+	      match t'.t_desc with
+	      | Var(v', l') when v == v' ->
+		  Match_eq.match_term_list aux next_f l l' ()
+	      | _ -> next_f()
+	end
+    | FunApp(f,l) ->
+	Match_eq.match_funapp aux get_var_link next_f simp_facts next_f t t' ()
+    | _ ->
+	Parsing_helper.internal_error "If, find, let, and new should not occur in match_term_list2"
+  in
+  Match_eq.match_term_list aux (fun () ->
+    (* After guessing the instantiation of [l], we check that [l] is fully
+       instantiated (in [copy_term]) and equal to [l'].
+       Otherwise, we raise [NoMatch]. *)
+    let l_copy = List.map copy_term l in
+    if not (List.for_all2 (Terms.simp_equal_terms simp_facts true) l_copy l') then
+      raise NoMatch;
+    next_f()
+      ) l l' ()
 
-and match_term_list2 next_f simp_facts bl l l' = 
-  match l,l' with
-    [],[] -> next_f()
-  | a::l,a'::l' ->
-      match_term2 (fun () -> match_term_list2 next_f simp_facts bl l l') 
-	simp_facts bl a a'
-  | _ -> Parsing_helper.internal_error "Different lengths in match_term_list2"
+(* [match_term_list3] is used to match oracle calls in [Depanal].
+   It considers all replication indices as variables.
+   It cleans up the links only in case of failure of matching. *)
+let match_term_list3 simp_facts next_f l l' () =
+  Terms.ri_auto_cleanup_failure (fun () ->    
+    match_term_list2 next_f simp_facts None l l')
 
-
+(* [match_binderref2] is used to match array references in 
+   order to instantiate elsefind facts, below.
+   It considers the replication indices in [bl] as variables.
+   It always cleans up the links. *)
 let match_binderref2 next_f simp_facts bl (b,l) (b',l') =
   if b != b' then raise NoMatch;
-  match_term_list2 next_f simp_facts bl l l'
+  Terms.ri_auto_cleanup (fun () ->
+    match_term_list2 next_f simp_facts (Some bl) l l')
 
 let rec match_among next_match simp_facts bl br = function
     [] -> raise NoMatch
   | (br1::brl) ->
       try 
-	Terms.ri_auto_cleanup (fun () ->
-	  match_binderref2 next_match simp_facts bl br br1)
+	match_binderref2 next_match simp_facts bl br br1
       with NoMatch ->
 	match_among next_match simp_facts bl br brl
 

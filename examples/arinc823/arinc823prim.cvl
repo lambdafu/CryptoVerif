@@ -42,8 +42,8 @@ collision x <-R Z; y <-R Z; forall Y: G;
 
 const mark: bitstring.
 
-param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
-      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
+param na, naeq, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
+      nb, nbeq, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
 
 equiv(gdh(exp))
   ! na new a: Z; (
@@ -54,11 +54,15 @@ equiv(gdh(exp))
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naeq OAeq(m:G) := return(m = exp(g,a)) |
+         (* We put the oracle above before ODDHa1, so that ODDHa1 is not used when m' = g,
+	    which would lead to additional calls to the DDH oracle when in fact
+	    we can simply compare with the public key *)
     ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
     ! naDDH8 ODDHa8(m: G, j <= na) [3] := return(m = exp(g,mult(a[j], a))) |
-    ! naSign new r: seed; OSigna(m: bitstring) := return(sign(a, m, r)) |
-    ! naSign2 new r: seed; OSigna2(m: bitstring) := return(sign'(a, m, r)))|
+    ! naSign new r: seed; OSigna(ma1: bitstring) := return(sign(a, ma1, r)) |
+    ! naSign2 new r: seed; OSigna2(ma2: bitstring) := return(sign'(a, ma2, r)))|
   ! nb new b: Z; (
     OB() := return(exp(g,b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
@@ -67,15 +71,16 @@ equiv(gdh(exp))
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbeq OBeq(m:G) := return(m = exp(g,b)) |
     ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(m = exp(g, mult(a[j], b))) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
-    ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
-    ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
+    ! nbSign new r: seed; OSignb(mb1: bitstring) := return(sign(b, mb1, r)) |
+    ! nbSign2 new r: seed; OSignb2(mb2: bitstring) := return(sign'(b, mb2, r)))
     (* This probability formula uses random self reducibility.
        We assume that the secret keys are chosen uniformly in Z/qZ*, 
        where q is the order of g. *)
-<=(pGDH(time + (na + nb + 1) * time(exp),
+<=(pGDH(time + (na + nb + 1) * time(exp) + (#OSigna + #OSigna2 + #OSignb + #OSignb2) * time(sign, max(maxlength(ma1), maxlength(ma2), maxlength(mb1), maxlength(mb2))),
    #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
    #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
@@ -86,11 +91,12 @@ equiv(gdh(exp))
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naeq OAeq(m:G) := return(m = exp(g,a)) |
     ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) := return(false) |
     ! naDDH8 ODDHa8(m: G, j <= na) := return(m = exp(g,mult(a[j], a))) |
-    ! naSign OSigna(m: bitstring) := new r: seed; return(sign(a, m, r)) |
-    ! naSign2 OSigna2(m: bitstring) := new r: seed; return(sign'(a, m, r)))|
+    ! naSign OSigna(ma1: bitstring) := new r: seed; return(sign(a, ma1, r)) |
+    ! naSign2 OSigna2(ma2: bitstring) := new r: seed; return(sign'(a, ma2, r)))|
   ! nb new b: Z [unchanged]; (
     OB() := return(exp(g,b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
@@ -99,11 +105,12 @@ equiv(gdh(exp))
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbeq OBeq(m:G) := return(m = exp(g,b)) |
     ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(false) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) := return(m = exp(g,mult(b[j], b))) |
-    ! nbSign OSignb(m: bitstring) := new r: seed; return(sign(b, m, r)) |
-    ! nbSign2 OSignb2(m: bitstring) := new r: seed; return(sign'(b, m, r))).
+    ! nbSign OSignb(mb1: bitstring) := new r: seed; return(sign(b, mb1, r)) |
+    ! nbSign2 OSignb2(mb2: bitstring) := new r: seed; return(sign'(b, mb2, r))).
 
     (* We need to consider both forms m = exp(m', a) and m = exp(g,
     mult(b[j], a)) in the equivalence, because, when m' is known to be
@@ -129,7 +136,7 @@ equiv(suf_cma(sign))
     ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
     ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := return(ver(y, si, m)) [all]
-<=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual, computational]
+<=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))) + (#ODDH1 + #ODDH2 + #ODDH3 + 2 * #ODDH4) * time(exp), N2, maxlength(x)))=> [manual, computational]
   ! N3 new r: Z [unchanged]; (
     Opk() := return(exp(g,r)) |
     ! N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in return(s) |
@@ -199,8 +206,8 @@ collision x <-R Z; y <-R Z; forall Y: G;
 
 const mark: bitstring.
 
-param na, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
-      nb, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
+param na, naeq, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, naDDH8, naSign, naSign2,
+      nb, nbeq, nbDDH, nbDDH1, nbDDH2, nbDDH3, nbDDH4, nbDDH5, nbDDH6, nbDDH7, nbDDH8, nbSign, nbSign2.
 
 equiv(gdh(exp))
   ! na new a: Z; (
@@ -211,11 +218,15 @@ equiv(gdh(exp))
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naeq OAeq(m:G) := return(m = exp(g,a)) |
+         (* We put the oracle above before ODDHa1, so that ODDHa1 is not used when m' = g,
+	    which would lead to additional calls to the DDH oracle when in fact
+	    we can simply compare with the public key *)
     ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) [useful_change] := return(m = exp(g, mult(b[j], a))) |
     ! naDDH8 ODDHa8(m: G, j <= na) [3] := return(m = exp(g,mult(a[j], a))) |
-    ! naSign new r: seed; OSigna(m: bitstring) := return(sign(a, m, r)) |
-    ! naSign2 new r: seed; OSigna2(m: bitstring) := return(sign'(a, m, r)))|
+    ! naSign new r: seed; OSigna(ma1: bitstring) := return(sign(a, ma1, r)) |
+    ! naSign2 new r: seed; OSigna2(ma2: bitstring) := return(sign'(a, ma2, r)))|
   ! nb new b: Z; (
     OB() := return(exp(g,b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
@@ -224,15 +235,16 @@ equiv(gdh(exp))
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbeq OBeq(m:G) := return(m = exp(g,b)) |
     ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(m = exp(g, mult(a[j], b))) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) [3] := return(m = exp(g,mult(b[j], b))) |
-    ! nbSign new r: seed; OSignb(m: bitstring) := return(sign(b, m, r)) |
-    ! nbSign2 new r: seed; OSignb2(m: bitstring) := return(sign'(b, m, r)))
+    ! nbSign new r: seed; OSignb(mb1: bitstring) := return(sign(b, mb1, r)) |
+    ! nbSign2 new r: seed; OSignb2(mb2: bitstring) := return(sign'(b, mb2, r)))
     (* This probability formula uses random self reducibility.
        We assume that the secret keys are chosen uniformly in Z/qZ*, 
        where q is the order of g. *)
-<=(pGDH(time + (na + nb + 1) * time(exp),
+<=(pGDH(time + (na + nb + 1) * time(exp) + (#OSigna + #OSigna2 + #OSignb + #OSignb2) * time(sign, max(maxlength(ma1), maxlength(ma2), maxlength(mb1), maxlength(mb2))),
    #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
    #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
   ! na new a: Z [unchanged]; (
@@ -243,11 +255,12 @@ equiv(gdh(exp))
     ! naDDH5 ODDHa5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],a))) |
     ! naDDH6 ODDHa6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],a))) |
     ! naDDH7 ODDHa7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],a))) |
+    ! naeq OAeq(m:G) := return(m = exp(g,a)) |
     ! naDDH1 ODDHa1(m: G, m': G) := return(m = exp(m', a)) |
     ! naDDH ODDHa(m: G, j <= nb) := return(false) |
     ! naDDH8 ODDHa8(m: G, j <= na) := return(m = exp(g,mult(a[j], a))) |
-    ! naSign OSigna(m: bitstring) := new r: seed; return(sign(a, m, r)) |
-    ! naSign2 OSigna2(m: bitstring) := new r: seed; return(sign'(a, m, r)))|
+    ! naSign OSigna(ma1: bitstring) := new r: seed; return(sign(a, ma1, r)) |
+    ! naSign2 OSigna2(ma2: bitstring) := new r: seed; return(sign'(a, ma2, r)))|
   ! nb new b: Z [unchanged]; (
     OB() := return(exp(g,b)) |
     ! nbDDH2 ODDHb2(m: G, m': G, j <= nb) := return(exp(m, b[j]) = exp(m',b)) |
@@ -256,11 +269,12 @@ equiv(gdh(exp))
     ! nbDDH5 ODDHb5(m: G, j' <= nb, j <= na) := return(exp(m, a[j]) = exp(g,mult(b[j'],b))) |
     ! nbDDH6 ODDHb6(m: G, j' <= na, j <= nb) := return(exp(m, b[j]) = exp(g,mult(a[j'],b))) |
     ! nbDDH7 ODDHb7(m: G, j' <= na, j <= na) := return(exp(m, a[j]) = exp(g,mult(a[j'],b))) |
+    ! nbeq OBeq(m:G) := return(m = exp(g,b)) |
     ! nbDDH1 ODDHb1(m: G, m': G) := return(m = exp(m', b)) |
     ! nbDDH ODDHb(m: G, j <= na) := return(false) |
     ! nbDDH8 ODDHb8(m: G, j <= nb) := return(m = exp(g,mult(b[j], b))) |
-    ! nbSign OSignb(m: bitstring) := new r: seed; return(sign(b, m, r)) |
-    ! nbSign2 OSignb2(m: bitstring) := new r: seed; return(sign'(b, m, r))).
+    ! nbSign OSignb(mb1: bitstring) := new r: seed; return(sign(b, mb1, r)) |
+    ! nbSign2 OSignb2(mb2: bitstring) := new r: seed; return(sign'(b, mb2, r))).
 
     (* We need to consider both forms m = exp(m', a) and m = exp(g,
     mult(b[j], a)) in the equivalence, because, when m' is known to be
@@ -290,7 +304,7 @@ equiv(uf_cma(sign))
     ! NDDH3 ODDH3(m2: G) := return(m2 = exp(g, mult(r,r))) |
     ! NDDH4 ODDH4(m2: G, m3: G) := return(exp(m2, r) = exp(m3, r))) |
   ! N4 Ocheck2(m: bitstring, y: G, si: signature) [3] := return(ver(y, si, m)) [all]
-<=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))), N2, maxlength(x)))=> [manual, computational]
+<=(N3 * Psign(time + (N4+N-1) * time(ver, max(maxlength(m1), maxlength(m))) + (N3-1)*(time(exp) + N2 * time(sign, maxlength(x)) + N * time(ver, maxlength(m1))) + (#ODDH1 + #ODDH2 + #ODDH3 + 2 * #ODDH4) * time(exp), N2, maxlength(x)))=> [manual, computational]
   ! N3 new r: Z [unchanged]; (
     Opk() := return(exp(g,r)) |
     ! N2 new r2: seed [unchanged]; Osign(x: bitstring) := let s: signature = sign'(r, x, r2) in return(s) |

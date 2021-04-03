@@ -171,14 +171,11 @@ val try_two_directions :
 (*** Helper functions for cryptotransf: show that calls to oracles are incompatible or
    correspond to the same oracle call, to optimize the computation of probabilities. ***)
 
-type compat_info_elem = term * term list * 
-      repl_index list(* all indices *) * 
-      repl_index list(* initial indices *) * 
-      repl_index list(* used indices *) * 
-      repl_index list(* really used indices *)
-
-val filter_indices : term -> term -> term list -> repl_index list -> term list -> 
-  term list * compat_info_elem 
+val get_counted : counted_indices -> repl_index list
+val build_idx_mapping : (term list * counted_indices) ->
+  (term list * counted_indices) -> (repl_index * repl_index option) list
+val filter_indices : term -> term list -> term list -> term list ->
+  repl_index list -> counted_indices -> counted_indices * compat_info_elem 
 val is_compatible_indices : compat_info_elem -> compat_info_elem -> bool
-val same_oracle_call : compat_info_elem -> compat_info_elem -> compat_info_elem option
+val match_oracle_call : simp_facts -> compat_info_elem -> compat_info_elem -> compat_info_elem option
 
