@@ -35,6 +35,7 @@ remove_assign.
 - Minor improvement of the precision of the treatment of else
 conditions of find.
 - Improved test infrastructure: allow setting a timeout on tests.
+- Removed option optimizeVars.
 - Reimplemented the counting of calls to oracles in the crypto transformation,
 to make it more precise and fix two bugs.
 - Fixed bug in query_equiv: undone the optimization of the translation

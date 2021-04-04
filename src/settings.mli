@@ -76,7 +76,6 @@ val auto_remove_if_find_cond : bool ref
 val auto_move : bool ref
 val auto_expand : bool ref
     
-val optimize_let_vars : bool ref
 val ignore_small_times : int ref
 val interactive_mode : bool ref
 val auto_advice : bool ref

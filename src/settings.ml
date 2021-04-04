@@ -83,8 +83,6 @@ let auto_remove_if_find_cond = ref true
 let auto_move = ref true
 let auto_expand = ref true
     
-let optimize_let_vars = ref false
-
 let ignore_small_times = ref 3
 
 let interactive_mode = ref false
@@ -240,7 +238,6 @@ let do_set p v =
   | "autoMove", _ -> parse_bool v auto_move
   | "autoExpand", _ -> parse_bool v auto_expand
   | "autoAdvice", _ -> parse_bool v auto_advice
-  | "optimizeVars", _ -> parse_bool v optimize_let_vars
   | "interactiveMode", _ -> parse_bool v interactive_mode
   | "noAdviceCrypto", _ -> parse_bool v no_advice_crypto
   | "noAdviceGlobalDepAnal", _ -> parse_bool v no_advice_globaldepanal

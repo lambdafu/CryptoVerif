@@ -78,141 +78,6 @@ let equal_binder_pair_lists l1 l2 =
   (List.length l1 == List.length l2) && 
   (List.for_all2 (fun (b1,b1') (b2,b2') -> b1 == b2 && b1' == b2') l1 l2)
 
-(* Finds terms that can certainly not be evaluated in the same
-   session (because they are in different branches of if/find/let)
-   *)
-
-let incompatible_terms = ref []
-
-let add_incompatible l1 l2 =
-  List.iter (fun a ->
-    List.iter (fun b ->
-      if a == b then
-	Parsing_helper.internal_error "An expression is compatible with itself!";
-      incompatible_terms := (a,b):: (!incompatible_terms)) l2) l1
-
-let rec incompatible_def_term t = 
-  match t.t_desc with
-    Var(b,l) -> t::(incompatible_def_term_list l)
-  | FunApp(f,l) -> t::(incompatible_def_term_list l)
-  | ReplIndex _ -> [t]
-  | TestE(t1,t2,t3) -> 
-      let def1 = incompatible_def_term t1 in
-      let def2 = incompatible_def_term t2 in
-      let def3 = incompatible_def_term t3 in
-      add_incompatible def2 def3;
-      t::(def1 @ (def2 @ def3))
-  | FindE(l0, t3,_) ->
-      let def3 = incompatible_def_term t3 in
-      let accu = ref def3 in
-      List.iter (fun (bl, def_list, t1, t2) ->
-	let def = (incompatible_def_list def_list) 
-	    @ (incompatible_def_term t1) 
-	    @ (incompatible_def_term t2) in
-	add_incompatible (!accu) def;
-	accu := def @ (!accu)) l0;
-      t::(!accu)
-  | LetE(pat, t1, t2, topt) ->
-      let def1 = incompatible_def_term t1 in
-      let def2 = incompatible_def_pat pat in
-      let def3 = incompatible_def_term t2 in
-      let def4 = match topt with
-	None -> []
-      |	Some t3 -> incompatible_def_term t3 
-      in
-      add_incompatible def3 def4;
-      t::(def1 @ def2 @ def3 @ def4)
-  | ResE(b,t) ->
-      incompatible_def_term t
-  | EventAbortE _ -> [t]
-  | EventE(t1,p) ->
-      let deft1 = incompatible_def_term t1 in
-      let defp = incompatible_def_term p in
-      t :: deft1 @ defp
-  | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "get, insert should have been expanded"
-
-and incompatible_def_term_list = function
-    [] -> []
-  | (a::l) -> 
-      (incompatible_def_term_list l) @ 
-      (incompatible_def_term a)
-
-and incompatible_def_list = function
-    [] -> []
-  | ((b,l)::l') ->
-      (incompatible_def_term_list l) @
-      (incompatible_def_list l')
-
-and incompatible_def_pat = function
-    PatVar b -> []
-  | PatTuple (f,l) -> incompatible_def_pat_list l
-  | PatEqual t -> incompatible_def_term t
-
-and incompatible_def_pat_list = function
-    [] -> []
-  | (a::l) -> 
-      (incompatible_def_pat_list l) @
-      (incompatible_def_pat a)
-
-
-let rec incompatible_def_process p = 
-  match p.i_desc with
-    Nil -> []
-  | Par(p1,p2) ->
-      (incompatible_def_process p1) @
-      (incompatible_def_process p2)
-  | Repl(b,p) ->
-      incompatible_def_process p 
-  | Input((c,tl),pat,p) ->
-      (incompatible_def_term_list tl) @
-      (incompatible_def_pat pat) @
-      (incompatible_def_oprocess p)
-
-and incompatible_def_oprocess p =
-  match p.p_desc with
-    Yield | EventAbort _ -> []
-  | Restr(b, p) ->
-      incompatible_def_oprocess p 
-  | Test(t,p1,p2) ->
-      let def1 = incompatible_def_term t in
-      let def2 = incompatible_def_oprocess p1 in
-      let def3 = incompatible_def_oprocess p2 in
-      add_incompatible def2 def3;
-      def1 @ (def2 @ def3)
-  | Find(l0, p2,_) ->
-      let def3 = incompatible_def_oprocess p2 in
-      let accu = ref def3 in
-      List.iter (fun (bl, def_list, t, p1) ->
-	let def = (incompatible_def_list def_list) @
-	  (incompatible_def_term t) @
-	  (incompatible_def_oprocess p1) in
-	add_incompatible (!accu) def;
-	accu := def @ (!accu)) l0;
-      !accu
-  | Output((c,tl),t2,p) ->
-      (incompatible_def_term_list tl) @
-      (incompatible_def_term t2) @
-      (incompatible_def_process p)
-  | Let(pat,t,p1,p2) ->
-      let def1 = incompatible_def_term t in
-      let def2 = incompatible_def_pat pat in
-      let def3 = incompatible_def_oprocess p1 in
-      let def4 = incompatible_def_oprocess p2 in
-      add_incompatible def3 def4;
-      def1 @ (def2 @ (def3 @ def4))
-  | EventP(t,p) ->
-      (incompatible_def_term t) @
-      (incompatible_def_oprocess p)
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
-
-let incompatible_defs p = 
-  incompatible_terms := [];
-  ignore (incompatible_def_process p);
-  let result = !incompatible_terms in
-  incompatible_terms := [];
-  result
-
 (* Flags *)
 
 let stop_mode = ref false
@@ -1955,34 +1820,7 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     let let_vars' = ref [] in
     letvars_from_term let_vars' res_term';
     let after_transfo_let_vars = 
-      if (!Settings.optimize_let_vars) && (where_info != FindCond) then
-	(* Try to find an expression from which we could reuse the let variables.
-	   We do not try to reuse let variables when we are in a "find" condition,
-	   because variables in "find" conditions must have a single definition.
-	   Moreover, the sharing of variables is possible only when the
-	   two expressions have the same replication indices above them;
-	   otherwise, we may use variables with a bad [args_at_creation] field. *)
-	let rec find_incomp_same_exp = function
-	    [] -> (* Not found; create new let variables *)
-	      List.map (fun b -> (b, new_binder2 b cur_array)) (!let_vars')
-	  | (mapping::rest_map) ->
-	      if mapping.target_exp == res_term' then
-		try
-		  let exp = List.find (fun exp ->
-		    (Terms.equal_terms exp.source_exp_instance t) &&
-		    (is_incompatible exp.source_exp_instance t) &&
-		    (Terms.equal_lists (==) exp.cur_array_exp cur_array)
-		      ) mapping.expressions in
-		    (* Found, reuse exp.after_transfo_let_vars *)
-		  exp.after_transfo_let_vars
-		with Not_found ->
-		  find_incomp_same_exp rest_map
-	      else
-		find_incomp_same_exp rest_map
-	in
-	find_incomp_same_exp (!map)
-      else
-	List.map (fun b -> (b, new_binder2 b cur_array)) (!let_vars')
+      List.map (fun b -> (b, new_binder2 b cur_array)) (!let_vars')
     in
 	
     (* Compute rev_subst_indexes
@@ -5612,8 +5450,6 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
   List.iter (fun (fg, mode) ->
     if mode == AllEquiv then build_symbols_to_discharge fg) lm;
   Improved_def.improved_def_game None true g;
-  if !Settings.optimize_let_vars then
-    incompatible_terms := incompatible_defs p;
   let result = 
   if (names == []) then
     begin
