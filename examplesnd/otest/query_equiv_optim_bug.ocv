@@ -1,3 +1,9 @@
+(* This equivalence should not be proved, because it is actually
+   possible to define x without defining y. 
+
+   The file examplesnd/otest/query_equiv_optim_bug_usage.ocv
+   shows that using this equivalence is indeed not sound. *)
+
 param N, N'.
 type nonce [fixed].
 
@@ -12,3 +18,8 @@ query_equiv
    !N x <-R nonce; O(y:bitstring) := return(f(x,y)) |
    !N' Otest() := find i <= N suchthat defined(x[i]) && (find j <=N suchthat defined(y[j]) && j = i then false else true) then return(B) else return(A)
    
+
+(* EXPECTED
+RESULT Could not prove indistinguishability between game 1 and game 2.
+0.080s (user 0.080s + system 0.000s), max rss 16704K
+END *)

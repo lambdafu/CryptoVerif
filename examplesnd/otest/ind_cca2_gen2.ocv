@@ -11,6 +11,7 @@ proof{
 	insert after "Oenc2" "find k <= N3 suchthat defined(r[k]) && y = pkgen(r[k]) then";
 	(* replace y with pkgen(r[k]) *)
 	replace at_nth 1 2 "enc_r({[0-9]+}x, {[0-9]+}y, {[0-9]+}r2)" "pkgen(r[k])";
+	move binder r2;
 	crypto ind_cca2_partial(enc);
 	(* replace pkgen(r[k]) with y *)
 	replace at 3 "enc_r2({[0-9]+}Z({[0-9]+}x), {[0-9]+}pkgen({[0-9]+}r[{[0-9]+}k]), {[0-9]+}r2)" "y";

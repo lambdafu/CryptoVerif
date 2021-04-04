@@ -29,11 +29,6 @@ HIGH PRIORITY
 
 cryptoprim.tex: continue updating with the new def of nominal groups.
 
-undo optim of query_equiv which uses O() := new x;... instead of
-new x; O() := ... it causes a soundness bug, cf 
-examplesnd/otest/query_equiv_optim_bug.ocv
-examplesnd/otest/query_equiv_optim_bug_usage.ocv
-
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
 to ProVerif as well for compatibility (but ignore them).
@@ -6201,3 +6196,9 @@ DONE 30/3/2021
 optimize the computation of simp_facts in match_oracle_call,
 to avoid repeating it.
 DONE 31/3/2021
+
+undo optim of query_equiv which uses O() := new x;... instead of
+new x; O() := ... it causes a soundness bug, cf 
+examplesnd/otest/query_equiv_optim_bug.ocv
+examplesnd/otest/query_equiv_optim_bug_usage.ocv
+DONE 3/4/2021

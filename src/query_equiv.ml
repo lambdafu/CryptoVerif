@@ -83,19 +83,11 @@ let put_out cur_array c t =
     
 let rec fungroup_to_process cur_array ch_struct fg =
   match (ch_struct, fg) with
+  (* The case ReplRestr(..., [Fun ...]) cannot be optimized, because
+     it causes a soundness bug. See examplesnd/otest/query_equiv_optim_bug.ocv *)
   | CFun c, Fun(c' , bl, t, _) when c' == c ->
       let out_p = put_out cur_array c t in
       put_in cur_array c bl out_p
-  | CRepl(_, [CFun c]), ReplRestr(idx_opt, restr, [Fun(c', bl, t, _)]) when c' == c ->
-      let cur_array' =
-	match idx_opt with
-	| None -> cur_array
-	| Some idx -> idx :: cur_array
-      in
-      let out_p = put_out cur_array' c t in
-      let restr_p = put_restr out_p restr in
-      let in_p = put_in cur_array c bl restr_p in
-      put_repl in_p idx_opt
   | CRepl(c, ch_struct_l), ReplRestr(idx_opt, restr, fglist) ->
       let cur_array' =
 	match idx_opt with
@@ -195,26 +187,8 @@ let rename_vars_member m =
     
 let rec eqfungroup_to_process bad_event cur_array lhs rhs =
   match lhs, rhs with
-  | ReplRestr(idx_opt, restr, [Fun(_,_,t,_)]), ReplRestr(idx_opt', restr', [Fun(c', bl', t', _)]) ->
-      let cur_array' =
-	match idx_opt, idx_opt' with
-	| None, None -> cur_array
-	| Some idx, Some idx' when idx == idx' -> idx :: cur_array
-	| _ -> assert false
-      in
-      let b_lhs = Terms.create_binder "res_lhs" t.t_type cur_array' in
-      let b_rhs = Terms.create_binder "res_rhs" t'.t_type cur_array' in
-      let out_p = put_out cur_array' c' (Terms.term_from_binder b_lhs) in
-      let test_p = Terms.oproc_from_desc
-	  (Test(Terms.make_equal (Terms.term_from_binder b_lhs) (Terms.term_from_binder b_rhs),
-		out_p,
-		Terms.oproc_from_desc (EventAbort bad_event)))
-      in
-      let let2_p = Terms.oproc_from_desc (Let(PatVar b_rhs, t', test_p, Terms.oproc_from_desc Yield)) in
-      let let1_p = Terms.oproc_from_desc (Let(PatVar b_lhs, t, let2_p, Terms.oproc_from_desc Yield)) in
-      let restr_p = put_restr let1_p (Terms.union (fun (b,_) (b',_) -> b == b') restr restr') in
-      let in_p = put_in cur_array' c' bl' restr_p in
-      put_repl in_p idx_opt'
+  (* The case ReplRestr(..., [Fun ...]) cannot be optimized, because
+     it causes a soundness bug. See examplesnd/otest/query_equiv_optim_bug.ocv *)
   | ReplRestr(idx_opt, restr, funlist), ReplRestr(idx_opt', restr', funlist') ->
       let cur_array' =
 	match idx_opt, idx_opt' with

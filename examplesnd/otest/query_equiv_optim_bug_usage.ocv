@@ -1,3 +1,13 @@
+(* This file demonstrates that the equivalence given as assumption is not
+   correct. Indeed, Cryptoverif shows that event bad cannot bad, while in fact
+   the test A <> B may succeed, so event bad may be executed.
+
+   Therefore, in the file 
+   examplesnd/otest/query_equiv_optim_bug.ocv
+   the proof of this equivalence should fail.
+*)
+
+
 param N, N'.
 type nonce [fixed].
 
@@ -14,9 +24,6 @@ equiv
    !N' Otest() := find i <= N suchthat defined(x[i]) && (find j <=N suchthat defined(y[j]) && j = i then false else true) then return(B) else return(A).
 
 
-fun is_not_B(bitstring):bool.
-equation is_not_B(B) = false.
-
 event bad.
 query event(bad) ==> false.
 
@@ -28,6 +35,11 @@ process
    x <-R nonce;
    return;
    O2() :=
-   if is_not_B(A) then event_abort bad else return();
+   if A <> B then event_abort bad else return();
    O3(y:bitstring) :=
    return(f(x,y))
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.076s + system 0.004s), max rss 16760K
+END *)
