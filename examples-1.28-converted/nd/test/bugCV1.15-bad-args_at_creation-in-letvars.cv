@@ -154,6 +154,12 @@ out(c9, ());
 
 
 (* EXPECTED
+Error: Bad setting optimizeVars=true
+xtime: error in child process (status : 2)
+END 
+
+That was the result when the setting optimizeVars was allowed:
 RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
 0.164s (user 0.156s + system 0.008s), max rss 13280K
-END *)
+
+*)
