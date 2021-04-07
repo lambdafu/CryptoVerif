@@ -353,10 +353,7 @@ let rec order_of_magnitude_aux probaf =
   | Power(p,n) ->
       power_interv (order_of_magnitude_aux p) n
   | Proba (p,_) ->
-      if !Settings.trust_size_estimates then
-        (1, min_f), (1, float_of_int (- p.pestimate))
-      else
-	zero_interv (* Accept all collisions *)
+      (1, min_f), (1, float_of_int (- p.pestimate))
   | OptimIf(cond, p1, p2) ->
       if is_sure_cond Polynom.probaf_to_polynom cond then
 	order_of_magnitude_aux p1
@@ -423,12 +420,6 @@ let is_small_enough_coll_elim p =
     with Not_found ->
       false
 	
-let is_small_enough_collision p =
-  if !Settings.trust_size_estimates then
-    is_small_enough_coll_elim p
-  else
-    (p.p_dep_types == []) && (List.exists (is_smaller p.p_ri_list) (!Settings.allowed_collisions_collision))
-  
 
 let whole_game = ref Terms.empty_game
 let time_for_whole_game = ref None
@@ -789,7 +780,7 @@ let equal_red red1 red2 =
    if possible. *)
     
 let add_proba_red_inside new_red =
-  if is_small_enough_collision new_red.r_proba then
+  if is_small_enough_coll_elim new_red.r_proba then
     begin
       let new_red = { new_red with r_proba = optim_probaf new_red.r_proba } in
       let rec find_more_general_coll = function

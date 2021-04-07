@@ -1865,14 +1865,14 @@ let rec interpret_command interactive state = function
 	    Settings.tysize_MIN_Coll_Elim := Settings.parse_pest proba_est
 	| Allowed_Coll_Asympt(coll_list) ->
 	    Settings.allowed_collisions := [];
-	    Settings.allowed_collisions_collision := [];
 	    Settings.trust_size_estimates := false;
-	    List.iter (fun (pl,topt) -> 
-	      let pl' = List.map (fun (p,exp) -> (Settings.parse_psize p, exp)) pl in
-	      match topt with
-		Some t -> Settings.allowed_collisions := (pl', Settings.parse_pest t) :: (!Settings.allowed_collisions)
-	      | None -> Settings.allowed_collisions_collision :=  pl' :: (!Settings.allowed_collisions_collision)
-									   ) coll_list;
+	    List.iter (fun (pl,pest) -> 
+	      let pl' = List.map (fun (p,exp) ->
+		if exp <= 0 then
+		  raise (Error("Exponent should be strictly positive", snd p));
+		(Settings.parse_psize p, exp)) pl in
+	      Settings.allowed_collisions := (pl', Settings.parse_pest pest) :: (!Settings.allowed_collisions)
+										  ) coll_list;
 	    Settings.tysize_MIN_Coll_Elim :=
 	       Terms.min_list (fun (_, ty_size) -> ty_size) (!Settings.allowed_collisions)
       end;

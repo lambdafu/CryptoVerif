@@ -1381,9 +1381,12 @@ num:
 
 quot:
     num DIV idst
-    { ($1, Some $3) }
-|   COLLISION MUL num
-    { ($3, None) }
+    { ($1, $3) }
+|   INT DIV idst
+    { if $1 <> 1 then
+      raise Parsing.Parse_error;
+      ([], $3) 
+    }
 
 allowed_coll_asymptotic:
     quot
@@ -1394,6 +1397,8 @@ allowed_coll_asymptotic:
 allowed_coll:
     allowed_coll_asymptotic
     { Allowed_Coll_Asympt($1) }
+|
+    { Allowed_Coll_Asympt([]) (* No collision allowed *) }
 |   idst
     { Allowed_Coll_Exact($1) }
     

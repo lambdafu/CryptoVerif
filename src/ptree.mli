@@ -213,7 +213,7 @@ type peqname =
   | PN of int * Parsing_helper.extent
 
 type allowed_coll_t = 
-  | Allowed_Coll_Asympt of ((ident * int) list * ident option) list
+  | Allowed_Coll_Asympt of ((ident * int) list * ident) list
   | Allowed_Coll_Exact of ident
 
 type guess_arg_t =

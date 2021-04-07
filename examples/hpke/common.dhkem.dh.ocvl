@@ -12,11 +12,8 @@ Long version: https://eprint.iacr.org/2020/1499 *)
 
 type G_t [bounded].
 fun Serialize(G_t): bitstring [data].
-type Z_t [bounded,pcoll250,nonuniform].
-proba PCollKey [pest280].
-   (* We allow eliminating collisions with probability in power 4 of 
-      N, Qeperuser, Qdperuser times PCollKey, to allow q^2 * PCollKey,
-      where q = N * (Qeperuser + Qdperuser) *)
+type Z_t [bounded,nonuniform].
+proba PCollKey.
 
 expand DH_proba_collision_minimal(
   G_t,

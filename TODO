@@ -6202,3 +6202,9 @@ new x; O() := ... it causes a soundness bug, cf
 examplesnd/otest/query_equiv_optim_bug.ocv
 examplesnd/otest/query_equiv_optim_bug_usage.ocv
 DONE 3/4/2021
+
+Modify the "allowed_collisions" mechanism based on number of bits
+to make an analysis closer to the number of bits of security,
+as we did manually for HPKE?
+=> Does not seem that useful; rather use the "allowed_collisions"
+mechanism based on formulas.

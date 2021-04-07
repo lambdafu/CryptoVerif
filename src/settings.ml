@@ -129,20 +129,16 @@ let min_exp = -max_exp
    constant * (parameter of size <= psize1)^n1 * ... * 
    (parameter of size <= psizek)^nk / (type of size >= tsize) 
 
-   The default value allows: anything/large type and 
-   default parameter/password *) 
-let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE); 
-                               ([psize_SMALL, 1], tysize_PASSWORD_min) ]
-
-(* Similar to allowed_collisions but for "collision" statements:
-   It consists of a list of probability descriptions
-   of the form [(psize1, n1); ...; (psizek,nk)] 
-   which represent probabilities of the form
-   constant * (parameter of size <= psize1)^n1 * ... * 
+   Also applies to collision statements; the probability
+   of one collision must have size <= -tsize, and the number of 
+   repetitions be less than constant * (parameter of size <= psize1)^n1 * ... * 
    (parameter of size <= psizek)^nk.
 
-   The default value allows any probability formula *)
-let allowed_collisions_collision = ref [ [max_int, max_int] ]
+   The default value allows: anything/(a bit less than "large") and 
+   small/password *) 
+let allowed_collisions = ref [ ([max_int, max_int], tysize_LARGE-5); 
+                               ([psize_SMALL, 1], tysize_PASSWORD_min) ]
+
 
 let check_exp v ext =
   if v < 0 then

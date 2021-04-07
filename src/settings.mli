@@ -117,14 +117,6 @@ val tysize_MIN_Coll_Elim : int ref
    (parameter of size <= psizek)^nk / (type of size >= tsize) *) 
 val allowed_collisions : ((int * int) list * int) list ref
 
-(* Similar to allowed_collisions but for "collision" statements:
-   It consists of a list of probability descriptions
-   of the form [(psize1, n1); ...; (psizek,nk)] 
-   which represent probabilities of the form
-   constant * (parameter of size <= psize1)^n1 * ... * 
-   (parameter of size <= psizek)^nk. *)
-val allowed_collisions_collision : (int * int) list list ref
-
 val parse_type_size_pcoll : string * Parsing_helper.extent -> (int * int) option * (int * int) option
 val parse_pest : string * Parsing_helper.extent -> int
 val parse_psize : string * Parsing_helper.extent -> int

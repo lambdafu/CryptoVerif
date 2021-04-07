@@ -38,6 +38,11 @@ conditions of find.
 - Removed option optimizeVars.
 - Reimplemented the counting of calls to oracles in the crypto transformation,
 to make it more precise and fix two bugs.
+- Revised the command "allowed_collisions": the form
+"allowed_collisions <formulas>" applies to both collisions between
+terms and collision statements without using the "collision" keyword;
+the list of formulas may be empty; formulas may be 1/pest when there is
+no factor.
 - Fixed bug in query_equiv: undone the optimization of the translation
 that avoids creating oracles that just generate random values before
 a single oracle; this optimization was not sound in general.

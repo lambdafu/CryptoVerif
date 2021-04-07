@@ -21,16 +21,15 @@
 (* Proof indications *)
 
 proof {
-allowed_collisions pest90;
+allowed_collisions noninteractive^2/large;
    (* Allow eliminating collisions of probability q^2 / |Z|, q^2 / |G|, q^2 / |hash1|,
    where q is a number of queries (qH0, qH1, qE, qD, NS, NU, NP):
-   |G|, |Z|, |hash1| are considered to be >= 2^256
-   The numbers of queries are considered to be <= 2^80 or <= 2^70
-   so q^2/|G| <= 2^-96 or 2^-116 < 2^-90.
-   q^3/|G| or q/|passwd| are not allowed (at this point).
+   |G|, |Z|, |hash1| are considered to be large
+   q^3/|G| or q/|passwd| are not allowed.
 
    Since q \in O(t_A) and |Z| = |G|, we will get terms for probabilities of collisions
    O(t_A^2)/|hash1| + O(t_A^2)/|G|.
+
    *)
 show_game;
 insert after "OH_1" "let concat(x11,x12,x13,x14,x15) = x1_1 in"; (* just after OH_1(..):= *)
@@ -108,26 +107,27 @@ show_game;
 insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_2[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_2[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
 simplify;
 merge_branches;
-allowed_collisions pest20;
-  (* Allow eliminating collisions with probability 
-     (NU + NS)/|passwd| <= 2^70/2^90 = 2^20.
-     Do not allow eliminating collisions with probability 
-     q/|passwd| <= 2^80/2^90 = 2^10 for q = NP, qE, qD, qH0, qH1.  *)
+allowed_collisions noninteractive^2/large, small/password;
+(* Allow eliminating collisions with probability 
+   (NU + NS)/|passwd| since NU and NS are small and |passwd| is of size password.
+   These collisions are not eliminated automatically because |passwd| is too small,
+   they need to be explicitly requested by simplify coll_elim(variables: pw0) below.
+ *)
 simplify coll_elim(variables: pw0);
 success
 }
 
 (* Parameter and type declarations *)
 
-param NU, NS [size70].
-param NP [size80].
+param NU, NS [small].
+param NP [passive].
 
-type Z [pcoll256, bounded].
-type G [pcoll256, bounded].
-type passwd [pcoll90, bounded].
+type Z [large, bounded].
+type G [large, bounded].
+type passwd [password, bounded].
 
 type hash0 [fixed].
-type hash1 [fixed,pcoll256].
+type hash1 [fixed,large].
 type host [bounded].
 
 (* Computational Diffie-Hellman *)
@@ -233,22 +233,6 @@ process
 	 run enc_dec_oracle(ck) | run hashoracle0(hk0) | run hashoracle1(hk1))
 
 (* Results
-
-RESULT Proved event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s up to probability (NS + qH1 * NU + qH1 ^ 2) / |hash1| + (qE * NP + qE * NS + NS * qH1 + 3 * NU * qH1 + NS * qH0 + 3 * NU * qH0 + NP * qH0 + 20 * NP * qH1 + qD * qH0 + qD * qH1 + 3 * qD * NP + 16 * NU * NP + 4.5 * NP ^ 2 + 8 * NS ^ 2 + 0.5 * qD ^ 2 + 3 * qD * NU + 11 * NU ^ 2 + 9 * NS * NU + 5 * NS * qD + 6 * NS * NP) / |Z| + (2 * NU * NS + 2 * qD * NS + 2 * NU * NP + 2 * qD * NP + 2 * qD * qE + 5 * qH0 * NU + 7 * qH1 * NU + 3 * NU * qD + 10 * NU ^ 2 + 4 * NP * NS + 3 * NS ^ 2 + 3 * NS * qE + 2.5 * NP ^ 2 + 3 * NP * qE + 3 * NU * qE + 1.5 * qE ^ 2 + 2.5 * qD ^ 2 - NU - qD - NP - qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
-RESULT Proved inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s up to probability (NS + qH1 * NU + qH1 ^ 2) / |hash1| + (qE * NP + qE * NS + NS * qH1 + 3 * NU * qH1 + NS * qH0 + 3 * NU * qH0 + NP * qH0 + 20 * NP * qH1 + qD * qH0 + qD * qH1 + 3 * qD * NP + 16 * NU * NP + 4 * qD * NS + 8 * NU * NS + 4.5 * NP ^ 2 + 10.5 * NU ^ 2 + 8 * NS ^ 2 + 0.5 * qD ^ 2 + 5 * NS * NP + 3 * qD * NU) / |Z| + (2 * NU * NS + 2 * qD * NS + 2 * NU * NP + 2 * qD * NP + 2 * qD * qE + 5 * qH0 * NU + 7 * qH1 * NU + 3 * NU * qD + 10 * NU ^ 2 + 4 * NP * NS + 3 * NS * qE + 2.5 * NP ^ 2 + 3 * NP * qE + 3 * NU * qE + 1.5 * qE ^ 2 + 2.5 * qD ^ 2 + 3.5 * NS ^ 2 - NU - qD - NP - qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
-RESULT Proved secrecy of sk_s && sk_u up to probability (2 * NS + 2 * qH1 * NU + qH1 ^ 2) / |hash1| + (2 * qE * NP + 2 * qE * NS + 2 * NS * qH1 + 6 * NU * qH1 + 2 * NS * qH0 + 6 * NU * qH0 + 2 * NP * qH0 + 40 * NP * qH1 + 2 * qD * qH0 + 2 * qD * qH1 + 5 * qD * NP + 30 * NU * NP + 7 * qD * NS + 15 * NU * NS + 8 * NP ^ 2 + 20 * NU ^ 2 + 15.5 * NS ^ 2 + 0.5 * qD ^ 2 + 9 * NS * NP + 5 * qD * NU) / |Z| + (4 * NU * NS + 4 * qD * NS + 4 * NU * NP + 4 * qD * NP + 4 * qD * qE + 10 * qH0 * NU + 14 * qH1 * NU + 6 * NU * qD + 20 * NU ^ 2 + 8 * NP * NS + 5.5 * NS ^ 2 + 5 * NS * qE + 4.5 * NP ^ 2 + 5 * NP * qE + 5 * NU * qE + 2.5 * qE ^ 2 + 4.5 * qD ^ 2 - NS - 2 * NU - 2 * qD - 2 * NP - 2 * qE) / |G| + (qH1 + qH0) * pCDH(time_1) + (NU + NS) / |passwd|
-RESULT time_1 = (qH0 + qH1) * time(let concat) + qH0 ^ 2 * time(= bitstring, maxlength(game 49: x1), maxlength(game 49: x1)) + qH1 ^ 2 * time(= bitstring, maxlength(game 49: x1_1), maxlength(game 49: x1_1)) + time + (1 + qH0 + qH1 + 2 * NU + NS + 2 * NP + qD) * time(exp)
-
-RESULT Proved event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> (k = k') with public variables sk_u, sk_s up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + p_coll1 + p_coll2 + (NS * NP + NS * qD + NS * NU + 0.5 * NU ^ 2) / |Z|
-RESULT Proved inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k)) with public variables sk_u, sk_s up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + p_coll1 + p_coll2 + 0.5 * NS ^ 2 / |G|
-RESULT Proved secrecy of sk_s && sk_u up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2p_coll1 + p_coll2 
-where
-p_coll1: collisions eliminated before proving secrecy
-p_coll2: collisions eliminated after proving secrecy, to prove that events are not 
-executed (do not need to be multiplied by 2 for secrecy).
 
 Let q = qE + qD + qH0 + qH1 + NS + NU + NP = O(t_A). 
 I can overapproximate the probabilities as follows:
