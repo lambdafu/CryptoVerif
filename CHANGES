@@ -55,7 +55,7 @@ and deserialization functions were swapped for types bool and bitstringbot
 - Fixed bug in update of defined conditions following other
 rewritings of the game: it supported only expanded games, but
 was sometimes called on non-expanded games.
-- Fixed probabilities in square GDH and PRF-ODH.
+- Fixed probabilities in GDH, square GDH and PRF-ODH.
 - Fixed bug in probabilities: when a collision statement was applied
 together with a crypto transformation, there was confusion between
 the time of the adversary against the collision statement and the one

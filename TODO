@@ -27,7 +27,8 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-cryptoprim.tex: continue updating with the new def of nominal groups.
+update HPKE paper, with fix to make the DDH oracle unambiguous.
+DONE 13/4/2021, still to be checked by coauthors of HPKE paper.
 
 Add the constructs
 proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
@@ -6208,3 +6209,28 @@ to make an analysis closer to the number of bits of security,
 as we did manually for HPKE?
 => Does not seem that useful; rather use the "allowed_collisions"
 mechanism based on formulas.
+
+cryptoprim.tex: continue updating with the new def of nominal groups.
+   DONE 9/4/2021
+=> I need to change the proba for GDH/square GDH: add PRerandomDist
+even without RSR (because when exponents are chosen according to the spec
+of Curve25519/448, there may be several exponents for the same public
+key, making the DDH oracle ambiguous; I need to choose exponents in 
+k[(p+1)/2,p-1] to make sure that the correspondence between exponents and 
+public keys is bijective).
+   DONE 9/4/2021
+=> When the underlying group is curve25519/448, PRF-ODH2 must be applied
+with the detailed model of curve25519/448 (the existence of equivalent public
+keys breaks the property).
+   DONE 9/4/2021: mentioned in the manual
+   I am hesitating between 3 ways of dealing with distribution changes
+in Curve25519/448:
+   - the current way (stay with honest exponents as long as possible)
+   - stay with honest exponents, but define CDH/DDH with exponents in [(p+1)/2,p-1]
+   Then I would need to add PRerandomDist to CDH/DDH even without RSR
+   - switch to exponents in [(p+1)/2,p-1] as a first crypto transformation,
+   then work with those. There is an argument against that when I want to deal
+   with generic groups which may or not be curve25519/448: that complicates the
+   proof for nothing. However, when I work with curve25519/448, that can lead
+   to minor savings in probabilities.
+I think it will stay as it is.

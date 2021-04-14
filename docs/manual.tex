@@ -1847,18 +1847,26 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
        Curve25519/Curve448).  CDH and GDH with random self reducibility
        do not have such limitations.
    
-     \item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$
-       says that the group $G$ satisfies the gap Diffie-Hellman
-       assumption (GDH). The probability $p(t,n)$ is the probability of breaking
-       the GDH assumption for one pair of exponents in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle. This macro defines
-       the equivalence $\texttt{gdh}(\vn{exp})$, whichs corresponds to the GDH property, for use in the
-       \texttt{crypto} command (see Section~\ref{sec:interact}).
+     \item $\texttt{expand\ GDH(}G, Z, g, \vn{exp}, \vn{exp}',
+       \vn{mult}, p, p_d\texttt{).}$ says that the group $G$ satisfies
+       the gap Diffie-Hellman assumption (GDH). The probability
+       $p(t,n)$ is the probability of breaking the GDH assumption for
+       one pair of exponents in time $t$ with at most $n$ calls to the
+       decisional Diffie-Hellman oracle.  $p_d$ is the probability of
+       distinguishing a key that comes from rerandomization from an
+       honestly chosen key (see \texttt{CDH\_RSR}). It is needed
+       because, for Curve25519/448, to make the Diffie-Hellman
+       decision oracle unambiguous, we generate secret keys in
+       $[(p+1)/2,p-1]$ instead of the set used for generating secret
+       keys in the Curve25519/448 implementation.  (The latter set
+       yields equivalent secret keys with small probability.) We make
+       the same change of distribution for rerandomization.  This
+       macro defines the equivalence $\texttt{gdh}(\vn{exp})$, whichs
+       corresponds to the GDH property, for use in the \texttt{crypto}
+       command (see Section~\ref{sec:interact}).
 
      \item $\texttt{expand\ GDH\_RSR(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$ 
        is similar to \texttt{GDH}, but uses random self reducibility.
-       $p_d$ is the probability of distinguishing a key that comes from rerandomization from
-       an honestly chosen key (see \texttt{CDH\_RSR}).
 
      \item
        $\texttt{expand\ square\_CDH(}G, Z, g, \vn{exp}, \vn{exp}',
@@ -1906,21 +1914,29 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
 
      \item
        $\texttt{expand\ square\_GDH(}G, Z, g, \vn{exp}, \vn{exp}',
-       \vn{mult}, p, \vn{sqp}\texttt{).}$
-       says that the group $G$ satisfies the gap Diffie-Hellman (GDH)
-       assumption and the square gap Diffie-Hellman assumption;
-       $p(t,n)$ is the probability of breaking the GDH assumption, for
-       one pair of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle and $\vn{sqp}(t,n)$ is the
-       probability of breaking the square GDH assumption, for one pair
-       of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle.  This macro defines the equivalence
-       $\texttt{gdh}(\vn{exp})$, whichs corresponds to the (square)
-       GDH property, for use in the \texttt{crypto} command (see
-       Section~\ref{sec:interact}).
+       \vn{mult}, p, \vn{sqp},p_d\texttt{).}$ says that the group $G$
+       satisfies the gap Diffie-Hellman (GDH) assumption and the
+       square gap Diffie-Hellman assumption; $p(t,n)$ is the
+       probability of breaking the GDH assumption, for one pair of
+       exponents, in time $t$ with at most $n$ calls to the decisional
+       Diffie-Hellman oracle and $\vn{sqp}(t,n)$ is the probability of
+       breaking the square GDH assumption, for one pair of exponents,
+       in time $t$ with at most $n$ calls to the decisional
+       Diffie-Hellman oracle.  $p_d$ is the probability of
+       distinguishing a key that comes from rerandomization from an
+       honestly chosen key (see \texttt{CDH\_RSR}). It is needed
+       because, for Curve25519/448, to make the Diffie-Hellman
+       decision oracle unambiguous, we generate secret keys in
+       $[(p+1)/2,p-1]$ instead of the set used for generating secret
+       keys in the Curve25519/448 implementation.  (The latter set
+       yields equivalent secret keys with small probability.) We make
+       the same change of distribution for rerandomization. This
+       macro defines the equivalence $\texttt{gdh}(\vn{exp})$, whichs
+       corresponds to the (square) GDH property, for use in the
+       \texttt{crypto} command (see Section~\ref{sec:interact}).
 
      \item $\texttt{expand\ square\_GDH\_RSR(}G, Z, g, \vn{exp},
-       \vn{exp}', \vn{mult}, \vn{sqp}\texttt{).}$ says that the group
+       \vn{exp}', \vn{mult}, \vn{sqp}, p_d\texttt{).}$ says that the group
        $G$ satisfies the square gap Diffie-Hellman assumption;
        $\vn{sqp}(t,n)$ is the probability of breaking the square GDH
        assumption, for one pair of exponents, in time $t$ with at most
@@ -1941,6 +1957,7 @@ $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}
 This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the PRF-ODH1 property, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}).
+
      \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
        %
        The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
@@ -1949,8 +1966,15 @@ This macro defines the equivalence
 The probability $p(t, n, n')$ is the probability of breaking the PRF-ODH2 assumption
    in time $t$ with $n$ queries to $\vn{prf}(\vn{exp}(g,\vn{mult}(a,b)),x)$ and $n'$ queries to $(Y,x) \mapsto \vn{prf}(\vn{exp}(Y,a),x)$ and $(X,x) \mapsto \vn{prf}(\vn{exp}(X,b),x)$ in total.
 This macro defines the equivalence
-       $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the PRF-ODH2 property, for use in the \texttt{crypto} command (see
+       $\texttt{prf\_odh}(\vn{prf})$, which corresponds to the PRF-ODH2 property, for use in the \texttt{crypto} command (see
 Section~\ref{sec:interact}).
+
+Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
+with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
+\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{PRF\_ODH2}
+must be applied to the subgroup, e.g.
+$\texttt{expand\ PRF\_ODH2(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$.
+(The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{PRF\_ODH2}.)
 
      \item $\texttt{expand\ square\_PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH1 assumption and the PRF-ODH1 assumption.
        %
@@ -1967,6 +1991,7 @@ Section~\ref{sec:interact}).
    This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH1 and PRF-ODH1 properties, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}).
+
      \item $\texttt{expand\ square\_PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH2 assumption and the PRF-ODH2 assumption.
        %
        The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
@@ -1979,6 +2004,15 @@ The probability $\vn{sqp}(t, n, n')$ is the probability of breaking the square P
 This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH2 and PRF-ODH2 properties, for use in the \texttt{crypto} command (see
 Section~\ref{sec:interact}).
+
+Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
+with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
+\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{square\_PRF\_ODH2}
+must be applied to the subgroup, e.g.
+$\texttt{expand\ square\_PRF\_ODH2(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$.
+(The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{square\_PRF\_ODH2}.)
+
+
      \end{itemize}
      The argument $\vn{prf}$ of the PRF-ODH macros is defined by these
      macros.  It must not be declared elsewhere, and it can be used
@@ -1988,7 +2022,7 @@ Section~\ref{sec:interact}).
      \item $\texttt{expand\ CDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
        $\texttt{expand\ CDH\_RSR\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
        $\texttt{expand\ DDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
-       $\texttt{expand\ GDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$\\
+       $\texttt{expand\ GDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
        $\texttt{expand\ GDH\_RSR\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
        $\texttt{expand\ PRF\_ODH1\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\
        $\texttt{expand\ PRF\_ODH2\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\

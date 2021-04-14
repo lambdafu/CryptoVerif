@@ -3716,12 +3716,22 @@ equiv(ddh(exp))
 
    pGDH(t, n): the probability of breaking the GDH assumption in time t,
    with at most n calls to the DDH oracle.
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448). It is needed because, for curve25519/448, to make 
+   the DH decision oracle unambiguous, we generate secret keys in [(p+1)/2,p-1]
+   instead of the set used for generating secret keys in the curve25519/448 implementation.
+   (The latter set yields equivalent secret keys with small probability.)
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
 *)
 
-def GDH(G, Z, g, exp, exp', mult, pGDH) {
+def GDH(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) and exp(g,b[j]) are known to the
@@ -3773,7 +3783,7 @@ equiv(gdh(exp))
 <=(na * nb *
 	   pGDH(time + (na + nb - 1 + #ODHa9 + #ODHb9) * time(exp),
 	   #ODDHa + #ODDHa1 + #ODDHa2 + #ODDHa3 + #ODDHa4 + #ODDHa5 + #ODDHa6 + #ODDHa7 + #ODDHa8 +
-	   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8))=> [computational]
+	   #ODDHb + #ODDHb1 + #ODDHb2 + #ODDHb3 + #ODDHb4 + #ODDHb5 + #ODDHb6 + #ODDHb7 + #ODDHb8) + (na + nb) * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -3869,7 +3879,7 @@ equiv(gdh(exp))
 (* Same as GDH, but with a single family of exponents instead of two. 
    More powerful, but may lead to a higher probability. *)
 
-def GDH_single(G, Z, g, exp, exp', mult, pGDH) {
+def GDH_single(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {
 
 (* the GDH assumption 
     This equivalence says that, when exp(g,a[i]) are known to the
@@ -3894,7 +3904,7 @@ equiv(gdh(exp))
       foreach iaDDH  <= naDDH  do ODDHa(m:G, j<=na) [useful_change] := return(m = exp(g, mult(a[j], a))) |
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
-<=(na * (na-1)/2 * pGDH(time + (na  + #ODHa9) * time(exp), #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
+<=(na * (na-1)/2 * pGDH(time + (na  + #ODHa9) * time(exp), #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) + na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |
@@ -4328,12 +4338,22 @@ equiv(ddh(exp))
    with at most n calls to the DDH oracle.
    pSQGDH(t,n): the probability of breaking the square GDH assumption in time t,
    with at most n calls to the DDH oracle.
+   pDistRerandom: the probability that rerandomization can be distinguished from the
+   original distribution
+          It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
+	  2^-125 for curve25519
+	  2^-220 for curve448
+   (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
+   for curve25519 and curve448). It is needed because, for curve25519/448, to make 
+   the DH decision oracle unambiguous, we generate secret keys in [(p+1)/2,p-1]
+   instead of the set used for generating secret keys in the curve25519/448 implementation.
+   (The latter set yields equivalent secret keys with small probability.)
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
 *)
 
-def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {
+def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH, pDistRerandom) {
 
 (* the square GDH assumption 
     This equivalence says that, when exp(g,a[i]) are known to the
@@ -4359,7 +4379,8 @@ equiv(gdh(exp))
       foreach iaDH9 <= naDH9 do ODHa9(x:Z) [2] := return(exp(g, mult(a, x)))
     ) 
 <=(na * pSQGDH(time + (na + #ODHa9) * time(exp), #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) +
-   na * (na-1)/2 * pGDH(time + (na + #ODHa9) * time(exp), #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5))=> [computational]
+   na * (na-1)/2 * pGDH(time + (na + #ODHa9) * time(exp), #ODDHa + #ODDHa1 + #ODDHa3 + #ODDHa5) +
+   na * pDistRerandom)=> [computational]
     foreach ia <= na do a <-R Z [unchanged]; (
       OA() := return(exp'(g,a)) |
       Oa() := let ka:bool = true in return(a) |

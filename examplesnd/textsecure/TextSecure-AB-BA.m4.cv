@@ -81,7 +81,8 @@ const alice, bob: prin.
 expand DH_good_group(G, Z, g, gexp, gexp', mult).
 
 proba pGDH.
-expand GDH(G, Z, g, gexp, gexp', mult, pGDH).
+proba pDistRerandom.
+expand GDH(G, Z, g, gexp, gexp', mult, pGDH, pDistRerandom).
 
 (* Generate initial rkey - 4DH *)
 

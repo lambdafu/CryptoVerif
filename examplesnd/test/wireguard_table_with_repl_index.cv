@@ -322,6 +322,7 @@ type Z_t [bounded,large].   (* type of exponents (must be "bounded" and
                                "large", supposed to be {1, ..., q-1}) *)
 const dummy_z: Z_t.      (* return value in letfuns in case of errors *)
 proba P_GDH.            (* probability of breaking the GDH assumption *)
+proba pDistRerandom.
 (* Page 7 in the Noise paper, rev 33:
    The public_key either encodes some value in a large prime-order group
    (which may have multiple equivalent encodings), or is an invalid
@@ -346,7 +347,8 @@ expand GDH(
   exp', (* a symbol that replaces exp after game transformation *)
   mult, (* multiplication function for exponents *)
   (* probabilities *)
-  P_GDH (* probability of breaking the GDH assumption *)
+  P_GDH, (* probability of breaking the GDH assumption *)
+  pDistRerandom
 ).
 letfun DH(group_element: G_t, exponent: Z_t) =
   exp(group_element, exponent).

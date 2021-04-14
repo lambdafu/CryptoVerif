@@ -59,7 +59,7 @@ https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb
 expand DH_X25519(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, zero, sub_zero).
 proba pGDH.
 proba pDistRerandom.
-expand GDH_single(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH).
+expand GDH_single(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, pGDH, pDistRerandom).
 
 (* Generate enc key - 4DH *)
 

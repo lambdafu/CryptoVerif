@@ -216,8 +216,8 @@ expand DDH(G, tZ, g, exp, exp', mult, pDDH).
 expand DDH_single(G, tZ, g, exp, exp', mult, pDDH).
 expand DDH_RSR(G, tZ, g, exp, exp', mult, pDDH, pDistRerandom).
 proba pGDH.
-expand GDH(G, tZ, g, exp, exp', mult, pGDH).
-expand GDH_single(G, tZ, g, exp, exp', mult, pGDH).
+expand GDH(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
+expand GDH_single(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
 expand GDH_RSR(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
 expand GDH_RSR_single(G, tZ, g, exp, exp', mult, pGDH, pDistRerandom).
 
@@ -227,7 +227,7 @@ expand square_CDH_RSR(G, tZ, g, exp, exp', mult, pSQCDH, pDistRerandom).
 proba pSQDDH.
 expand square_DDH(G, tZ, g, exp, exp', mult, pDDH, pSQDDH).
 proba pSQGDH.
-expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH).
+expand square_GDH(G, tZ, g, exp, exp', mult, pGDH, pSQGDH, pDistRerandom).
 expand square_GDH_RSR(G, tZ, g, exp, exp', mult, pSQGDH, pDistRerandom).
 
 

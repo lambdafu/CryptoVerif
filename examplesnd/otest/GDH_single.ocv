@@ -25,7 +25,8 @@ type G [large,bounded].
 expand DH_good_group(G, Z, g, exp, exp', mult).
 
 proba pGDH.
-expand GDH_single(G, Z, g, exp, exp', mult, pGDH).
+proba pDistRerandom.
+expand GDH_single(G, Z, g, exp, exp', mult, pGDH, pDistRerandom).
 
 (* Random oracle model, optimized to avoid creating a new random hash when we test exp(hash(k,x'), e) = r' *)
 

@@ -152,6 +152,7 @@ expand DH_X25519(
 ).
 
 proba P_GDH.
+proba pDistRerandom.
 expand GDH(
   (* types *)
   subG_t,  (* Group elements *)
@@ -162,7 +163,8 @@ expand GDH(
   exp_div_k1, (* a symbol that replaces exp after game transformation *)
   mult, (* multiplication function for exponents *)
   (* probabilities *)
-  P_GDH (* probability of breaking the GDH assumption *)
+  P_GDH, (* probability of breaking the GDH assumption *)
+  pDistRerandom
 ).
 
 

@@ -46,10 +46,12 @@ param na, naeq, naDDH, naDDH1, naDDH2, naDDH3, naDDH4, naDDH5, naDDH6, naDDH7, n
      using exp(g,a), since exp(g,a) is not a subterm of exp(g, mult(a,x)). 
    - Oracles ODDHa1, ODDHa, ODDHa8, ODDHb1, ODDHb, ODDHb8 are instances
      of the decision DH oracle.
-     ODDHa1[i](m,m') = DH_0(exp(g,a[i]), m', m)
-     ODDHa8[i](m,j) = DH_0(exp(g,a[i]), exp(g,a[j]), m)
-     ODDHb1[i](m,m') = DH_0(exp(g,b[i]), m', m)
-     ODDHb8[i](m,j) = DH_0(exp(g,b[i]), exp(g,b[j]), m)
+     ODDHa1[i](m,m') = DH_a(i, m', m)
+     ODDHa8[i](m,j) = DH_a(i, exp(g,a[j]), m)
+     ODDHb1[i](m,m') = DH_b(i, m', m)
+     ODDHb8[i](m,j) = DH_b(i, exp(g,b[j]), m)
+     where DH_a(i, m', m) = (m'^a[i] = m)
+           DH_b(i, m', m) = (m'^b[i] = m)
 
      ODDHa[i](m,j) = DH_l(i, j, m)
      		and in this case we can apply the CDH assumption

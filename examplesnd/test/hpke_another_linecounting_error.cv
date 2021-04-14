@@ -117,6 +117,7 @@ expand DH_good_group(
 ).
 
 proba P_GDH.
+proba pDistRerandom.
 (* TODO(spec) directly cite? also it's called Gap-DH in there, and
    not Gap-CDH.
    T. Okamoto and D. Pointcheval. The gap-problems: a new class of
@@ -131,7 +132,8 @@ expand GDH(
   exp', (* a symbol that replaces exp after game transformation *)
   mult, (* multiplication function for exponents *)
   (* probabilities *)
-  P_GDH (* probability of breaking the GDH assumption *)
+  P_GDH, (* probability of breaking the GDH assumption *)
+  pDistRerandom
 ).
 
 (* For Curve25519

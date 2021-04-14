@@ -4,8 +4,9 @@ type G [bounded,large].
 type Z [bounded,large].
 
 proba pGDH.
+proba pDistRerandom.
 expand DH_basic(G, Z, g, exp, exp', mult).
-expand GDH(G, Z, g, exp, exp', mult, pGDH).
+expand GDH(G, Z, g, exp, exp', mult, pGDH, pDistRerandom).
 
 
 equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').

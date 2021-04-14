@@ -74,7 +74,8 @@ expand DH_good_group(G, Z, g, gexp, gexp', mult).
 
 proba pGDH.
 proba pSQGDH.
-expand square_GDH(G, Z, g, gexp, gexp', mult, pGDH, pSQGDH).
+proba pDistRerandom.
+expand square_GDH(G, Z, g, gexp, gexp', mult, pGDH, pSQGDH, pDistRerandom).
 
 (* Generate initial rkey - 4DH *)
 

@@ -685,14 +685,14 @@ def CDH_RSR_single(G, Z, g, exp, exp', mult, pCDH, pDistRerandom) {}
 def DDH(G, Z, g, exp, exp', mult, pDDH) {}
 def DDH_single(G, Z, g, exp, exp', mult, pDDH) {}
 def DDH_RSR(G, tZ, g, exp, exp', mult, pDDH, pDistRerandom) {}
-def GDH(G, Z, g, exp, exp', mult, pGDH) {}
-def GDH_single(G, Z, g, exp, exp', mult, pGDH) {}
+def GDH(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {}
+def GDH_single(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {}
 def GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {}
 def GDH_RSR_single(G, Z, g, exp, exp', mult, pGDH, pDistRerandom) {}
 def square_CDH(G, Z, g, exp, exp', mult, pCDH, pSQCDH) {}
 def square_CDH_RSR(G, Z, g, exp, exp', mult, pSQCDH, pDistRerandom) {}
 def square_DDH(G, Z, g, exp, exp', mult, pDDH, pSQDDH) {}
-def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH) {}
+def square_GDH(G, Z, g, exp, exp', mult, pGDH, pSQGDH, pDistRerandom) {}
 def square_GDH_RSR(G, Z, g, exp, exp', mult, pSQGDH, pDistRerandom) {}
 
 def PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {

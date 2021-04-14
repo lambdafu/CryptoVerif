@@ -142,6 +142,7 @@ expand DH_X25519(
 
 proba P_GDH.
 proba P_sqGDH.
+proba pDistRerandom.
 expand square_GDH(
   (* types *)
   subG_t,  (* Group elements *)
@@ -153,7 +154,8 @@ expand square_GDH(
   mult, (* multiplication function for exponents *)
   (* probabilities *)
   P_GDH, (* probability of breaking the GDH assumption *)
-  P_sqGDH (* probability of breaking the square GDH assumption *)
+  P_sqGDH, (* probability of breaking the square GDH assumption *)
+  pDistRerandom
 ).
 
 expand switch_exp(
