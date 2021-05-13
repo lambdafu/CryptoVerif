@@ -1438,6 +1438,10 @@ $\texttt{set maxAdvicePossibilitiesEnd = }n_2{\tt .}$ (default \texttt{10})
 
 In cryptographic transformations, when CryptoVerif can transform many terms in several ways of different priority, these various ways combine, yielding a very large number of advice possibilities. These two options allow to limit the number of considered advice possibilities by keeping the $n_1$ first possibilities (with highest priority) and the $n_2$ last possibilities (with lowest priority but fewer advised transformations). When $n_1$ or $n_2$ are not positive, all advice possibilities are kept, but that may yield a very slow execution. 
 
+\item $\texttt{set maxElsefind = }n{\tt .}$ (default \texttt{50})
+
+Maximum of facts guaranteed in \texttt{else} branches of \texttt{find} collected from a single term.
+
 \item $\texttt{set minAutoCollElim = }\nonterm{s}{\tt .}$ (default \texttt{pest80})
 
   Sets the maximum probability for which elimination of collisions is

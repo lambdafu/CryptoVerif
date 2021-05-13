@@ -1,0 +1,22 @@
+channel c.
+param N.
+
+event bad.
+query event(bad) ==> false.
+
+proof {
+  undo; undo; undo; simplify
+ }
+
+process
+(
+    in(c, (x: bitstring, y: bitstring));
+    find j <= N suchthat defined(a[j]) && a[j] = y && not(find i <= N suchthat defined(b[i]) && let u = x in b[i] = u then false else true) then
+    event bad
+)
+|
+(
+    !N
+    in(c, (a: bitstring, b: bitstring));
+    out(c, ())
+)

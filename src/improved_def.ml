@@ -3,18 +3,16 @@ open Types
 (* Infer more facts *)
 
 let add_elsefind2 fact_accu def_vars l =
-  List.fold_left (fun accu ((bl, def_list, t1,_):'a findbranch) ->
-    (* When the condition t1 contains if/let/find/new, we simply ignore it when adding elsefind facts. *)
-    match (bl, def_list, t1.t_desc) with
-      [],[],(Var _ | FunApp _) -> (Terms.make_not t1)::accu
-    | _,[],_ -> accu
-    | _,_,(Var _ | FunApp _) -> 
-	let bl' = List.map snd bl in
+  List.fold_left (fun accu (_,(_,efl)) ->
+    List.fold_left (fun accu (bl, def_list, t1) ->
+      if bl == [] && def_list == [] then
+	(Terms.make_not t1)::accu
+      else
 	let true_facts_ref = ref accu in
-	Facts.always_true_def_list_t true_facts_ref t1 ([], [], []) bl' def_vars def_list;
+	Facts.always_true_def_list_t true_facts_ref t1 ([], [], []) bl def_vars def_list;
 	(!true_facts_ref)
-    | _ -> accu
-	  ) fact_accu l
+	  ) accu efl
+      ) fact_accu l
 
 let convert_elsefind2 accu def_vars elsefind =
   let true_facts_ref = ref accu in
@@ -62,19 +60,20 @@ let rec infer_facts_fc cur_array true_facts t =
 	  infer_facts_fc cur_array true_facts' t2;
 	  infer_facts_fc cur_array true_facts'' t3
       |	FindE(l0,t3,_) ->
+	  let l0_with_info = Info_from_term.add_info_find g.expanded l0 in
 	  begin
 	  try 
 	    let def_vars = Facts.get_def_vars_at (DTerm t) in
-	    let true_facts_t3 = add_elsefind2 true_facts def_vars l0 in
+	    let true_facts_t3 = add_elsefind2 true_facts def_vars l0_with_info in
 	    infer_facts_fc cur_array true_facts_t3 t3;
 	    let find_node = Facts.get_initial_history (DTerm t) in 
-	    List.iter (fun (bl,def_list,t1,t2) ->
+	    List.iter (fun ((bl,def_list,t1,t2), (info_then, info_else)) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
 	      let cur_array_cond = repl_indices @ cur_array in
 	      let vars_terms = List.map Terms.term_from_binder vars in
   	      infer_facts_fc cur_array_cond true_facts t1;
-              let (sure_facts_t1, sure_def_list_t1, _) = Info_from_term.def_vars_and_facts_from_term t1 in
+              let (sure_facts_t1, sure_def_list_t1, _) = info_then in
 	      let sure_facts_t1 = List.map (Terms.subst repl_indices vars_terms) sure_facts_t1 in
 	      let sure_def_list_t1 = Terms.subst_def_list repl_indices vars_terms sure_def_list_t1 in
 	      
@@ -100,7 +99,7 @@ let rec infer_facts_fc cur_array true_facts t =
 		   I could say that "false" holds at this point, but I don't think
 		   it is worth continuing in that branch, since it will be easily removed. *)
 		()
-		) l0
+		) l0_with_info
 	  with Contradiction ->
 	    (* The find is in fact unreachable; simplification will remove it *)
 	    ()
@@ -199,19 +198,20 @@ and infer_facts_o cur_array true_facts p' =
 	  infer_facts_o cur_array true_facts' p1;
 	  infer_facts_o cur_array true_facts'' p2
       |	Find(l0,p2,_) ->
+	  let l0_with_info = Info_from_term.add_info_find g.expanded l0 in
 	  begin
 	  try 
 	    let def_vars = Facts.get_def_vars_at (DProcess p') in
-	    let true_facts_p2 = add_elsefind2 true_facts def_vars l0 in
+	    let true_facts_p2 = add_elsefind2 true_facts def_vars l0_with_info in
 	    infer_facts_o cur_array true_facts_p2 p2;
 	    let find_node = Facts.get_initial_history (DProcess p') in 
-	    List.iter (fun (bl,def_list,t,p1) ->
+	    List.iter (fun ((bl,def_list,t,p1), (info_then, info_else)) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
 	      let cur_array_cond = repl_indices @ cur_array in
 	      let vars_terms = List.map Terms.term_from_binder vars in
  	      infer_facts_fc cur_array_cond true_facts t;
-              let (sure_facts_t, sure_def_list_t, _) = Info_from_term.def_vars_and_facts_from_term t in
+              let (sure_facts_t, sure_def_list_t, _) = info_then in
 	      let sure_facts_t = List.map (Terms.subst repl_indices vars_terms) sure_facts_t in
 	      let sure_def_list_t = Terms.subst_def_list repl_indices vars_terms sure_def_list_t in
 	      (* The "elsefind" facts inferred from [t] have 
@@ -236,7 +236,7 @@ and infer_facts_o cur_array true_facts p' =
 		   I could say that "false" holds at this point, but I don't think
 		   it is worth continuing in that branch, since it will be easily removed. *)
 		()
-		  ) l0
+		  ) l0_with_info
 	  with Contradiction ->
 	    (* The find is in fact unreachable; simplification will remove it *)
 	    ()

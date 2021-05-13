@@ -239,7 +239,7 @@ let rec get_find_branch_then_term brl patl p =
                get_find_branch_then_term brl' patl' p
            | _ ->
                let p' = get_find_branch_then_term brl' patl' p in
-               Terms.build_term_type p'.t_type (LetE(pat, t1, p', None)))
+               Terms.build_term_type p'.t_type (LetE(pat, t1, p', Some (Stringmap.cst_for_type p'.t_type)(*never happens, because we know that the entry matches the pattern of get *))))
 
 let get_find_branch get_find_branch_then patl topt p cur_array bl =
   let ac = (List.hd bl).args_at_creation in

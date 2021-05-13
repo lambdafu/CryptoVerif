@@ -946,11 +946,12 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  simplify_term_w_find cur_array true_facts (Terms.build_term_at t (TestE(t1,t2,t3)))
       |	_ ->
       try
+      let l0_with_info = Info_from_term.add_else_info_find (!whole_game).expanded l0 in
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
       let t3' = 
 	try
-	  simplify_term_w_find cur_array (Facts.add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars true_facts l0) t3
+	  simplify_term_w_find cur_array (Facts.add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars true_facts l0_with_info) t3
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
@@ -964,7 +965,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec simplify_findl seen = function
 	  [] -> []
-	| ((bl, def_list, t1, t2) as cur_branch)::l ->
+	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
 	    begin
 	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
@@ -997,8 +998,8 @@ let rec simplify_term_w_find cur_array true_facts t =
 		    let t1' = simplify_term cur_array_cond DepAnal2.init false true_facts_t1 t1 in
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-		   let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
-                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term t1' in
+		    let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
+                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term (!whole_game).expanded true t1' in
 		   let then_node = Facts.get_initial_history (DTerm t2) in
                    let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
                    let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
@@ -1180,7 +1181,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    end
       in
       try 
-	let l0' = simplify_findl [] l0 in
+	let l0' = simplify_findl [] l0_with_info in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
@@ -1544,12 +1545,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc_at p' (Test(t1,p1,p2)))
       |	_ ->
       try
+      let l0_with_info = Info_from_term.add_else_info_find (!whole_game).expanded l0 in
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
-	  simplify_oprocess cur_array dep_info_else (Facts.add_elsefind (dependency_anal cur_array dep_info_else) def_vars true_facts l0) p2
+	  simplify_oprocess cur_array dep_info_else (Facts.add_elsefind (dependency_anal cur_array dep_info_else) def_vars true_facts l0_with_info) p2
 	with Contradiction ->
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
@@ -1559,7 +1561,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       let rec simplify_findl seen dep_info_l1 l1 = 
 	match (dep_info_l1,l1) with
 	  [],[] -> []
-	| (dep_info_cond::dep_info_then::dep_info_l),(((bl, def_list, t, p1) as cur_branch)::l) ->
+	| (dep_info_cond::dep_info_then::dep_info_l),((((bl, def_list, t, p1), _) as cur_branch)::l) ->
 	    begin
 	    let l' = simplify_findl (cur_branch::seen) dep_info_l l in
 	    let vars = List.map fst bl in
@@ -1593,7 +1595,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
 		    let t' = simplify_term_w_find cur_array_cond true_facts_t t in
-                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term t' in
+                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term (!whole_game).expanded true t' in
 		    let then_node = Facts.get_initial_history (DProcess p1) in
                     let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
                     let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
@@ -1782,7 +1784,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	| _ -> Parsing_helper.internal_error "Different lengths in simplify/Find"
       in
       try
-	let l0' = simplify_findl [] dep_info_branches l0 in
+	let l0' = simplify_findl [] dep_info_branches l0_with_info in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;

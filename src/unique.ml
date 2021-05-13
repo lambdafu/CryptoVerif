@@ -29,14 +29,19 @@ let is_unique l0' find_info =
    [current_history] is the known history at the find, at which [def_list]
    is tested (may be returned by [Facts.get_initial_history]) *)
 
-let prove_unique g cur_array simp_facts def_vars dep_info node l0' =
-  let unique_branch (bl, def_list1, t1, _) =
+let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
+  let l0' = List.map (fun (bl, def_list1, t1, _) ->
+    let (sure_facts, defined_vars, _) = Info_from_term.def_vars_and_facts_from_term g.expanded true t1 in
+    (bl, defined_vars @ def_list1, sure_facts)
+      ) l0
+  in
+  let unique_branch (bl, def_list1, tl1) =
     let repl_index1 = List.map snd bl in
     let repl_index1_term = List.map Terms.term_from_repl_index repl_index1 in
     let repl_index2 = List.map Terms.new_repl_index repl_index1 in
     let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
     let def_list2 = Terms.subst_def_list repl_index1 repl_index2_term def_list1 in
-    let t2 = Terms.subst repl_index1 repl_index2_term t1 in
+    let tl2 = List.map (Terms.subst repl_index1 repl_index2_term) tl1 in
     try 
       let def_vars1 = Facts.def_vars_from_defined node def_list1 in
       let facts_def_list1 = Facts.facts_from_defined node def_list1 in
@@ -44,25 +49,25 @@ let prove_unique g cur_array simp_facts def_vars dep_info node l0' =
       let facts_def_list2 = Facts.facts_from_defined node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
       let diff_ri1_ri2 = Terms.make_or_list (List.map2 Terms.make_diff repl_index1_term repl_index2_term) in
-      let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
+      let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
       let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
       let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
       false
     with Contradiction -> true
   in
-  let incompatible_branch (bl1, def_list1, t1, _) (bl2, def_list2_orig, t2_orig, _) =
+  let incompatible_branch (bl1, def_list1, tl1) (bl2, def_list2_orig, tl2_orig) =
     let repl_index2_orig = List.map snd bl2 in
     let repl_index2 = List.map Terms.new_repl_index repl_index2_orig in
     let repl_index2_term = List.map Terms.term_from_repl_index repl_index2 in
     let def_list2 = Terms.subst_def_list repl_index2_orig repl_index2_term def_list2_orig in
-    let t2 = Terms.subst repl_index2_orig repl_index2_term t2_orig in
+    let tl2 = List.map (Terms.subst repl_index2_orig repl_index2_term) tl2_orig in
     try 
       let def_vars1 = Facts.def_vars_from_defined node def_list1 in
       let facts_def_list1 = Facts.facts_from_defined node def_list1 in
       let def_vars2 = Facts.def_vars_from_defined node def_list2 in
       let facts_def_list2 = Facts.facts_from_defined node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
-      let simp_facts = Facts.simplif_add_list dep_info simp_facts (t2 :: t1 :: facts_def_list1 @ facts_def_list2) in
+      let simp_facts = Facts.simplif_add_list dep_info simp_facts (tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
       let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
       let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
       false

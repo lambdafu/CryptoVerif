@@ -27,6 +27,8 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
+check order of evaluation in the OCaml generated code 
+
 update HPKE paper, with fix to make the DDH oracle unambiguous.
 DONE 13/4/2021, still to be checked by coauthors of HPKE paper.
 

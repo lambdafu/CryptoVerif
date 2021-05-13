@@ -281,7 +281,8 @@ exception SuccessBranch of (binder * repl_index * term) list * (binder * repl_in
 val branch_succeeds : 'b findbranch -> dep_anal -> simp_facts -> 
   binderref list -> unit
 val add_elsefind : dep_anal -> binderref list -> simp_facts ->
-  'a findbranch list -> simp_facts
+  ('a findbranch * elsefind_fact list) list ->
+    simp_facts
 val update_elsefind_with_def : binder list -> simp_facts -> simp_facts
 val convert_elsefind : dep_anal -> binderref list -> simp_facts -> simp_facts
 

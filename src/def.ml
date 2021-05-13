@@ -136,14 +136,14 @@ let empty_def_member l =
    *)
 
 let find_list_to_elsefind accu l =
-  List.fold_left (fun ((fact_accu, else_find_accu) as accu) ((bl, def_list, t1,_):'a findbranch) ->
-    if Terms.check_simple_term t1 then
+  List.fold_left (fun accu (_, (_,efl)) ->
+    List.fold_left (fun (fact_accu, else_find_accu) (bl, def_list, t1) ->
       if bl == [] && def_list == [] then
 	((Terms.make_not t1)::fact_accu, else_find_accu)
       else
-	(fact_accu, (List.map snd bl, def_list, t1)::else_find_accu)
-    else
-      accu) accu l
+	(fact_accu, (bl, def_list, t1)::else_find_accu)
+	  ) accu efl
+	) accu l
 
 let rec add_vars_from_pat accu = function
     PatVar b -> Terms.addq accu b
@@ -225,18 +225,19 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       ignore(def_term event_accu cur_array above_node' true_facts'' def_vars elsefind_facts' t3);
       above_node'
   | FindE(l0,t3,find_info) ->
+      let l0_with_info = Info_from_term.add_info_find false l0 in
       let (true_facts_else, elsefind_facts_else) = 
-	find_list_to_elsefind (true_facts, elsefind_facts) l0
+	find_list_to_elsefind (true_facts, elsefind_facts) l0_with_info
       in
       let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec find_l seen = function
 	  [] -> ()
-	| ((bl,def_list,t1,t2) as cur_branch)::l ->
+	| (((bl,def_list,t1,t2), (info_then, info_else)) as cur_branch)::l ->
 	    find_l (cur_branch::seen) l;
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let vars_terms = List.map Terms.term_from_binder vars in
-            let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term t1 in
+            let (sure_facts_t1, sure_def_list_t1, elsefind_t1) = info_then in
 	    let sure_facts_t1 = List.map (Terms.subst repl_indices vars_terms) sure_facts_t1 in
 	    let sure_def_list_t1 = Terms.subst_def_list repl_indices vars_terms sure_def_list_t1 in
 	    let elsefind_t1 = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t1 in
@@ -278,7 +279,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 		     true_facts def_vars_t1 elsefind_facts t1);
 	    ignore(def_term event_accu cur_array above_node' true_facts' def_vars' elsefind_facts_then t2)
       in
-      find_l [] l0;
+      find_l [] l0_with_info;
       ignore(def_term event_accu cur_array above_node true_facts_else def_vars elsefind_facts_else t3);
       above_node
   | LetE(pat, t1, t2, topt) ->
@@ -503,8 +504,9 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       (Terms.intersect (==) fut_binders1 fut_binders2, 
        Terms.intersect Terms.equal_terms fut_true_facts1 fut_true_facts2)
   | Find(l0,p2,find_info) ->
+      let l0_with_info = Info_from_term.add_info_find false l0 in
       let (true_facts', elsefind_facts') = 
-	find_list_to_elsefind (true_facts, elsefind_facts) l0
+	find_list_to_elsefind (true_facts, elsefind_facts) l0_with_info
       in
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu cur_array above_node true_facts' def_vars elsefind_facts' p2
@@ -512,12 +514,12 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec find_l seen = function
 	  [] -> (fut_binders2, fut_true_facts2)
-	| ((bl,def_list,t,p1) as cur_branch)::l ->
+	| (((bl,def_list,t,p1), (info_then, info_else)) as cur_branch)::l ->
 	    let (fut_bindersl, fut_true_factsl) = find_l (cur_branch::seen) l in
 	    let vars = List.map fst bl in
 	    let repl_indices = List.map snd bl in
 	    let vars_terms = List.map Terms.term_from_binder vars in
-            let (sure_facts_t, sure_def_list_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term t in
+            let (sure_facts_t, sure_def_list_t, elsefind_t) = info_then in
 	    let sure_facts_t = List.map (Terms.subst repl_indices vars_terms) sure_facts_t in
 	    let sure_def_list_t = Terms.subst_def_list repl_indices vars_terms sure_def_list_t in
 	    let elsefind_t = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t in
@@ -565,7 +567,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    (Terms.intersect (==) (vars @ fut_binders1) fut_bindersl,
 	     Terms.intersect Terms.equal_terms fut_true_facts1 fut_true_factsl)
       in
-      find_l [] l0
+      find_l [] l0_with_info
   | Output((c,tl),t',p) ->
       let (above_node', elsefind_facts') = def_term_list_ef event_accu cur_array above_node true_facts def_vars elsefind_facts tl in
       let above_node'' = def_term event_accu cur_array above_node' true_facts def_vars elsefind_facts' t' in

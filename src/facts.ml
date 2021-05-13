@@ -2644,23 +2644,18 @@ let always_true_def_list_t true_facts t simp_facts bl def_vars def_list =
     match_among_list (final_next true_facts t) simp_facts bl def_vars def_list
   with NoMatch -> ()
 
-let rec add_elsefind dep_info def_vars ((subst, facts, elsefind) as simp_facts) = function
-    [] -> simp_facts
-  | (((bl, def_list, t1,_):'a findbranch)::l) -> 
-      (* When the condition t1 contains if/let/find/new, we simply ignore it when adding elsefind facts. *)
-      let simp_facts' = 
-	match (bl, def_list, t1.t_desc) with
-	  [],[],(Var _ | FunApp _) -> simplif_add dep_info simp_facts (Terms.make_not t1)
-	| _,[],_ -> simp_facts
-	| _,_,(Var _ | FunApp _) -> 
-	    let bl' = List.map snd bl in
-	    let true_facts_ref = ref [] in
-	    let simp_facts = (subst, facts, (bl', def_list, t1)::elsefind) in
-	    always_true_def_list_t true_facts_ref t1 simp_facts bl' def_vars def_list;
-	    simplif_add_list dep_info simp_facts (!true_facts_ref)
-	| _ -> simp_facts
-      in
-      add_elsefind dep_info def_vars simp_facts' l
+let add_elsefind dep_info def_vars simp_facts l =
+  List.fold_left (fun simp_facts (_,efl) ->
+    List.fold_left (fun ((subst, facts, elsefind) as simp_facts) (bl, def_list, t1) ->
+      if bl == [] && def_list == [] then
+	simplif_add dep_info simp_facts (Terms.make_not t1)
+      else
+	let true_facts_ref = ref [] in
+	let simp_facts = (subst, facts, (bl, def_list, t1)::elsefind) in
+	always_true_def_list_t true_facts_ref t1 simp_facts bl def_vars def_list;
+	simplif_add_list dep_info simp_facts (!true_facts_ref)
+	  ) simp_facts efl
+      ) simp_facts l
 
 let update_elsefind_with_def bl (subst, facts, elsefind) =
   (subst, facts, List.map (Terms.update_elsefind_with_def bl) elsefind)

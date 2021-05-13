@@ -55,6 +55,10 @@ and deserialization functions were swapped for types bool and bitstringbot
 - Fixed bug in update of defined conditions following other
 rewritings of the game: it supported only expanded games, but
 was sometimes called on non-expanded games.
+- Fixed bug with negation in extraction of information from terms containing
+if/let/find/new/event_abort.
+- Fixed internal error: else case of a let term was missing in transformation
+of insert/get into find.
 - Fixed probabilities in GDH, square GDH and PRF-ODH.
 - Fixed bug in probabilities: when a collision statement was applied
 together with a crypto transformation, there was confusion between

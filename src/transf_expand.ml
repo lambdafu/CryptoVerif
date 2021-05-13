@@ -244,12 +244,13 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_term_if rec_simplif pp cur_array true_facts t1 t2 t3
   | _ ->
+      let l0_with_info = Info_from_term.add_else_info_find true l0 in
     try
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
       let t3' = 
 	try
-	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0) t3
+	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0_with_info) t3
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
@@ -263,7 +264,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
       let rec simplify_findl seen = function
 	  [] -> []
-	| ((bl, def_list, t1, t2) as cur_branch)::l ->
+	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
 	    begin
 	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
@@ -296,7 +297,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term t1 in
+                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term true true t1 in
 		    let then_node = Facts.get_initial_history (DTerm t2) in
                     let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
                     let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
@@ -429,7 +430,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    end
       in
       try 
-	let l0' = simplify_findl [] l0 in
+	let l0' = simplify_findl [] l0_with_info in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
@@ -558,8 +559,14 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
                      is does not refer to the variables in the
                      "defined" condition---otherwise, some variable
                      accesses may not be defined after the
-                     transformation *)
-            if bl != [] || def_list != [] then
+                     transformation
+
+		     Moving event_abort outside the condition would also
+		     be problematic because in case there are several
+		     event_abort in the conditions, it would execute the
+		     first one in the order of the list instead of one
+		     chosen randomly. *)
+            if bl != [] || def_list != [] || Terms.may_abort t1 then
 	      expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li ->
 		context cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t1, t2)::li))
 	    else
@@ -773,13 +780,14 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_if rec_simplif pp cur_array true_facts t1 p1 p2
   | _ ->
+      let l0_with_info = Info_from_term.add_else_info_find true l0 in
     try
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
 	try
-	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0) p2
+	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0_with_info) p2
 	with Contradiction ->
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
@@ -789,7 +797,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       let rec simplify_findl seen l1 = 
 	match l1 with
 	  [] -> []
-	| ((bl, def_list, t, p1) as cur_branch)::l ->
+	| (((bl, def_list, t, p1), _) as cur_branch)::l ->
 	    begin
 	    let l' = simplify_findl (cur_branch::seen) l in
 	    let vars = List.map fst bl in
@@ -822,7 +830,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		    let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term t in
+                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term true true t in
 		    let then_node = Facts.get_initial_history (get_pp p1) in
                     let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
                     let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
@@ -958,7 +966,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    end
       in
       try
-	let l0' = simplify_findl [] l0 in
+	let l0' = simplify_findl [] l0_with_info in
 	if l0' == [] then
 	  begin
 	    Settings.changed := true;
@@ -1097,8 +1105,14 @@ let rec expand_term cur_array true_facts t context =
                      is does not refer to the variables in the
                      "defined" condition---otherwise, some variable
                      accesses may not be defined after the
-                     transformation *)
-            if bl != [] || def_list != [] then
+                     transformation
+
+		     Moving event_abort outside the condition would also
+		     be problematic because in case there are several
+		     event_abort in the conditions, it would execute the
+		     first one in the order of the list instead of one
+		     chosen randomly. *)
+            if bl != [] || def_list != [] || Terms.may_abort t1 then
 	      expand_cond_find_list cur_array true_facts restl (fun cur_array true_facts li ->
 		context cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t1, t2)::li))
 	    else
@@ -1212,7 +1226,7 @@ and expand_oprocess cur_array true_facts p =
 	    if need_expand t then
 	      begin
 		Settings.changed := true;
-		if bl != [] || def_list != [] then
+		if bl != [] || def_list != [] || Terms.may_abort t then
 		  expand_find_list cur_array true_facts (fun cur_array true_facts rest_l' ->
 		    next_f cur_array true_facts ((bl, def_list, local_final_pseudo_expand cur_array true_facts t, p1)::rest_l')) rest_l
 		else

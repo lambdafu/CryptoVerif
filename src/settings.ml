@@ -41,6 +41,7 @@ let allow_undefined_var = ref false
     
 let use_oracle_count_in_result = ref true
 
+let max_efl = ref 50
 let max_depth_add_fact = ref 1000
 let max_depth_try_no_var_rec = ref 20
 let max_replace_depth = ref 20
@@ -241,6 +242,7 @@ let do_set p v =
   | "simplifyAfterSARename", _ -> parse_bool v simplify_after_sarename
   | "detectIncompatibleDefined", _ -> parse_bool v detect_incompatible_defined_cond
   | "ignoreSmallTimes", I n -> ignore_small_times := n
+  | "maxElsefind", I n -> max_efl := n
   | "maxIterSimplif", I n -> max_iter_simplif := n
   | "maxIterRemoveUselessAssign", I n -> max_iter_removeuselessassign := n
   | "maxAdvicePossibilitiesBeginning", I n -> max_advice_possibilities_beginning := n
