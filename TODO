@@ -27,8 +27,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-check order of evaluation in the OCaml generated code 
-
 update HPKE paper, with fix to make the DDH oracle unambiguous.
 DONE 13/4/2021, still to be checked by coauthors of HPKE paper.
 
@@ -41,6 +39,9 @@ while the rest of cryptoverif is under Cecill-B)
 
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
+
+After release, update probabilities in HPKE eprint.
+Add sentence to reference the EuroCrypt paper.
 
 MAYBE:
 
@@ -6254,3 +6255,6 @@ in Curve25519/448:
    proof for nothing. However, when I work with curve25519/448, that can lead
    to minor savings in probabilities.
 I think it will stay as it is.
+
+check order of evaluation in the OCaml generated code 
+DONE 27/5/2021

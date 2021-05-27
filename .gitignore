@@ -151,6 +151,7 @@ implementation/wlsk/WLSK_S.ml
 implementation/wlsk/WLSK_S.mli
 implementation/wlsk/WLSK_keygen.ml
 implementation/wlsk/WLSK_keygen.mli
+implementation/wlsk/Letfun.ml*
 implementation/wlsk/init
 implementation/wlsk/keygen
 implementation/wlsk/resp
@@ -166,8 +167,16 @@ implementation/ssh*/add_key
 implementation/ssh*/client
 implementation/ssh*/keygen
 implementation/ssh*/server
-implementation/ssh-letfun/Letfun.ml
-implementation/ssh-letfun/Letfun.mli
+implementation/ssh*/hk
+implementation/ssh*/id_rsa
+implementation/ssh*/id_rsa.pub
+implementation/ssh*/pkS
+implementation/ssh*/skS
+implementation/ssh*/trusted_hosts
+implementation/ssh-letfun/Letfun.ml*
+examplesnd/impl/order*/WLSK_Init.ml*
+examplesnd/impl/order*/keytbl
+examplesnd/impl/yield_caught/WLSK_Init.ml*
 examplesnd/textsecure-keys-not-normalized/mylib.cvl
 
 tests
