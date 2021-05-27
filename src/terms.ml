@@ -1845,16 +1845,10 @@ let set_def binders pp pp_success above_node_opt =
 (* Event *)
 
 let create_event s tyl =
-  { f_name = s;
+  Settings.create_fun s
     (* Add a bitstring argument to store the current indices *)
-    f_type = Settings.t_bitstring :: tyl, Settings.t_bool;
-    f_cat = Event;
-    f_options = 0;
-    f_statements = [];
-    f_collisions = [];
-    f_eq_theories = NoEq;
-    f_impl = No_impl;
-    f_impl_inv = None }
+    (Settings.t_bitstring :: tyl, Settings.t_bool)
+    Event 
     
 let e_adv_loses =
   let event_set = ref None in

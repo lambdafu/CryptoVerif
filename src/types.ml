@@ -229,6 +229,7 @@ and funsymb = { f_name : string;
 		mutable f_eq_theories : eq_th; (* equational theories for this function symbol *)
                 mutable f_impl : impl_name; (* implementation name *)
                 mutable f_impl_inv : string option; (* implementation of inverse if applicable *)
+		mutable f_impl_needs_state : bool;
               }
 
 and eq_th =

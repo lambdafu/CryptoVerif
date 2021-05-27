@@ -313,15 +313,9 @@ let rec build_encode_idx_types_funs_fg cur_array = function
 		trandom = None }
 	    in
 	    let encode_fun =
-	      { f_name = Terms.fresh_id ("encode_"^repl_param.pname);
-		f_type = List.map (fun ri -> ri.ri_type) cur_array, encoded_type;
-		f_cat = Tuple;
-		f_options = Settings.fopt_COMPOS;
-		f_statements = [];
-		f_collisions = [];
-		f_eq_theories = NoEq;
-		f_impl = No_impl;
-		f_impl_inv = None }
+	      Settings.create_fun (Terms.fresh_id ("encode_"^repl_param.pname))
+		(List.map (fun ri -> ri.ri_type) cur_array, encoded_type)
+		~options:Settings.fopt_COMPOS Tuple 
 	    in
 	    encode_idx_types_funs := (repl_type, (encoded_type, encode_fun)) :: (!encode_idx_types_funs);
 	    List.iter (build_encode_idx_types_funs_fg cur_array') funlist

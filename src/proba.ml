@@ -835,16 +835,8 @@ let rec forget_array_args t =
 (* special function symbol to encode independence conditions 
    as terms *)
 	
-let indep_fun = { f_name = "independent-of";
-		  f_type = [Settings.t_any; Settings.t_any], Settings.t_bool;
-		  f_cat = Std;
-		  f_options = 0;
-		  f_statements = [];
-		  f_collisions = [];
-		  f_eq_theories = NoEq;
-		  f_impl = No_impl;
-		  f_impl_inv = None;
-		}
+let indep_fun = Settings.create_fun "independent-of"
+    ([Settings.t_any; Settings.t_any], Settings.t_bool) Std
 
 (* [copy_indep_cond transf ic] copies the independence condition [ic]
    following links according to [transf], and transforming the result

@@ -386,49 +386,33 @@ let t_empty_idx = { tname = "empty-idx";
 
     
 
+let create_fun s ty ?(options=0) ?(eqth=NoEq) ?(impl=No_impl) ?(impl_inv=None) cat =
+  { f_name = s;
+    f_type = ty;
+    f_cat = cat;
+    f_options = options;
+    f_statements = [];
+    f_collisions = [];
+    f_eq_theories = eqth;
+    f_impl = impl;
+    f_impl_inv = impl_inv;
+    f_impl_needs_state = false }
+    
 (* Constants *)
 
-let c_true = { f_name = "true";
-	       f_type = [],t_bool;
-	       f_cat = Std;
-	       f_options = 0;
-	       f_statements = [];
-	       f_collisions = [];
-	       f_eq_theories = NoEq;
-               f_impl = Const "true";
-               f_impl_inv = None }
+let c_true = create_fun "true" ([],t_bool) ~impl:(Const "true") Std
 
-let c_false = { f_name = "false";
-		f_type = [],t_bool;
-		f_cat = Std;
-		f_options = 0;
-		f_statements = [];
-		f_collisions = [];
-		f_eq_theories = NoEq;
-		f_impl = Const "false";
-		f_impl_inv = None }
+let c_false = create_fun "false" ([],t_bool) ~impl:(Const "false") Std
 
 (* Functions *)
 
-let rec f_and = { f_name = "&&";
-		  f_type = [t_bool; t_bool], t_bool;
-		  f_cat = And;
-		  f_options = 0;
-		  f_statements = [];
-		  f_collisions = [];
-		  f_eq_theories = AssocCommutN(f_and, c_true);
-		  f_impl = Func "(&&)";
-		  f_impl_inv = None }
+let f_and = create_fun "&&" ([t_bool; t_bool], t_bool) ~impl:(Func "(&&)") And
 
-let rec f_or = { f_name = "||";
-		 f_type = [t_bool; t_bool], t_bool;
-		 f_cat = Or;
-		 f_options = 0;
-		 f_statements = [];
-		 f_collisions = [];
-		 f_eq_theories = AssocCommutN(f_or, c_false);
-		 f_impl = Func "(||)";
-		 f_impl_inv = None }
+let f_or = create_fun "||" ([t_bool; t_bool], t_bool) ~impl:(Func "(||)") Or
+
+let _ =
+  f_and.f_eq_theories <- AssocCommutN(f_and, c_true);
+  f_or.f_eq_theories <- AssocCommutN(f_or, c_false)
 
 module HashedCatType =
   struct
@@ -455,44 +439,25 @@ let f_comp cat t t2 =
   try 
     CatTypeHashtbl.find comp_funs (cat,t)
   with Not_found ->
-    let r = { f_name = 
-	      begin
-		match cat with
-		  Equal -> "="
-		| Diff -> "<>"
-		| LetEqual -> ">>="
-		| ForAllDiff -> "<A>"
-		| _ -> Parsing_helper.internal_error "no comparison for this category"
-	      end;
-	      f_type = [t; t], t_bool;
-	      f_cat = cat;
-	      f_options = 0;
-	      f_statements = [];
-	      f_collisions = [];
-	      f_eq_theories = if cat == Equal || cat == Diff then Commut else NoEq;
-              f_impl = 
-              begin
-                match cat with
-                    Equal -> Func "(=)"
-                  | Diff -> Func "(<>)"
-                  | _ -> No_impl
-              end;
-              f_impl_inv = None
-            }
+    let r = create_fun
+	(match cat with
+	  Equal -> "="
+	| Diff -> "<>"
+	| LetEqual -> ">>="
+	| ForAllDiff -> "<A>"
+	| _ -> Parsing_helper.internal_error "no comparison for this category")
+	([t; t], t_bool) 
+	~eqth:(if cat == Equal || cat == Diff then Commut else NoEq)
+        ~impl:(match cat with
+          Equal -> Func "(=)"
+        | Diff -> Func "(<>)"
+        | _ -> No_impl)
+	cat
     in
     CatTypeHashtbl.add comp_funs (cat,t) r;
     r
 
-let f_not = { f_name = "not";
-	      f_type = [t_bool], t_bool;
-	      f_cat = Std;
-	      f_options = 0;
-	      f_statements = [];
-	      f_collisions = [];
-	      f_eq_theories = NoEq;
-              f_impl = Func "not";
-              f_impl_inv = None;
-            }
+let f_not = create_fun "not" ([t_bool], t_bool) ~impl:(Func "not") Std
 
 (* Create tuple function of given type *)
 
@@ -513,15 +478,8 @@ let get_tuple_fun tl =
   try 
     TypeListHashtbl.find tuple_fun_table tl
   with Not_found ->
-    let f = { f_name = "";
-	      f_cat = Tuple;
-	      f_type = tl, t_bitstring;
-	      f_options = fopt_COMPOS;
-	      f_statements = [];
-	      f_collisions = [];
-	      f_eq_theories = NoEq;
-              f_impl = Func "tuple";
-              f_impl_inv = Some "detuple" }
+    let f = create_fun "" (tl, t_bitstring) ~impl:(Func "tuple")
+	~impl_inv:(Some "detuple") ~options:fopt_COMPOS	Tuple 
     in
     TypeListHashtbl.add tuple_fun_table tl f;
     f
@@ -541,26 +499,9 @@ let t_interv = { tname ="[1,*]";
                  tserial = None;
                  trandom = None }
 
-let f_plus = { f_name = "+";
-	       f_type = [t_interv; t_interv],t_interv;
-	       f_cat = Std;
-	       f_options = 0;
-	       f_statements = [];
-	       f_collisions = [];
-	       f_eq_theories = Commut;
-               f_impl = No_impl;
-               f_impl_inv = None }
+let f_plus = create_fun "+" ([t_interv; t_interv],t_interv) ~eqth:Commut Std
 
-
-let f_mul = { f_name = "*";
-	      f_type = [t_interv; t_interv],t_interv;
-	      f_cat = Std;
-	      f_options = 0;
-	      f_statements = [];
-	      f_collisions = [];
-	      f_eq_theories = Commut;
-              f_impl = No_impl;
-              f_impl_inv = None }
+let f_mul = create_fun "*" ([t_interv; t_interv],t_interv;) ~eqth:Commut Std
 
 module HashedFunInt =
   struct
@@ -583,15 +524,9 @@ let get_inverse f n =
   try
     FunIntHashtbl.find inverse_table (f,n)
   with Not_found ->
-    let finv = { f_name = f.f_name ^ "^-1_" ^ (string_of_int n);
-		 f_type = [snd f.f_type], (List.nth (fst f.f_type) (n-1));
-		 f_cat = Std;
-		 f_options = fopt_DECOMPOS;
-		 f_statements = [];
-		 f_collisions = [];
-		 f_eq_theories = NoEq;
-                 f_impl = No_impl;
-                 f_impl_inv = None }
+    let finv = create_fun (f.f_name ^ "^-1_" ^ (string_of_int n))
+		 ([snd f.f_type], (List.nth (fst f.f_type) (n-1)))
+		 ~options:fopt_DECOMPOS Std
     in
     FunIntHashtbl.add inverse_table (f,n) finv;
     finv

@@ -3573,15 +3573,7 @@ let rec check_one = function
 	add_not_found s1 ext1 (EType ty);
   | ConstDecl((s1,ext1),(s2,ext2)) ->
       let s2' = get_type (!env) s2 ext2 in
-      add_not_found s1 ext1 (EFunc{ f_name = s1;
-				    f_type = [], s2';
-				    f_cat = Std;
-				    f_options = 0;
-				    f_statements = [];
-				    f_collisions = [];
-				    f_eq_theories = NoEq;
-                                    f_impl = No_impl;
-                                    f_impl_inv = None })
+      add_not_found s1 ext1 (EFunc (Settings.create_fun s1 ([], s2') Std))
   | ChannelDecl(s1,ext1) ->
       if (!Settings.front_end) == Settings.Channels then
 	add_not_found s1 ext1 (EChannel{ cname = s1 })
@@ -3641,15 +3633,8 @@ let rec check_one = function
           else
 	    raise_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options;
-      add_not_found s1 ext1 (EFunc{ f_name = s1;
-				    f_type = l',sr';
-				    f_cat = Std;
-				    f_options = !opt;
-				    f_statements = [];
-				    f_collisions = [];
-				    f_eq_theories = NoEq;
-                                    f_impl = No_impl;
-                                    f_impl_inv = None })
+      add_not_found s1 ext1 (EFunc (Settings.create_fun s1 (l',sr')
+				      ~options:(!opt) Std))
   | LetFun((s1,ext1), l, s2) ->
       let (tl,bl,env')=
         List.fold_right (fun ((s1, ext1), tyb) ((_,_,env') as accu) ->
@@ -3675,39 +3660,14 @@ let rec check_one = function
             try
 	      set_binder_env (check_term1 empty_binder_env false [] env' s2); (* Builds binder_env *)
 	      let tres = check_term (Some []) [] env' None s2 in
-	      let f = { f_name = s1;
-			f_type = tl, tres.t_type;
-			f_cat  = SepLetFun;
-			f_options = 0;
-			f_statements = [];
-			f_collisions = [];
-			f_eq_theories = NoEq;
-			f_impl = No_impl;
-			f_impl_inv = None }
-	      in
+	      let f = Settings.create_fun s1 (tl, tres.t_type) SepLetFun in
 	      impl_letfuns := (f, bl, tres) :: (!impl_letfuns);
 	      f
 	    with CannotSeparateLetFun ->
-	      { f_name = s1;
-		f_type = tl, unused_type;
-		f_cat  = Std;
-		f_options = 0;
-		f_statements = [];
-		f_collisions = [];
-		f_eq_theories = NoEq;
-		f_impl = No_impl;
-		f_impl_inv = None }
+	      Settings.create_fun s1 (tl, unused_type) Std
 	  end
 	else
-	  { f_name = s1;
-	    f_type = tl, unused_type;
-	    f_cat  = Std;
-	    f_options = 0;
-	    f_statements = [];
-	    f_collisions = [];
-	    f_eq_theories = NoEq;
-	    f_impl = No_impl;
-	    f_impl_inv = None }
+	  Settings.create_fun s1 (tl, unused_type) Std
       in
       add_not_found s1 ext1 (ELetFun(f, !env, l, s2))
 

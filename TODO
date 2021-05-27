@@ -319,6 +319,24 @@ insert/get use the state (tables + entropy for get when it is not unique
 replindex: for a first step, you can just not translate them;
       later we may want to associate a session id to each repl.index.
 
+
+Structure to collect for oracles
+map oracle name O -> info:
+- under_repl: bool (same for all occs)
+- previous_oracle: oracle_name O' option (same for all occs, None at the top)
+- input_type: typet list (same for all occs)
+- output_type: typet list option (same for all returns, None before we meet the first return)
+      Warning: for input and output, decompose top tuple in oracle front-end, not in channel front-end.
+- following_oracles: oracle_name list option (same for all returns, None before we meet the first return)
+- list_of_returns: (After_oracle_name(=O)_nth_return(free variables of following oracles) at the return, process of the return) list
+- list_of_defs:
+    | Top of p
+    | NonTop of (After_oracle_name(=O')_nth_return(free variables of following oracles) at the def, p) list
+   p = input process that defines the oracle
+
+0.8) Post-quantum cryptoverif
+Beware of quantum random oracles https://eprint.iacr.org/2010/428.pdf
+
    1) We cannot apply crypto transformations to equalities outside
    the game itself, e.g. equalities obtained during proofs of
    correspondences. In contrast, we can apply collision statements

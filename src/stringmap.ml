@@ -375,15 +375,8 @@ let cst_for_type ty =
     try
       TypeHashtbl.find cst_for_type_table ty
     with Not_found ->
-      let r = { f_name = Terms.fresh_id ("cst_" ^ ty.tname);
-		f_type = [],ty;
-		f_cat = Std;
-		f_options = 0;
-		f_statements = [];
-		f_collisions = [];
-		f_eq_theories = NoEq;
-                f_impl = No_impl;
-                f_impl_inv = None }
+      let r = Settings.create_fun (Terms.fresh_id ("cst_" ^ ty.tname))
+	  ([],ty) Std
       in
       TypeHashtbl.add cst_for_type_table ty r;
       env := StringMap.add r.f_name (EFunc r) (!env);

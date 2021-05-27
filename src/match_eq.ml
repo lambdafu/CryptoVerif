@@ -541,15 +541,7 @@ type var_type =
     Fresh | Advice | Pat
 
 let special_neut_symb = 
-  { f_name = "$@special_neut";
-    f_type = [], Settings.t_any;
-    f_cat = Std;
-    f_options = 0;
-    f_statements = [];
-    f_collisions = [];
-    f_eq_theories = NoEq;
-    f_impl = No_impl;
-    f_impl_inv = None }
+  Settings.create_fun "$@special_neut" ([], Settings.t_any) Std
 
 let special_neut_term = 
   Terms.app special_neut_symb []

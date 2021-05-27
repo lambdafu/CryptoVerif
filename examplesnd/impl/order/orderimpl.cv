@@ -1,0 +1,118 @@
+(*
+
+WooLam shared-key auth protocol (1992, computer)
+Corrections of Gordon, Jeffrey CSFW'01
+
+A -> B : A
+B -> A : N (fresh)
+A -> B : { m3, B, N }_kAS
+B -> S : A,B,{ m3, B, N }_kAS
+S -> B : { m5, A, N }_kBS
+B: verify { m5, A, N }_kBS = the message from S
+
+Correct.
+*)
+
+param N, N2, N3, Nh.
+
+type nonce [large,fixed].
+type host [bounded].
+type mkey [bounded].
+type mkeyseed [fixed].
+type key [bounded].
+type keyseed [fixed].
+type seed [fixed].
+type macs [bounded].
+type tag [bounded].
+type maxenc [bounded].
+type maxmac [bounded].
+
+table keytbl (key, mkey, host).
+
+fun concat1(tag, host, nonce):maxenc [data].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc_all_args(key, maxenc, maxmac, seed, enc, enc_r, enc_r', dec, injbot, Z, Penc).
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+const Zconcat1:maxenc.
+equation forall y:tag, h:host, z:nonce; 
+	Z(concat1(y,h,z)) = Zconcat1.
+
+(* Mac *)
+
+proba Pmac.
+
+expand SUF_CMA_det_mac(mkey, maxmac, macs, mac, check, Pmac).
+
+(* We model an unbounded number of honest and dishonest participants.
+   Participants honest(...) are honest, dishonest(...) are dishonest *)
+
+type hname.
+fun honest(hname):host [data].
+fun dishonest(hname):host [data].
+
+equation forall x1:hname, x2:hname; honest(x1) <> dishonest(x2).
+
+(* Queries *)
+
+channel c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13,
+	c14, c15, c16, start, finish.
+
+const tag3: tag.
+const tag5: tag.
+
+event beginA(host).
+event beginAfull(host, host, nonce).
+event endB(host, host, nonce).
+
+query x:host, y:host, z:nonce;
+	event(endB(x,y,z)) ==> event(beginAfull(x,y,z)).
+query x:host, y:host, z:nonce;
+	event(endB(x,y,z)) ==> event(beginA(x)).
+query x:host, y:host, z:nonce;
+	inj-event(endB(x,y,z)) ==> inj-event(beginAfull(x,y,z)).
+query x:host, y:host, z:nonce;
+	inj-event(endB(x,y,z)) ==> inj-event(beginA(x)).
+
+const A, B: host.
+
+
+implementation table keytbl = "keytbl";
+               type key = 128;
+               type mkey = 160;
+	       type hname = "string";
+               type host = "string" [serial = "id", "id" ];
+               type maxmac = "string";
+	       type maxenc = "string";
+               type macs = "string";
+               type seed = 128;
+	       type nonce = 64;
+               fun mac = "(mac Cryptokit.MAC.hmac_sha1)";
+               fun enc_r = "(sym_r_enc (Cryptokit.Cipher.aes ~mode:Cryptokit.Cipher.CBC ~pad:Cryptokit.Padding.length))";
+               fun concat1 = "concat_str_str_str" [ inverse = "unconcat_str_str_str" ];
+               const tag5 = "\"tag5\"";
+               fun dec = "(sym_r_dec 16 (Cryptokit.Cipher.aes ~mode:Cryptokit.Cipher.CBC ~pad:Cryptokit.Padding.length))";
+               fun injbot = "injbot" [inverse = "injbot_inv" ];
+	       fun honest = "id" [inverse = "id" ];
+               const tag3 = "\"tag3\"";
+	       const A = "\"A\"";
+	       const B = "\"B\"";
+               fun check = "(mac_check Cryptokit.MAC.hmac_sha1)".
+               
+process
+    WLSK_Init {
+	in(c1, n:nonce); 
+	new kAS: key;
+	new mkAS: mkey;
+	out(c4, concat1((insert keytbl(kAS, mkAS, A); tag3), (get keytbl(k,mk,=A) in A else B), n)) }
+
+
+(* EXPECTED
+All queries proved.
+0.152s (user 0.136s + system 0.016s), max rss 18876K
+END *)

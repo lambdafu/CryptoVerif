@@ -46,11 +46,18 @@ no factor.
 - Fixed bug in query_equiv: undone the optimization of the translation
 that avoids creating oracles that just generate random values before
 a single oracle; this optimization was not sound in general.
-- Fixed bug in generation of OCaml implementations: a non-existing
-file is now considered as an empty table (reported by Benjamin Lipp).
-- Fixed bug in generation of OCaml implementations: serialization
-and deserialization functions were swapped for types bool and bitstringbot
-(fixed by Benjamin Lipp).
+- Fixed several bugs in generation of OCaml implementations:
+  * a non-existing file is now considered as an empty table (reported
+  by Benjamin Lipp).
+  * serialization and deserialization functions were swapped for
+  types bool and bitstringbot (fixed by Benjamin Lipp).
+  * the order of evaluation of terms was sometimes incorrect for terms
+  that contain insert/get/event_abort
+  * let pat = M in yield else p executed p even when the pattern-matching
+  succeeded
+  * fixed syntax error in the translation of get terms
+  * inside events, do not ignore event_abort as well as insert even when it
+  appears via a call to a letfun
 - Fixed bug in computation of indices in crypto transformation.
 - Fixed bug in update of defined conditions following other
 rewritings of the game: it supported only expanded games, but

@@ -511,18 +511,39 @@ let random b ind =
       Some(r) -> r
     | None -> error ("Random generation function required for type "^b.btype.tname^" required.")
   in
-    "\n"^ind^"let "^(get_binder_name b)^" = "^rand^" () in"
+    "let "^(get_binder_name b)^" = "^rand^" () in"
 
-let yield_transl ind = "\n"^ind^"raise Match_fail"
+let rec term_needs_state t =
+  match t.t_desc with
+  | ReplIndex _ | Var _ -> false
+  | FunApp(f,tl) ->
+      f.f_impl_needs_state || List.exists term_needs_state tl
+  | TestE(t1,t2,t3) ->
+      term_needs_state t1 || term_needs_state t2 || term_needs_state t3
+  | EventE(t,p)->
+      term_needs_state t || term_needs_state p
+  | FindE _ -> error "Find not supported"
+  | LetE(pat,t1, t2, topt) ->
+      pat_needs_state pat || term_needs_state t1 || term_needs_state t2 ||
+      (match topt with
+      | None -> false
+      | Some t3 -> term_needs_state t3)
+  | ResE(_,t) -> term_needs_state t
+  | EventAbortE _ | GetE _ | InsertE _ -> true
+	(* the order of evaluation is important for event_abort (because it raises Abort)
+	   and for insert/get in tables *)
 
-let inside_event = ref false
+and pat_needs_state = function
+  | PatVar _ -> false
+  | PatTuple(_,l) -> List.exists pat_needs_state l
+  | PatEqual t -> term_needs_state t
 				   
 let rec translate_oprocess opt p ind =
   match p.p_desc with
-    | Yield -> yield_transl ind
+    | Yield -> "\n"^ind^"raise Match_fail"
     | EventAbort _ -> "\n"^ind^"raise Abort"
     | Restr(b,p) -> 
-        (random b ind)^
+        "\n"^ind^(random b ind)^
         (write_file opt b ind)^
         (translate_oprocess opt p ind)
     | Test(t,p1,p2) ->
@@ -534,11 +555,18 @@ let rec translate_oprocess opt p ind =
         if term_tuple_types t = [] then
           (translate_process opt p ind)
         else
-          "\n"^ind^"("^(translate_process opt p (ind^"  "))^
-            "\n"^ind^"  ,"^(translate_term_to_output t ind)^
+	  let prefix, t' = translate_term_to_output t ind in
+          "\n"^ind^prefix^"("^(translate_process opt p (ind^"  "))^
+            ",\n"^ind^t'^
             "\n"^ind^")"
     | Let(pat,t,p1,p2) ->
-        "\n"^ind^match_pattern opt pat (translate_term t ind) (translate_oprocess opt p1) (translate_oprocess opt p2) false ind
+	let p2opt =
+	  match p2.p_desc with
+	  | Yield -> None
+	  | _ -> Some ((fun b -> Terms.refers_to_oprocess b p1), translate_oprocess opt p2)
+	in
+	let prefix, next = match_pattern term_needs_state opt pat (translate_term t ind) (translate_oprocess opt p1) p2opt false ind in
+        "\n"^ind^prefix^next
     | EventP(t,p)->
         "\n"^ind^(translate_event t ind)^
 	(translate_oprocess opt p ind)
@@ -548,7 +576,8 @@ let rec translate_oprocess opt p ind =
         translate_get (fun b -> Terms.refers_to_oprocess b p1) opt tbl patl topt (translate_oprocess opt p1) (translate_oprocess opt p2) find_info ind
     | Insert(tbl,tl,p) ->
         let tfile=get_table_file tbl in
-          "\n"^ind^"insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^
+	let prefix, tl' = translate_term_list tl ind in
+          "\n"^ind^prefix^"insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^t^"))") tl' tbl.tbltype))^"];\n"^
             (translate_oprocess opt p ind)
 
 
@@ -561,33 +590,43 @@ and translate_get used opt tbl patl topt p1 p2 find_info ind =
   let list=create_fresh_name "list_" in
   let tvars1 = create_fresh_names "tvar_" (List.length tbl.tbltype) in
   let tvars = List.map2 (fun v t -> "(exc_bad_file \""^tfile^"\" "^(get_read_serial t)^" "^v^")") tvars1 tbl.tbltype in
-  let filterfun =
-    ind^ "  (function\n"^ind^
-    "      | ["^(string_list_sep "; " tvars1)^"] -> begin\n"^ind^
-    (
+  let non_simple t =
+    match t.t_desc with
+    | Var _ | FunApp({ f_impl = Const _ },[]) -> false
+    | _ -> true
+  in
+  let prefix, matchfilt =
     match_pattern_list 
-      opt patl tvars 
+      non_simple opt patl tvars 
       (fun ind ->
         match topt with 
         | Some t -> "\n"^ind^"if ("^(translate_term t ind)^") then "^match_res^" else raise Match_fail"
         | None -> match_res)
-      (fun ind -> "raise Match_fail")
+      None
       false
       (ind^"        ")
-      )^"\n"^ind^
+  in
+  let filterfun =
+    ind^ "  (function\n"^ind^
+    "      | ["^(string_list_sep "; " tvars1)^"] -> begin\n"^ind^
+    matchfilt^"\n"^ind^
     "        end\n"^ind^
     "      | _ -> raise (Bad_file \""^tfile^"\"))"
   in
   if used_vars = [] then
-    "\n"^ind^"if exists_in_table \""^tfile^"\"\n"^
+    "\n"^
+    ind^"begin\n"^
+    ind^prefix^"if exists_in_table \""^tfile^"\"\n"^
       filterfun^" then begin "^
       (p1 (ind^"  "))^
       "\n"^ind^"end else begin "^
-      (p2 (ind^"  "))^"\n"^ind^"end"
+    (p2 (ind^"  "))^"\n"^
+    ind^"end\n"^
+    ind^"end"
   else if find_info = Unique then
     "\n"^
     ind^"begin\n"^
-    ind^"match get_one_from_table \""^tfile^"\"\n"^ filterfun^" with\n"^
+    ind^prefix^"match get_one_from_table \""^tfile^"\"\n"^ filterfun^" with\n"^
     ind^"| None ->\n"^
     ind^"  begin "^(p2 (ind^"  "))^"\n"^
     ind^"  end\n"^
@@ -596,55 +635,68 @@ and translate_get used opt tbl patl topt p1 p2 find_info ind =
     ind^"  end\n"^
     ind^"end"
   else    
-    "\n"^ind^"let "^list^" = get_from_table \""^tfile^"\"\n"^
+    "\n"^
+    ind^"begin\n"^
+    ind^prefix^"let "^list^" = get_from_table \""^tfile^"\"\n"^
       filterfun^" in\n"^ind^
       "if "^list^" = [] then begin "^
       (p2 (ind^"  "))^
       "\n"^ind^"end else begin\n"^ind^
       "  let "^match_res^" = rand_list "^list^" in"^
-      (p1 (ind^"  "))^"\n"^ind^"end"
+    (p1 (ind^"  "))^"\n"^
+    ind^"  end\n"^
+    ind^"end"
 
 and translate_event t ind =
   match t.t_desc with
-    ReplIndex _ | EventAbortE _ -> ""
-  | Var(_, tl) | FunApp(_,tl) ->
+    ReplIndex _ -> ""
+  | Var(_, tl) ->
       String.concat "" (List.map (fun t -> translate_event t ind) tl)
+  | FunApp(f,tl) when not f.f_impl_needs_state ->
+      (* When a letfun uses tables, we execute it *)
+      String.concat "" (List.map (fun t -> translate_event t ind) tl)
+  | EventE(t,p) ->
+      (translate_event t ind) ^ (translate_event p ind)
   | _ ->
-      (* I need to allow replication indices inside events.
-	 Setting the flag [inside_event] to [true] allows replication
-	 indices inside [translate_term]. *)
-      let old_inside_event = !inside_event in
-      inside_event := true;
-      let transl_t = translate_term t ind in
-      inside_event := old_inside_event;
-      "let _ = " ^ transl_t ^ " in\n" ^ ind
+      if term_needs_state t then
+	let transl_t = translate_term t (ind^"  ") in
+	"let _ = " ^ transl_t ^ " in\n" ^ ind
+      else
+	""
 
+and translate_term_list l ind =
+  List.fold_right (fun t (accuprefix, accutl) ->
+    if term_needs_state t then
+      let x = create_fresh_name "tvar_" in
+      "let "^x^" = "^(translate_term t (ind^"  "))^" in\n"^ind^accuprefix, x::accutl
+    else
+      accuprefix, (translate_term t ind)::accutl
+					     ) l ("", [])
+    
 and translate_term t ind =
   let rec termlist sep = function
       [] -> "()"
-    | [a] -> translate_term a ind
-    | a::b -> (translate_term a ind)^sep^(termlist sep b)
+    | [a] -> a
+    | a::b -> a^sep^(termlist sep b)
   in
     match t.t_desc with
       | Var (b,tl) -> get_binderref_name t.t_loc (b,tl)
-      | FunApp(f,tl) -> 
+      | FunApp(f,tl) ->
+	  let prefix, tl' = translate_term_list tl ind in
           if f.f_name = "" then
-            "(compos ["^
-            (string_list_sep ";" (List.map (fun t -> (get_write_serial t.t_type)^" "^(translate_term t ind)) tl))^
+            "("^prefix^"compos ["^
+            (string_list_sep ";" (List.map2 (fun t t' -> (get_write_serial t.t_type)^" "^t') tl tl'))^
             "])"
           else
             (match f.f_impl with 
-            | Func x -> "("^x^" "^(termlist " " tl)^")"
+            | Func x -> "("^prefix^x^" "^(termlist " " tl')^")"
             | Const x -> x
-	    | SepFun -> "("^(!letfun_prefix)^(get_fun_name f)^" "^(termlist " " tl)^")"
+	    | SepFun -> "("^prefix^(!letfun_prefix)^(get_fun_name f)^" "^(termlist " " tl')^")"
             | No_impl -> error ("Function not registered:" ^ f.f_name)
             )
       | TestE(t1,t2,t3) -> "(if "^(translate_term t1 ind)^" then "^(translate_term t2 ind)^" else "^(translate_term t3 ind)^" )"
       | ReplIndex _ ->
-	  if !inside_event then
-	    " () "
-	  else
-	    Parsing_helper.input_error "Replication indices should occur only inside variables and events (implementation)" t.t_loc
+	  Parsing_helper.input_error "Replication indices should occur only inside variables (implementation)" t.t_loc
       | EventAbortE _ -> "(raise Abort)"
       | EventE(t,p)->
           "("^(translate_event t ind)^
@@ -653,15 +705,18 @@ and translate_term t ind =
           translate_get (fun b -> Terms.refers_to b p1) [] tbl patl topt (translate_term p1) (translate_term p2) find_info ind
       | InsertE(tbl,tl,p) ->
           let tfile=get_table_file tbl in
-          "(insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^(translate_term t ind)^"))") tl tbl.tbltype))^"];\n"^
+	  let prefix, tl' = translate_term_list tl ind in
+          "("^prefix^"insert_in_table \""^tfile^"\" ["^(string_list_sep "; " (List.map2 (fun t ty -> "("^(get_write_serial ty)^" ("^t^"))") tl' tbl.tbltype))^"];\n"^ind^
           (translate_term p ind)^")"
       | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
-      | ResE (b,t) -> "("^(random b ind)^" "^(translate_term t ind)^")"
-      | LetE (pat, t1, t2, topt) -> 
-          "("^(match_pattern [] pat (translate_term t1 ind) (translate_term t2) 
+      | ResE (b,t) -> "("^(random b ind)^"\n"^ind^(translate_term t ind)^")"
+      | LetE (pat, t1, t2, topt) ->
+	  let (prefix, next) = match_pattern term_needs_state [] pat (translate_term t1 ind) (translate_term t2) 
 	    (match topt with 
-	      Some t3-> translate_term t3 
-	    | None -> (fun ind -> Parsing_helper.internal_error "else branch of let called but not defined")) true ind)^")"
+	      Some t3-> Some ((fun b -> Terms.refers_to b t2), translate_term t3)
+	    | None -> Some ((fun b -> false), fun ind -> Parsing_helper.internal_error "else branch of let called but not defined")) true ind
+	  in
+          "("^prefix^next^")"
 
 and translate_term_to_output t ind =
   match !Settings.front_end with
@@ -669,25 +724,49 @@ and translate_term_to_output t ind =
         (
           match t.t_desc with
             | FunApp(f,tl) when f.f_name="" ->
-                string_list_sep ", " (List.map (fun t -> translate_term t ind) tl)
+		let prefix, tl' = translate_term_list tl ind in 
+                prefix, string_list_sep ", " tl'
             | _ -> Parsing_helper.internal_error "output term not of the form \"\"()"
         )
     | Settings.Channels ->
         (
           match t.t_desc with
             | FunApp(f,tl) when f.f_name="" ->
-                string_list_sep ", " (List.map (fun t -> translate_term t ind) tl)
-            | _ -> translate_term t ind
+		let prefix, tl' = translate_term_list tl ind in 
+                prefix, string_list_sep ", " tl'
+            | _ -> "", translate_term t ind
         )
         
-and match_pattern_complex opt pat s p1 p2 in_term ind =
+and match_pattern_complex must_expand opt patl sl p1 p2opt in_term ind =
+  (* [p2opt] is either
+     - [None] when the process [p2] just raises Match_fail
+     - [Some(p1uses, p2)] where
+     [p1uses b = true] if and only if p1 uses variable [b] (so [b] is needed
+     as result of the pattern-matching)
+     [p2 ind] is the OCaml code for [p2] with indentation [ind] *)
   (*decomposition of every function*)
   let rec decompos=function
     | PatVar(b) -> 
-        ([],get_binder_name b,[])
+        ("",[],get_binder_name b,[])
     | PatEqual(t) -> 
         let n=create_fresh_name "bvar_" in
-          ([],n,[(n, translate_term t ind)])
+        (* evaluate all terms [t] such that [must_expand t] before starting the
+	   pattern matching. 
+	   In the semantics of CryptoVerif, terms in the pattern are
+	   evaluated before pattern-matching starts. 
+	   In general, it is enough to do it for terms that use tables;
+	   the order of evaluation does not matter for other terms.
+	   In this case, [must_expand = term_needs_state].
+	   In [get], we preevaluate all terms that are not constants or 
+	   variables, because the pattern-matching is performed for
+	   each element of the table, so preevaluating terms is better
+	   for efficiency and required for randomized terms. *)
+	if must_expand t then
+	  let x = create_fresh_name "tvar_" in
+	  ("let "^x^" = "^(translate_term t (ind^"  "))^" in\n"^ind,
+	   [], n, [(n,x)])
+	else
+          ("",[],n,[(n, translate_term t ind)])
     | PatTuple(f,pl) -> 
         let n=create_fresh_name "bvar_" in
         let func=
@@ -708,81 +787,129 @@ and match_pattern_complex opt pat s p1 p2 in_term ind =
             )
         in
         let decompos_list = List.map decompos pl in
-          (
-            (n,func,List.map (fun (x,y,z)->y) decompos_list)::
-              (List.concat (List.map (fun (x,y,z)->x) decompos_list)),
-            n,
-            List.concat (List.map (fun (x,y,z)-> z) decompos_list)
-          )
+        (
+	  String.concat "" (List.map (fun (p,x,y,z)->p) decompos_list),
+          (n,func,List.map (fun (p,x,y,z)->y) decompos_list)::
+            (List.concat (List.map (fun (p,x,y,z)->x) decompos_list)),
+          n,
+          List.concat (List.map (fun (p,x,y,z)-> z) decompos_list)
+        )
   in
   let rec get_all_binders=function
     | PatVar(b) -> [b]
     | PatTuple(f,pl) -> List.concat (List.map get_all_binders pl)
     | _ -> []
   in
-  let all_binders = get_all_binders pat in
+  let all_binders = List.concat (List.map get_all_binders patl) in
   let rec andlist = function
     | [] -> "true"
     | [x] -> x
     | x::y -> x^" && "^(andlist y)
   in
-  let (func,name,tests) = decompos pat in
-    "try\n"^ind^"  let "^name^"="^s^" in"^
-      (*decompos functions*)
+  let decompos_list = List.map decompos patl in
+  let prefix = String.concat "" (List.map (fun (p,x,y,z)->p) decompos_list) in
+  let func = List.concat (List.map (fun (p,x,y,z)->x) decompos_list) in
+  let assign = List.map2 (fun (p,x,y,z) s -> (y,s)) decompos_list sl in
+  let tests = List.concat (List.map (fun (p,x,y,z)-> z) decompos_list) in
+  let match_text ind then_p =
+    (* Returns [then_p] when pattern-matching succeeds;
+       raises Match_fail when pattern-matching fails *)
+    (String.concat "" (List.map (fun (name, s) -> "\n"^ind^"let "^name^"="^s^" in") assign))^
+    (*decompos functions*)
       (List.fold_left (^) "" 
          (List.map 
             (fun (n,f,vl) -> 
-               "\n"^ind^"  let ("^(string_list_sep "," vl)^")="^
+               "\n"^ind^"let ("^(string_list_sep "," vl)^")="^
                  f^" "^n^" in") func)
       )^
-          (*tests*)
-      "\n"^ind^"  if "^(andlist (List.map (fun (n,s)-> n^"="^s) tests))^
-      " then begin "^
+      (*tests*)
+    (let success_case =
       (if not in_term then
          (string_list_sep_ignore_empty "" 
             (
               (List.map (fun s -> 
-                           write_file opt s (ind^"     ")) 
+                           write_file opt s (ind^"  ")) 
                  all_binders)
             ))
-       else "")^
-      (p1 (ind^"    "))^
-      "\n"^ind^"  end\n"^ind^"  else\n"^ind^"    raise Match_fail\n"^ind^"with Match_fail -> "^(p2 (ind^"  "))
+      else "")^
+      then_p
+    in
+    if tests = [] then
+      success_case
+    else
+      "\n"^ind^"if "^(andlist (List.map (fun (n,s)-> n^"="^s) tests))^
+      " then begin "^success_case^
+      "\n"^ind^"end\n"^ind^"else\n"^ind^"  raise Match_fail")
+  in
+  prefix,
+  match p2opt with
+  | None ->
+      (* raise Match_fail when pattern-matching fails *)
+      match_text ind (p1 (ind^"  "))
+  | Some (p1uses, p2) ->
+      (* execute p2 when pattern-matching fails *)
+      let used_vars = List.filter p1uses all_binders in
+      let used_vars_tuple = "("^(String.concat ", " (List.map get_binder_name used_vars))^")" in
+      "\n"^
+      ind^"match"^(match_text (ind^"  ") used_vars_tuple)^ "\n"^
+      ind^"with\n"^
+      ind^"| "^used_vars_tuple^" -> "^(p1 (ind^"    "))^"\n"^
+      ind^"| exception Match_fail -> "^(p2 (ind^"    "))
 
-and match_pattern opt (pat:Types.pattern) (var:string) (p1:string -> string) (p2: string -> string) (in_term:bool) ind =
+and match_pattern must_expand opt (pat:Types.pattern) (var:string) (p1:string -> string) (p2opt: ((binder -> bool) * (string -> string)) option) (in_term:bool) ind =
   match pat with
     | PatVar(b) -> 
-        "let "^(get_binder_name b)^" = "^var^" in "^(if (not in_term) then write_file opt b (ind^"  ") else "")^(p1 ind)
-    | PatEqual(t) -> 
-        "if "^(translate_term t ind)^" = "^var^" then\n"^ind^"begin "^
+        "", "let "^(get_binder_name b)^" = "^var^" in "^(if (not in_term) then write_file opt b (ind^"  ") else "")^(p1 ind)
+    | PatEqual(t) ->
+	let prefix, t' =
+	  if must_expand t then
+	    let x = create_fresh_name "tvar_" in
+	    "let "^x^" = "^(translate_term t (ind^"  "))^" in\n"^ind, x
+	  else
+	    "", translate_term t ind
+	in
+	let p2 =
+	  match p2opt with
+	  | Some (_,p2) -> p2
+	  | None -> fun ind -> "\n"^ind^"raise Match_fail"
+	in
+        prefix,
+	"if "^t'^" = "^var^" then\n"^ind^"begin "^
           (p1 (ind^"  "))^
           "\n"^ind^"end else begin "^
           (p2 (ind^"  "))^
           "\n"^ind^"end"
-    | _ -> match_pattern_complex opt pat var p1 p2 in_term ind
+    | _ -> match_pattern_complex must_expand opt [pat] [var] p1 p2opt in_term ind
 
-and match_pattern_list opt patl vars (p1:string -> string) (p2:string -> string) in_term ind =
-  (List.fold_right2 (fun pat var acc ind -> "\n"^ind^match_pattern opt pat var acc p2 in_term ind) patl vars p1) ind
-
+and match_pattern_list must_expand opt patl vars (p1:string -> string) (p2opt: ((binder -> bool) * (string -> string)) option) in_term ind =
+  match patl, vars with
+  | [pat], [var] ->
+      match_pattern must_expand opt pat var p1 p2opt in_term ind
+  | _ ->
+      match_pattern_complex must_expand opt patl vars p1 p2opt in_term ind
+	
 and match_pattern_from_input opt pat (vars:string list) (next:string -> string) ind =
   match !Settings.front_end with
     | Settings.Oracles ->
         (
           match pat with
             | PatTuple (f,pl) when f.f_name = "" ->
-                match_pattern_list opt pl vars next yield_transl false ind
+                let prefix, next' = match_pattern_list term_needs_state opt pl vars next None false ind in
+		prefix ^ next'
             | _ -> Parsing_helper.internal_error "oracle must begin with pattern \"\"(...)"
         )
     | Settings.Channels ->
         (
           match pat with
             | PatTuple (f,pl) when f.f_name = "" ->
-                match_pattern_list opt pl vars next yield_transl false ind
+                let prefix, next' = match_pattern_list term_needs_state opt pl vars next None false ind in
+		prefix ^ next'
             | _ -> 
                 match vars with
-                    [var] ->
-                      match_pattern opt pat var next yield_transl false ind
-                  | _ -> Parsing_helper.internal_error "var in match_pattern_from_input"
+                  [var] ->
+                    let prefix, next' = match_pattern term_needs_state opt pat var next None false ind in
+		    prefix ^ next'
+                | _ -> Parsing_helper.internal_error "var in match_pattern_from_input"
         )
 
 
@@ -807,7 +934,7 @@ and get_oracle_body opt (b,name,pat,p) ind =
       (if check_list <> [] then 
          "if "^(string_list_sep " && " check_list)^" then\n"^ind^"    "^
            "begin\n"^ind^"      "^
-           (if b then token^" := false;" else "")^
+           (if b then token^" := false;\n"^ind^"      " else "")^
            match_pattern_from_input opt pat args (translate_oprocess opt p) (ind^"      ")^
            "\n"^ind^"    "^"end\n"^ind^"    "^
            "else raise Bad_call"
@@ -854,6 +981,7 @@ let get_letfun_interface letfuns =
 let get_letfun_implementation letfuns =
   prefix^
   (string_list_sep "\n" (List.map (fun (f,bl,res) ->
+    f.f_impl_needs_state <- term_needs_state res;
     "let "^(get_fun_name f)^" "^
     (if bl = [] then
       "()"

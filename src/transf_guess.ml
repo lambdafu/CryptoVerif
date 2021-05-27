@@ -539,15 +539,8 @@ let rec full_transfo_i cur_array p =
       let p1' =
 	if is_selected_repl p then
 	  let i_tested =
-	    { f_name = Terms.fresh_id (i.ri_sname ^ "_tested");
-	      f_type = ([], i.ri_type);
-              f_cat = Std;
-	      f_options = 0;
-	      f_statements = [];
-	      f_collisions = [];
-	      f_eq_theories = NoEq;
-              f_impl = No_impl;
-              f_impl_inv = None }
+	    Settings.create_fun (Terms.fresh_id (i.ri_sname ^ "_tested"))
+	      ([], i.ri_type) Std
 	  in
 	  (* Adding i_tested to Stringmap.env so that it can be used in 
 	     the "replace" command *)

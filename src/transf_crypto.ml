@@ -2949,15 +2949,9 @@ let introduced_events = ref []
 (* Functions for encoding indices *)
 
 let build_encode_fun name arg_types result_type =
-  { f_name = Terms.fresh_id name;
-    f_type = arg_types, result_type;
-    f_cat = Tuple; (* Category Tuple implies that distinct functions yield distinct results (for any arguments *)
-    f_options = Settings.fopt_COMPOS;
-    f_statements = [];
-    f_collisions = [];
-    f_eq_theories = NoEq;
-    f_impl = No_impl;
-    f_impl_inv = None }
+  Settings.create_fun (Terms.fresh_id name) (arg_types, result_type)
+    ~options: Settings.fopt_COMPOS
+    Tuple (* Category Tuple implies that distinct functions yield distinct results (for any arguments *)
     
 let encode_funs_for_binders = ref []
 
@@ -3490,15 +3484,8 @@ and instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping on
 	      instantiate_term cur_array in_find_cond loc_rename loc_rename_idx mapping one_exp t'))
   | EventAbortE(f) ->
       (* Create a fresh function symbol, in case the same equivalence has already been applied before *)
-      let f' = { f_name = Terms.fresh_id f.f_name;
-		 f_type = f.f_type;
-		 f_cat = f.f_cat;
-		 f_options = f.f_options;
-		 f_statements = f.f_statements;
-		 f_collisions = f.f_collisions;
-		 f_eq_theories = f.f_eq_theories;
-                 f_impl = No_impl;
-                 f_impl_inv = None }
+      let f' = Settings.create_fun (Terms.fresh_id f.f_name)
+	  f.f_type f.f_cat
       in
       (* Add the event to introduced_events, to add it in the difference 
 	 of probability and in the queries *)
