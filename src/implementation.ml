@@ -560,13 +560,20 @@ let rec translate_oprocess opt p ind =
             ",\n"^ind^t'^
             "\n"^ind^")"
     | Let(pat,t,p1,p2) ->
+	let (prefixt, valt) =
+	  if term_needs_state t then
+	    let x = create_fresh_name "tvar_" in
+	    "let "^x^" = "^(translate_term t (ind^"  "))^" in\n"^ind, x
+	  else
+	    "", translate_term t ind
+	in
 	let p2opt =
 	  match p2.p_desc with
 	  | Yield -> None
 	  | _ -> Some ((fun b -> Terms.refers_to_oprocess b p1), translate_oprocess opt p2)
 	in
-	let prefix, next = match_pattern term_needs_state opt pat (translate_term t ind) (translate_oprocess opt p1) p2opt false ind in
-        "\n"^ind^prefix^next
+	let prefix, next = match_pattern term_needs_state opt pat valt (translate_oprocess opt p1) p2opt false ind in
+        "\n"^ind^prefixt^prefix^next
     | EventP(t,p)->
         "\n"^ind^(translate_event t ind)^
 	(translate_oprocess opt p ind)
@@ -711,12 +718,19 @@ and translate_term t ind =
       | FindE _ -> Parsing_helper.input_error "Find not supported (implementation)" t.t_loc
       | ResE (b,t) -> "("^(random b ind)^"\n"^ind^(translate_term t ind)^")"
       | LetE (pat, t1, t2, topt) ->
-	  let (prefix, next) = match_pattern term_needs_state [] pat (translate_term t1 ind) (translate_term t2) 
+	  let (prefix1, val1) =
+	    if term_needs_state t1 then
+	      let x = create_fresh_name "tvar_" in
+	      "let "^x^" = "^(translate_term t1 (ind^"  "))^" in\n"^ind, x
+	    else
+	      "", translate_term t1 ind
+	  in
+	  let (prefix, next) = match_pattern term_needs_state [] pat val1 (translate_term t2) 
 	    (match topt with 
 	      Some t3-> Some ((fun b -> Terms.refers_to b t2), translate_term t3)
 	    | None -> Some ((fun b -> false), fun ind -> Parsing_helper.internal_error "else branch of let called but not defined")) true ind
 	  in
-          "("^prefix^next^")"
+          "("^prefix1^prefix^next^")"
 
 and translate_term_to_output t ind =
   match !Settings.front_end with
