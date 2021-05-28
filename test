@@ -138,9 +138,7 @@ impl()
     for i in examplesnd/impl/*
     do
 	echo -n PROTOCOL $i " "
-	cd $i
-	./build.sh > $cvdir/$TMP.out 2>&1
-	cd $cvdir
+	(cd $i; ./build.sh) > $TMP.out 2>&1
 	echo PROTOCOL $i >> tests/$output
 	cat $TMP.out >> tests/$output
 	egrep \(CORRECT\|ERROR\) $TMP.out
