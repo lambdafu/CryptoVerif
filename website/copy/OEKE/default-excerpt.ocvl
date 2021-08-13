@@ -1,0 +1,230 @@
+(* We define the equivalence used internally by the command "move array" *)
+
+define move_array_internal_macro(T) {
+
+param N, NX, Neq.
+
+equiv move_array(T)
+      foreach i<=N do X <-R T; (foreach iX <= NX do OX() := return(X) |
+                      	        foreach ieq <= Neq do Oeq(X':T) := return(X' = X))
+<=(#Oeq / |T|)=> [manual,computational]
+      foreach i<=N do (foreach iX <= NX do OX() := find[unique] j<=NX suchthat defined(Y[j]) then return(Y[j]) else Y <-R T; return(Y) |
+              	       foreach ieq <= Neq do Oeq(X':T) := find[unique] j<=NX suchthat defined(Y[j]) then return(X' = Y[j]) else return(false)).
+
+}
+
+
+
+(* Ideal Cipher Model
+   cipherkey: type of keys that correspond to the choice of the scheme, must be "fixed"
+   key: type of keys (typically "large")
+   blocksize: type of the input and output of the cipher, must be "fixed" and "large".
+   (The modeling of the ideal cipher model is not perfect in that, in
+   order to encrypt a new message, one chooses a fresh random number,
+   not necessarily different from previously generated random
+   numbers. Then CryptoVerif needs to eliminate collisions between
+   those random numbers, so blocksize must really be "large".)
+
+   enc: encryption function
+   dec: decryption function
+   WARNING: the encryption and decryption functions take 2 keys as
+   input: the key of type cipherkey that corresponds to the choice of
+   the scheme, and the normal encryption/decryption key. The cipherkey
+   must be chosen once and for all at the beginning of the game and
+   the encryption and decryption oracles must be made available to the
+   adversary, by including a process such as
+   	 (foreach iE <= qE do OencA(x:blocksize, ke:key) := return(enc(ck,x,ke)))
+       | (foreach iD <= qD do OdecA(m:blocksize, kd:key) := return(dec(ck,m,kd)))
+   where qE is the number of requests to the encryption oracle,
+   qD the number of requests to the decryption oracle,
+   ck the cipherkey.
+   
+   The types cipherkey, key, blocksize must be declared before this macro is
+   expanded. The functions enc, dec are declared by this macro. They
+   must not be declared elsewhere, and they can be used only after
+   expanding the macro.
+
+ *)
+
+define ICM_cipher(cipherkey, key, blocksize, enc, dec) {
+
+param Ne, Nd, Nck.
+
+fun enc(cipherkey, blocksize, key): blocksize.
+fun dec(cipherkey, blocksize, key): blocksize.
+
+forall ck:cipherkey, m:blocksize, k:key; 
+	dec(ck, enc(ck, m, k), k) = m.
+
+equiv icm(enc)
+       foreach ick <= Nck do ck <-R cipherkey;
+         (foreach ie <= Ne do Oenc(me:blocksize, ke:key) := return(enc(ck, me, ke)) |
+          foreach id <= Nd do Odec(md:blocksize, kd:key) := return(dec(ck, md, kd)))
+     <=((#Oenc+#Odec)*(#Oenc+#Odec-1)/|blocksize|)=> [computational]
+       foreach ick <= Nck do 
+         (foreach ie <= Ne do Oenc(me:blocksize, ke:key) :=
+		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && me = me[j] && ke = ke[j] then return(re[j]) 
+		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && me = rd[k] && ke = kd[k] then return(md[k]) 
+		else re <-R blocksize; return(re) |
+          foreach id <= Nd do Odec(md:blocksize, kd:key) :=
+		find[unique] j<=Ne suchthat defined(me[j],ke[j],re[j]) && md = re[j] && kd = ke[j] then return(me[j]) 
+		orfind k<=Nd suchthat defined(rd[k],md[k],kd[k]) && md = md[k] && kd = kd[k] then return(rd[k]) 
+		else rd <-R blocksize; return(rd)).
+
+(* The difference of probability is the probability of collision between two
+random numbers in blocksize among the N+N2 chosen random numbers. *)
+
+}
+
+
+(* Hash function in the random oracle model
+   key: type of the key of the hash function, which models the choice of the hash function, must be "fixed"
+   hashinput: type of the input of the hash function
+   hashoutput: type of the output of the hash function, must be "fixed" and "large"
+
+   hash: the hash function.
+   WARNING: hash is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game 
+   and the hash oracle must be made available to the adversary,
+   by including a process such as
+      foreach iH <= qH do OH(x:hashinput) := return(hash(k,x))
+   where k is the key, qH the number of requests to the hash oracle.
+
+   The types key, hashinput, and hashoutput must be declared before
+   this macro. The function hash is defined by this macro. It must not
+   be declared elsewhere, and it can be used only after expanding the
+   macro.
+
+
+ *)
+
+define ROM_hash(key, hashinput, hashoutput, hash (*, hashoracle, qH*)) {
+
+param Nh, N, Neq.
+
+fun hash(key, hashinput):hashoutput.
+
+equiv rom(hash)
+      foreach ih <= Nh do k <-R key;
+        (foreach i <= N do OH(x:hashinput) := return(hash(k,x)) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := return(r' = hash(k,x')))
+       <=(#Oeq / |hashoutput|)=> [computational]
+      foreach ih <= Nh do 
+        (foreach i <= N do OH(x:hashinput) := 
+	   find[unique] u <= N suchthat defined(x[u],r[u]) && x= x[u] then return(r[u]) else r <-R hashoutput; return(r) |
+         foreach ieq <= Neq do Oeq(x':hashinput, r':hashoutput) := 
+           find[unique] u <= N suchthat defined(x[u],r[u]) && x' = x[u] then return(r' = r[u]) else
+	   return(false)).
+
+}
+
+
+(* Computational Diffie-Hellman 
+   G: type of group elements (must be "fixed" and "large", of cardinal a prime q)
+   Z: type of exponents (must be "fixed" and "large", supposed to be 
+   {1, ..., q-1})
+
+   g: a generator of the group
+   exp: the exponentiation function
+   mult: the multiplication function for exponents, product modulo q in
+   {1, ..., q-1}, i.e. in the group (Z/qZ)*
+
+   pCDH: the probability of breaking the CDH assumption
+
+   The types G and Z and the probability pCDH must be declared before
+   this macro.  The functions g, exp, and mult are defined by this
+   macro. They must not be declared elsewhere, and they can be used
+   only after expanding the macro.
+
+*)
+
+define CDH(G, Z, g, exp, mult, pCDH) {
+
+fun exp(G,Z): G.
+fun exp'(G,Z): G.
+const g:G.
+
+fun mult(Z,Z): Z [commut]. 
+
+(* exponents multiply *)
+
+forall a:G, x:Z, y:Z;
+  exp(exp(a,x), y) = exp(a, mult(x,y)).
+
+(* injectivity *)
+
+forall x:Z, y:Z; (exp(g,x) = exp(g,y)) = (x = y).
+forall x:Z, y:Z; (exp'(g,x) = exp'(g,y)) = (x = y).
+
+(* collision between products *)
+
+collision x1 <-R Z; x2 <-R Z; x3 <-R Z; x4 <-R Z; 
+  return(mult(x1,x2) = mult(x3,x4)) <=(1/|Z|)=> return(false). 
+
+forall x:Z, y:Z, y':Z; 
+  (mult(x,y) = mult(x,y')) = (y = y').
+
+(* replace a random group element with an exponentiation, and conversely *)
+
+param N, N'.
+
+equiv group_to_exp_strict(exp)
+      foreach iX <= N do X <-R G; (OX() := return(X) | foreach iXm <= N' do OXm(m:Z) [useful_change] := return(exp(X,m)))
+<=(0)=> [computational]
+      foreach iX <= N do x <-R Z; (OX() := return(exp(g,x)) | foreach iXm <= N' do OXm(m:Z) := return(exp(g,mult(x,m)))).
+
+(* This equivalence is very general, apply it only manually, because
+   otherwise it might be applied too often.  The equivalence above is
+   particular case applied only when X is inside exp, and good for
+   automatic proofs. *)
+
+equiv group_to_exp(exp) 
+      foreach iX <= N do X <-R G; OX() := return(X) 
+<=(0)=> [manual, computational]    
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x)).
+
+
+equiv exp_to_group(exp)
+      foreach iX <= N do x <-R Z; OX() := return(exp(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+equiv exp'_to_group(exp)
+      foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
+<=(0)=> [computational]
+      foreach iX <= N do X <-R G; OX() := return(X).
+
+(* the CDH assumption *) 
+
+const mark: bitstring.
+
+param na, naDDH, nb, nbDDH.
+
+equiv cdh(exp)
+    foreach ia <= na do a <-R Z; (
+      OA() := return(exp(g,a)) | 
+      Oa() [3] := return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) [useful_change] := return(m = exp(g, mult(b[j], a)))
+    ) |
+    foreach ib <= nb do b <-R Z; (
+      OB() := return(exp(g,b)) |
+      Ob() [3] := return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := return(m = exp(g, mult(a[j], b)))
+    )
+<=((#ODDHa + #ODDHb) * max(1, 7.4*#Oa) * max(1, 7.4*#Ob) * pCDH(time + (na + nb + #ODDHa + #ODDHb) * time(exp)))=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      OA() := return(exp'(g,a)) |
+      Oa() := let ka:bitstring = mark in return(a) |
+      foreach iaDDH <= naDDH do ODDHa(m:G, j<=nb) := 
+      	      find u<=nb suchthat defined(kb[u],b[u]) && b[j] = b[u] then return(m = exp'(g, mult(b[j], a))) else 
+              if defined(ka) then return(m = exp'(g, mult(b[j], a))) else return(false)
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; (
+      OB() := return(exp'(g,b)) |
+      Ob() := let kb:bitstring = mark in return(b) |
+      foreach ibDDH <= nbDDH do ODDHb(m:G, j<=na) := 
+      	      find u<=na suchthat defined(ka[u],a[u]) && a[j] = a[u] then return(m = exp'(g, mult(a[j], b))) else 
+              if defined(kb) then return(m = exp'(g, mult(a[j], b))) else return(false)
+    ).
+
+}

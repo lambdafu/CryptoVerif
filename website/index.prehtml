@@ -1,0 +1,98 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CryptoVerif</title>
+</head>
+<body>
+<H1>CryptoVerif: Cryptographic protocol verifier in the computational model</H1>
+
+<H3>Project leader:</H3>
+
+<A HREF="http://prosecco.gforge.inria.fr/personal/bblanche/">Bruno Blanchet</A>
+
+<H3>Project participant:</H3>
+
+<A HREF="https://www.benjaminlipp.de/">Benjamin Lipp</A>
+
+<H3>Former participant:</H3>
+
+<A HREF="http://prosecco.gforge.inria.fr/personal/dcade/">David Cadé</A>
+
+<HR>
+
+CryptoVerif is an automatic protocol prover sound in the
+computational model. It can prove
+<UL>
+<LI>secrecy;
+<LI>correspondences, which include in particular authentication.
+</UL>
+It provides a generic mechanism for specifying the security assumptions
+on cryptographic primitives, which can handle in particular symmetric
+encryption, message authentication codes, public-key encryption, 
+signatures, hash functions. 
+
+<P>
+The generated proofs are proofs by sequences
+of games, as used by cryptographers. These proofs are valid for
+a number of sessions polynomial in the security parameter, in the
+presence of an active adversary. CryptoVerif can also evaluate
+the probability of success of an attack against the protocol
+as a function of the probability of breaking each cryptographic
+primitive and of the number of sessions (exact security).
+
+<P>
+This prover is available below.
+This software is under development; please use it at your own risk.
+Comments and bug reports welcome.
+<P>
+<A HREF="cryptoverif.pdf">Detailed description of the language of CryptoVerif</A>.
+<P>
+<A HREF="tutorial/index.html">Tutorial</A>
+    
+<H3>Downloads</H3>
+
+<UL>
+  <LI>Version 2.04, released on Nov. 30, 2020:
+    <UL>
+      <LI>Source: <A HREF="cryptoverif.html">CryptoVerif version VERSION, sources under the CeCILL-B license</A> (gzipped tar file)
+      <LI>Binary: <A HREF="cryptoverifbin.html">CryptoVerif version VERSION for Windows, binaries under the CeCILL-B license</A> (zip file)
+    </UL>
+  <LI>Version 2.03, released on Oct. 8. 2020:
+    <UL>
+      <LI>Source: <A HREF="cryptoverif2.03.tar.gz">CryptoVerif version 2.03, sources under the CeCILL-B license</A> (gzipped tar file)
+      <LI>Binary: <A HREF="cryptoverifbin2.03.zip">CryptoVerif version 2.03 for Windows, binaries under the CeCILL-B license</A> (zip file)
+    </UL>
+</UL>
+
+<H3>Mailing List</H3>
+
+A mailing list is available for general discussions on CryptoVerif. I post announcements for new releases of CryptoVerif on this list.
+<UL>
+<LI>To subscribe to the list, send an email to sympa-AT-inria.fr (replace -AT- with @) with subject "subscribe cryptoverif &lt;your name&gt;" (without quotes) or use this <A HREF="https://sympa.inria.fr/sympa/subscribe/cryptoverif">web form</A>.
+<LI>To post on the list, send an email to cryptoverif-AT-inria.fr (replace -AT- with @. Note: to avoid spam, you must subscribe to the list in order to be allowed to post.)
+</UL>
+
+<H3>Applications of CryptoVerif</H3>
+
+Examples of application: 
+<UL>
+<LI><A HREF="FDH">security proof of the FDH signature scheme</A> (with David Pointcheval)
+<LI><A HREF="kerberos">Kerberos</A> (with Aaron D. Jaggard, Andre Scedrov, and Joe-Kai Tsay)
+<LI><A HREF="OEKE/">OEKE, One Encrypted Key Exchange</A> 
+<LI><A HREF="http://prosecco.inria.fr/personal/bblanche/publications/CadeBlanchetJoWUA13.html">SSH</A> (with David Cadé; scripts in subdirectory implementation/ssh of the CryptoVerif distribution)
+<LI><A HREF="https://github.com/Inria-Prosecco/proscript-messaging">Signal</A> (a.k.a. TextSecure, with Nadim Kobeissi and Karthikeyan Bhargavan)
+<LI><A HREF="https://github.com/inria-prosecco/reftls">TLS 1.3 Draft 18</A> (with Karthikeyan Bhargavan and Nadim Kobeissi)
+<LI><A HREF="http://prosecco.inria.fr/personal/bblanche/arinc823/">ARINC 823 avionic protocols</A>
+<LI><A HREF="WireGuard">WireGuard</A> VPN protocol (with Benjamin Lipp and Karthikeyan Bhargavan)
+</UL>
+The files provided in the web pages above may correspond to older versions of CryptoVerif.
+Up-to-date scripts for all these examples are included in the CryptoVerif distribution.
+<P>
+<A HREF="cryptoverif-users.html">References of papers that use CryptoVerif</A>
+
+<H3>Publications on this topic</H3>
+
+
+

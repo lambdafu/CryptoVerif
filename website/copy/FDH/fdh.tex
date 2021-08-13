@@ -1,0 +1,646 @@
+
+\documentclass{article}
+\newcommand{\store}{\leftarrow}
+\newcommand{\getR}{\stackrel{R}{\store}}
+\newcommand{\kw}[1]{\mathbf{#1}}
+\newcommand{\kwf}[1]{\mathsf{#1}}
+\newcommand{\var}[1]{\mathit{#1}}
+\newcommand{\kwt}[1]{\mathit{#1}}
+\newcommand{\kwp}[1]{\mathit{#1}}
+\oddsidemargin -0.3in
+\evensidemargin -0.3in
+\marginparwidth 0.3in
+\textwidth 7in
+\topmargin -0.5in
+\addtolength{\textheight}{1.4in}
+\begin{document}
+\begin{tabbing}
+Initial state\\
+Game 1 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \kw{return}\kwf{}(\kwf{hash}(\var{x}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \var{sk}: \kwt{skey} \store \kwf{skgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \kwf{hash}(\var{m})))$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \kwf{hash}(\var{m'}))\ \kw{then}$\\
+$\quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying equivalence\\
+$\kw{foreach}\ \var{iH}_{11} \leq \kwp{nH}\ \kw{do}\ OH(\var{x}: \kwt{bitstring}) := \kw{return}(\kwf{hash}(\var{x})) [all]$\\
+$\approx_{0}$\\
+$\kw{foreach}\ \var{iH}_{12} \leq \kwp{nH}\ \kw{do}\ OH(\var{x}_{16}: \kwt{bitstring}) := \var{x}: \kwt{bitstring} \store \var{x}_{16}; \kw{find}\ \var{u} \leq \kwp{nH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{u}], \var{r}[\var{u}])\wedge (\var{x}  =  \var{x}[\var{u}])\ \kw{then}\ \kw{return}(\var{r}[\var{u}])$\\
+$\ \kw{else}\ \var{r} \getR \kwt{D};\ \kw{return}(\var{r})$\\
+ yields\\
+\\
+Game 2 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \var{x};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{x}_{19}, \var{r}_{18})\wedge (\var{x}_{23}  =  \var{x}_{19})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{x}_{21}[\var{@i}_{29}], \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}_{23}  =  \var{x}_{21}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{29}])$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}_{23}  =  \var{x}_{23}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{28}])$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22})$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \var{sk}: \kwt{skey} \store \kwf{skgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \var{m};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{x}_{19}, \var{r}_{18})\wedge (\var{x}_{21}  =  \var{x}_{19})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{18}))$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{x}_{21}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{x}_{21}  =  \var{x}_{21}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}[\var{@i}_{27}]))$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{x}_{21}  =  \var{x}_{23}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{22}[\var{@i}_{26}]))$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}))$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \var{m'};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{x}_{19}, \var{r}_{18})\wedge (\var{x}_{19}  =  \var{x}_{19})\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \oplus\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{x}_{21}[\var{@i}_{25}], \var{r}_{20}[\var{@i}_{25}])\wedge (\var{x}_{19}  =  \var{x}_{21}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{20}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{x}_{19}  =  \var{x}_{23}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying simplify yields\\
+\\
+Game 3 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \var{x};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{x}_{19}, \var{r}_{18})\wedge (\var{x}_{23}  =  \var{x}_{19})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{x}_{21}[\var{@i}_{29}], \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}_{23}  =  \var{x}_{21}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{29}])$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}_{23}  =  \var{x}_{23}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{28}])$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22})$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \var{sk}: \kwt{skey} \store \kwf{skgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \var{m};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{x}_{19}, \var{r}_{18})\wedge (\var{x}_{21}  =  \var{x}_{19})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{18}))$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{x}_{21}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{x}_{21}  =  \var{x}_{21}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}[\var{@i}_{27}]))$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{x}_{21}  =  \var{x}_{23}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{22}[\var{@i}_{26}]))$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}))$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \var{m'};$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{x}_{21}[\var{@i}_{25}])\wedge (\var{x}_{19}  =  \var{x}_{21}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}_{23}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{x}_{19}  =  \var{x}_{23}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying remove assignments of useless yields\\
+\\
+Game 4 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{x}_{21}[\var{@i}_{29}], \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{29}])$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{x}_{23}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{28}])$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22})$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \var{sk}: \kwt{skey} \store \kwf{skgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{18}))$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{x}_{21}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}[\var{@i}_{27}]))$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{x}_{23}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{22}[\var{@i}_{26}]))$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\var{sk}, \var{r}_{20}))$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{25}], \var{x}_{21}[\var{@i}_{25}], \var{r}_{20}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{x}_{23}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying remove assignments of binder $\var{sk}$ yields\\
+\\
+Game 5 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{x}_{21}[\var{@i}_{29}], \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{29}])$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{x}_{23}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{28}])$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\var{r}_{22})$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\kwf{skgen}(\var{r}), \var{r}_{18}))$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{x}_{21}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\kwf{skgen}(\var{r}), \var{r}_{20}[\var{@i}_{27}]))$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{x}_{23}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\kwf{skgen}(\var{r}), \var{r}_{22}[\var{@i}_{26}]))$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\kwf{invf}(\kwf{skgen}(\var{r}), \var{r}_{20}))$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{25}], \var{x}_{21}[\var{@i}_{25}], \var{r}_{20}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{x}_{23}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying equivalence\\
+$\kw{foreach}\ \var{iK}_{1} \leq \kwp{nK}\ \kw{do}\ \var{r} \getR seed;\ ($\\
+$\quad  Opk() := \kw{return}(\kwf{pkgen}(\var{r}))\ |$\\
+$\quad  \kw{foreach}\ \var{iF}_{2} \leq \kwp{nF}\ \kw{do}\ \var{x} \getR D;\ ($\\
+$\quad  \quad Oant() := \kw{return}(\kwf{invf}(\kwf{skgen}(\var{r}), \var{x}))\ |$\\
+$\quad  \quad Oim() := \kw{return}(\var{x})))$\\
+$\approx_{0}$\\
+$\kw{foreach}\ \var{iK}_{3} \leq \kwp{nK}\ \kw{do}\ \var{r} \getR seed;\ ($\\
+$\quad  Opk() := \kw{return}(\kwf{pkgen}(\var{r}))\ |$\\
+$\quad  \kw{foreach}\ \var{iF}_{4} \leq \kwp{nF}\ \kw{do}\ \var{x} \getR D;\ ($\\
+$\quad  \quad Oant() := \kw{return}(\var{x})\ |$\\
+$\quad  \quad Oim() := \kw{return}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{x}))))$\\
+with $\var{r}$ yields\\
+\\
+Game 6 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{x}_{21}[\var{@i}_{29}], \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{x}_{23}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{x}_{19}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{x}_{21}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{x}_{23}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{25}], \var{x}_{21}[\var{@i}_{25}], \var{r}_{20}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{x}_{23}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}[\var{@i}_{24}]))\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\kwf{f}(\var{pk}, \var{s})  =  \kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{18}))\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying simplify yields\\
+\\
+Game 7 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \var{x}_{23}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{r}, \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \var{x}_{21}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \var{x}_{19}: \kwt{bitstring} \store \kwf{cst\_bitstring};$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{m}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying remove assignments of useless yields\\
+\\
+Game 8 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{r}, \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{m}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying equivalence\\
+$\kw{foreach}\ \var{iK}_{5} \leq \kwp{nK}\ \kw{do}\ \var{r} \getR seed;\ ($\\
+$\quad  Opk() := \kw{return}(\kwf{pkgen}(\var{r}))\ |$\\
+$\quad  \kw{foreach}\ \var{iF}_{6} \leq \kwp{nF}\ \kw{do}\ \var{x} \getR D;\ ($\\
+$\quad  \quad Oy() := \kw{return}(\kwf{f}(\kwf{pkgen}(\var{r}), \var{x}))\ |$\\
+$\quad  \quad \kw{foreach}\ \var{i1}_{7} \leq \kwp{n1}\ \kw{do}\ Oeq(\var{x'}: \kwt{D}) := \kw{return}((\var{x'}  =  \var{x}))\ |$\\
+$\quad  \quad Ox() := \kw{return}(\var{x})))$\\
+$\approx_{\kwp{nK} \times \kwp{nF} \times \var{POW}(\kw{time} + (\kwp{nK} - 1.) \times \kw{time}(\kwf{pkgen}) + (\kwp{nF} \times \kwp{nK} - 1.) \times \kw{time}(\kwf{f}))}$\\
+$\kw{foreach}\ \var{iK}_{8} \leq \kwp{nK}\ \kw{do}\ \var{r} \getR seed;\ ($\\
+$\quad  Opk() := \kw{return}(\kwf{pkgen'}(\var{r}))\ |$\\
+$\quad  \kw{foreach}\ \var{iF}_{9} \leq \kwp{nF}\ \kw{do}\ \var{x} \getR D;\ ($\\
+$\quad  \quad Oy() := \kw{return}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{x}))\ |$\\
+$\quad  \quad \kw{foreach}\ \var{i1}_{10} \leq \kwp{n1}\ \kw{do}\ Oeq(\var{x'}: \kwt{D}) := \kw{if}\ \kw{defined}(\var{k})\ \kw{then}\ \kw{return}((\var{x'}  =  \var{x}))\ \kw{else}\ \kw{return}(\kwf{false})\ |$\\
+$\quad  \quad Ox() := \var{k}: \kwt{bitstring} \store \kwf{mark}; \kw{return}(\var{x})))$\\
+ {}[Difference of probability $\var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8)) + \kwp{qS} \times \var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8)) + \kwp{qH} \times \var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8))${}]{} yields\\
+\\
+Game 9 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{r}, \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen'}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{47}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{48}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{50}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \var{k}_{45}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{m}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{24}], \var{r}_{22}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{find}\ \var{@i}_{56} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{k}_{50}[\var{@i}_{56}])\wedge (\var{@i}_{24}  =  \var{@i}_{26}[\var{@i}_{56}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{22}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{if}\ \kwf{false}\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{find}\ \var{@i}_{53} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{k}_{47}[\var{@i}_{53}])\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{if}\ (\var{s}  =  \var{r}_{18})\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \kw{if}\ \kwf{false}\ \kw{then}$\\
+$\quad \quad \quad \quad \kw{find}\ \var{u} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{u}])\wedge (\var{m'}  =  \var{m}[\var{u}])\ \kw{then}$\\
+$\quad \quad \quad \quad \quad \kw{end}$\\
+$\quad \quad \quad \quad \kw{else}$\\
+$\quad \quad \quad \quad \quad \kw{event}\ \kwf{forge}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying simplify yields\\
+\\
+Game 10 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{r}, \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen'}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{47}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{48}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \var{k}_{50}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \var{k}_{45}: \kwt{bitstring} \store \kwf{mark};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{m}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{r}_{22}[\var{@i}_{24}], \var{x}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Applying remove assignments of useless yields\\
+\\
+Game 11 is\\
+$($\\
+$\quad \kw{foreach}\ \var{iH}_{13} \leq \kwp{qH}\ \kw{do}$\\
+$\quad OH(\var{x}: \kwt{bitstring}) :=$\\
+$\quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}, \var{r}_{18})\wedge (\var{x}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{18}))$\\
+$\quad \oplus\ \var{@i}_{29} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{29}], \var{r}, \var{r}_{20}[\var{@i}_{29}])\wedge (\var{x}  =  \var{m}[\var{@i}_{29}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{20}[\var{@i}_{29}]))$\\
+$\quad \oplus\ \var{@i}_{28} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{28}], \var{r}_{22}[\var{@i}_{28}])\wedge (\var{x}  =  \var{x}[\var{@i}_{28}])\ \kw{then}$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}[\var{@i}_{28}]))$\\
+$\quad \kw{else}$\\
+$\quad \quad \var{r}_{22} \getR \kwt{D};$\\
+$\quad \quad \kw{return}\kwf{}(\kwf{f'}(\kwf{pkgen'}(\var{r}), \var{r}_{22}))$\\
+$|$\\
+$\quad Ogen() :=$\\
+$\quad \var{r} \getR \kwt{seed};$\\
+$\quad \var{pk}: \kwt{pkey} \store \kwf{pkgen'}(\var{r});$\\
+$\quad \kw{return}\kwf{}(\var{pk});$\\
+$\quad ($\\
+$\quad \quad \kw{foreach}\ \var{iS}_{14} \leq \kwp{qS}\ \kw{do}$\\
+$\quad \quad OS(\var{m}: \kwt{bitstring}) :=$\\
+$\quad \quad \kw{find}\ \ \kw{suchthat}\ \kw{defined}(\var{m'}, \var{r}_{18})\wedge (\var{m}  =  \var{m'})\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{18})$\\
+$\quad \quad \oplus\ \var{@i}_{27} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{m}[\var{@i}_{27}], \var{r}_{20}[\var{@i}_{27}])\wedge (\var{m}  =  \var{m}[\var{@i}_{27}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20}[\var{@i}_{27}])$\\
+$\quad \quad \oplus\ \var{@i}_{26} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{x}[\var{@i}_{26}], \var{r}_{22}[\var{@i}_{26}])\wedge (\var{m}  =  \var{x}[\var{@i}_{26}])\ \kw{then}$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{22}[\var{@i}_{26}])$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{20} \getR \kwt{D};$\\
+$\quad \quad \quad \kw{return}\kwf{}(\var{r}_{20})$\\
+$\quad |$\\
+$\quad \quad OT(\var{m'}: \kwt{bitstring}, \var{s}: \kwt{D}) :=$\\
+$\quad \quad \kw{find}\ \var{@i}_{25} \leq \kwp{qS}\ \kw{suchthat}\ \kw{defined}(\var{r}_{20}[\var{@i}_{25}], \var{m}[\var{@i}_{25}])\wedge (\var{m'}  =  \var{m}[\var{@i}_{25}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \oplus\ \var{@i}_{24} \leq \kwp{qH}\ \kw{suchthat}\ \kw{defined}(\var{r}_{22}[\var{@i}_{24}], \var{x}[\var{@i}_{24}])\wedge (\var{m'}  =  \var{x}[\var{@i}_{24}])\ \kw{then}$\\
+$\quad \quad \quad \kw{end}$\\
+$\quad \quad \kw{else}$\\
+$\quad \quad \quad \var{r}_{18} \getR \kwt{D}$\\
+$\quad )$\\
+$)$\\
+$ $\\
+\\
+Proved event $\kwf{forge} \Longrightarrow \kwf{false}$ with probability $\kwp{qH} \times \var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8)) + \kwp{qS} \times \var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8)) + \var{POW}(\kwp{qS} \times \kw{time}(\kwf{f}) + \kwp{qH} \times \kw{time}(\kwf{f}) + \kw{time} + \kw{time}(\mathit{context\ for\ game}\ 8))$\\
+RESULT $\kw{time}(\mathit{context\ for\ game}\ 8) = 2. \times \kwp{qS} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{m'}), \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}])) + \kwp{qH} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{m'}), \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}])) + \kwp{qH} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}]), \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}])) \times \kwp{qS} + \kwp{qS} \times \kwp{qS} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}]), \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}])) + \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}]), \kw{maxlength}(\mathit{game}\ 8: \var{m'})) \times \kwp{qS} + \kwp{qH} \times \kwp{qH} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}]), \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}])) + \kwp{qS} \times \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}]), \kw{maxlength}(\mathit{game}\ 8: \var{m}[\var{iS}_{14}])) \times \kwp{qH} + \kw{time}(\kwf{=} bitstring, \kw{maxlength}(\mathit{game}\ 8: \var{x}[\var{iH}_{13}]), \kw{maxlength}(\mathit{game}\ 8: \var{m'})) \times \kwp{qH}$\\
+All queries proved.\\
+
+\end{tabbing}
+\end{document}

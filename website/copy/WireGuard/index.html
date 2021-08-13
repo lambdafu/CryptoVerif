@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+  <title>A Mechanised Cryptographic Proof of the WireGuard VPN Protocol</title>
+</head>
+<body>
+  <H1>A Mechanised Cryptographic Proof of the WireGuard VPN Protocol</H1>
+
+  This page presents the CryptoVerif scripts for our analysis of WireGuard:
+  <P>
+    Benjamin Lipp, Bruno Blanchet, and Karthikeyan Bhargavan. 
+<A HREF="http://prosecco.inria.fr/personal/bblanche/publications/LippBlanchetBhargavanEuroSP19.html">A Mechanised Cryptographic Proof of the WireGuard Virtual Private Network Protocol</A>. In: 4th IEEE European Symposium on Security and Privacy (EuroS&amp;P'19), Stockholm, Sweden, June 2019.
+  <P>
+A <A HREF="https://hal.inria.fr/hal-02100345">longer version</A> of our paper contains more details on:
+<UL>
+  <LI> the cryptographic primitives and constants used in WireGuard (Section 2),
+  <LI> the model of Curve25519 we created (Section 3.3; it fixes a problem in that model in the conference version),
+  <LI> our indifferentiablity results, especially:
+  <UL>
+    <LI> exact probabilities instead of asymptotic versions (Section 4),
+    <LI> proofs for all results (Appendix)
+    <LI> a more explicit explanation how these results are
+      applied to WireGuard (Section 4).
+  </UL>
+  <LI> the guidance we use for one of our proofs (Section 6).
+</UL>
+<A HREF="talk.pdf">slides of the talk</A>
+<P>
+Our models run with <A HREF="http://cryptoverif.inria.fr">CryptoVerif</A> version 2.01pl1.
+  <P>
+    <A HREF="wireguard.zip">Archive</A> containing all files mentioned below.
+
+<H2>Library file</H2>
+
+<A HREF="wireguard.cvl">wireguard.cvl</A>: the library of primitives as we use it for verifying
+WireGuard.
+
+<H2>Models</H2>
+
+<H3>Models of WireGuard</H3>
+
+<H4>The models</H4>
+
+We provide 5 main files, from which more models are generated using the
+m4 preprocessor (see next subsection):
+<OL>
+<LI> <A HREF="WG.25519.m4.cv">WG.25519.m4.cv</A>: this file serves to generate the files for variants
+   1, 2, and 3 of our model described in Section V.A. The beginning of
+   this file contains comments on the m4 macros we use and how they
+   influence which queries we prove in different models.
+<LI> <A HREF="WG.25519.correctness.m4.cv">WG.25519.correctness.m4.cv</A>: the separate model for correctness we
+   describe in Section VI,
+<LI> <A HREF="WG.25519.dos.cv">WG.25519.dos.cv</A>: the separate model for DOS we describe in Section
+   VI,
+<LI> <A HREF="WG.25519.identityhiding.m4.cv">WG.25519.identityhiding.m4.cv</A>: the separate model for identity
+   hiding we describe in Section VI,
+<LI> <A HREF="WG.25519.keysecrecy.m4.cv">WG.25519.keysecrecy.m4.cv</A>: this file serves to generate the model
+   files for variants 1, 2, and 3 of our model, to prove key secrecy,
+   described in Section VI.
+</OL>
+We include the main generated models in this distribution:
+<UL>
+  <LI> Models generated from 1)
+    <UL>
+      <LI> Variant 1) of Section V.A, with the 4 compromise scenarios:
+	<UL>
+	  <LI><A HREF="WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot.cv">WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot.cv</A>
+	    static keys dynamically compromised
+	  <LI><A HREF="WG.25519.AB-BA.S_i_compr.E_r_compr.replay_prot.cv">WG.25519.AB-BA.S_i_compr.E_r_compr.replay_prot.cv</A> 
+	    A's private static key dynamically compromised and B's ephemeral compromised
+	  <LI><A HREF="WG.25519.AB-BA.E_i_compr.S_r_compr.replay_prot.cv">WG.25519.AB-BA.E_i_compr.S_r_compr.replay_prot.cv</A>
+	    B's private static key dynamically compromised and A's ephemeral compromised
+	  <LI><A HREF="WG.25519.AB-BA.E_i_compr.E_r_compr.replay_prot.cv">WG.25519.AB-BA.E_i_compr.E_r_compr.replay_prot.cv</A>
+	    ephemerals compromised
+	  <LI><A HREF="WG.25519.AB-BA.1st_msg.replay_prot.cv">WG.25519.AB-BA.1st_msg.replay_prot.cv</A>
+	    Model for the replay protection for the 1st message, with ephemerals
+	    compromised
+	</UL>
+	
+      <LI>Variant 2) of Section V.A (PSK secure, all other keys compromised)  
+	<A HREF="WG.25519.AB-BA.only_psk.replay_prot.cv">WG.25519.AB-BA.only_psk.replay_prot.cv</A>
+      <LI>Variant 3) of Section V.A (all keys compromised)
+	<A HREF="WG.25519.AB-BA.uniquesession_chbinding_weakUKS.replay_prot.cv">WG.25519.AB-BA.uniquesession_chbinding_weakUKS.replay_prot.cv</A>
+    </UL>
+    
+  <LI><A HREF="WG.25519.AB-BA.correctness.replay_prot.cv">WG.25519.AB-BA.correctness.replay_prot.cv</A> generated from 2),
+
+  <LI><A HREF="WG.25519.AB.identityhiding.replay_prot.cv">WG.25519.AB.identityhiding.replay_prot.cv</A> generated from 4).
+
+  <LI> Models generated from 5), similar to those generated from 1):
+    <UL>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot.cv">WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot.cv">WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot.cv">WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot.cv">WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot.cv">WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.only_psk.replay_prot.cv">WG.25519.keysecrecy.AB-BA.only_psk.replay_prot.cv</A>
+      <LI><A HREF="WG.25519.keysecrecy.AB-BA.only_psk.replay_prot.cv">WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.replay_prot.cv</A>
+    </UL>
+</UL>
+The file <A HREF="results">results</A> summarizes the results obtained by running these
+models in CryptoVerif.
+
+<H4>Running the proofs</H4>
+
+The Bash script <A HREF="run">./run</A> can be used to generate all model files and
+run our entire analysis. It accepts two optional parameters. If none
+of them are given, the script generates the files for the AB-BA scenario
+(see below) and runs all the proofs in CryptoVerif.
+<P>
+The first parameter is <TT>AB</TT> or <TT>AB-BA</TT> and indicates
+whether the script models only sessions in which A is the initiator and
+B is the responder, or also sessions in which B is the initiator and
+A is the responder (accounting for the fact that WireGuard endpoints
+change roles during a long-term session). The script defaults to <TT>AB-BA</TT>.
+<P>
+The second parameter is <TT>true</TT> by default. If called with <TT>false</TT>, the
+script will only generate the models using the preprocessor m4, but
+not start their analysis using CryptoVerif.
+
+<H3>Models on Indifferentiability</H3>
+
+<UL>
+<LI>The file <A HREF="indiff_HKDF_1.ocv">indiff_HKDF_1.ocv</A> proves Lemma 4 of our paper.
+<LI>The file <A HREF="indiff_HKDF_2.ocv">indiff_HKDF_2.ocv</A> proves Lemma 5 of our paper.
+</UL>
+Run them with<br>
+<code>
+./cryptoverif indiff_HKDF_1.ocv<br>
+./cryptoverif indiff_HKDF_2.ocv
+</code><br>
+
+The expected results are<br>
+<code>
+RESULT Proved indistinguishability between game 28 and game 1 up to probability (2. * qH2 * qH1 + qH1 * qH1 + qH3 * qH3 + qH2 * qH3) / |output1|<br>
+All queries proved.
+</code><br>
+and<br>
+<code>
+RESULT Proved indistinguishability between game 27 and game 1 up to probability (qH2 + 2. * qH2 * qH1 + qH2 * qH3) / |output1|<br>
+All queries proved.
+</code>
+<HR>
+Benjamin Lipp and <A HREF="http://prosecco.gforge.inria.fr/personal/bblanche/">Bruno Blanchet</A>,
+</body>
+</html>

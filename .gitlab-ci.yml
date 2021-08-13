@@ -1,0 +1,14 @@
+pages:
+  stage: deploy
+  script:
+    - mkdir public
+    - cp -r website/copy/* public
+    - cd website
+    - for i in *.prehtml ; do ; sed -f variables.sed $i > ../public/`basename $i`.html; done
+    - cat publis.html footer.html >> ../public/index.html
+    - cd ..
+  artifacts:
+    paths:
+      - public
+  only:
+    - webpages
