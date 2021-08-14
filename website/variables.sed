@@ -1,1 +1,2 @@
-s/VERSION/2.04/g s/YEAR/2020/g
+s/VERSION/2.04/g
+s/YEAR/2020/g
