@@ -54,16 +54,8 @@ Comments and bug reports welcome.
 <H3>Downloads</H3>
 
 <UL>
-  <LI>Version 2.04, released on Nov. 30, 2020:
-    <UL>
-      <LI>Source: <A HREF="cryptoverif.html">CryptoVerif version VERSION, sources under the CeCILL-B license</A> (gzipped tar file)
-      <LI>Binary: <A HREF="cryptoverifbin.html">CryptoVerif version VERSION for Windows, binaries under the CeCILL-B license</A> (zip file)
-    </UL>
-  <LI>Version 2.03, released on Oct. 8. 2020:
-    <UL>
-      <LI>Source: <A HREF="cryptoverif2.03.tar.gz">CryptoVerif version 2.03, sources under the CeCILL-B license</A> (gzipped tar file)
-      <LI>Binary: <A HREF="cryptoverifbin2.03.zip">CryptoVerif version 2.03 for Windows, binaries under the CeCILL-B license</A> (zip file)
-    </UL>
+  <LI>Source: <A HREF="cryptoverif.html">CryptoVerif version VERSION, sources under the CeCILL-B license</A> (gzipped tar file)
+  <LI>Binary: <A HREF="cryptoverifbin.html">CryptoVerif version VERSION for Windows, binaries under the CeCILL-B license</A> (zip file)
 </UL>
 
 <H3>Mailing List</H3>
