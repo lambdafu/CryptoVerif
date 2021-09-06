@@ -12,7 +12,7 @@ fi
 
 VERSION=$1
 YEAR=`date +%Y`
-DEST=$HOME/cryptoverifreleases
+DEST="$CWD"/../website/copy
 DESTD="$DEST"/cryptoverif"$VERSION"
 
 if [ -z "$1" ]
