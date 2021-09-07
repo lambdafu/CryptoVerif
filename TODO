@@ -30,13 +30,6 @@ HIGH PRIORITY
 update HPKE paper, with fix to make the DDH oracle unambiguous.
 DONE 13/4/2021, still to be checked by coauthors of HPKE paper.
 
-Add the constructs
-proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
-to ProVerif as well for compatibility (but ignore them).
-
-Update licence of Kerberos files? (they say they are under Cecill,
-while the rest of cryptoverif is under Cecill-B)
-
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
 
@@ -6258,3 +6251,12 @@ I think it will stay as it is.
 
 check order of evaluation in the OCaml generated code 
 DONE 27/5/2021
+
+Add the constructs
+proba P(dim1,...,dimn) and letproba P(x1:dim1,...,xn:dimn) = proba formula
+to ProVerif as well for compatibility (but ignore them).
+DONE
+
+Update licence of Kerberos files? (they say they are under Cecill,
+while the rest of cryptoverif is under Cecill-B)
+DONE 7/9/2021

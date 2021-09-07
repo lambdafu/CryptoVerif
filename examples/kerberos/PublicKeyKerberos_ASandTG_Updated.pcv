@@ -23,9 +23,9 @@ cryptographic protocol verifier CryptoVerif. It is a companion to
 the FCC'09 paper "Refining Computationally Sound Mechanized Proofs for 
 Kerberos.", by B. Blanchet, A. D. Jaggard, J. Rao, A. Scedrov, and J.-K. Tsay.
 
-This software is governed by the CeCILL license under French law and
+This software is governed by the CeCILL-B license under French law and
 abiding by the rules of distribution of free software.  You can use, 
-modify and/ or redistribute the software under the terms of the CeCILL
+modify and/ or redistribute the software under the terms of the CeCILL-B
 license as circulated by CEA, CNRS and INRIA at the following URL
 "http://www.cecill.info". 
 
@@ -47,7 +47,7 @@ data to be ensured and,  more generally, to use and operate it in the
 same conditions as regards security. 
 
 Anything other than deleting this file means that you have knowledge
-of the CeCILL license and that you accept its terms.
+of the CeCILL-B license and that you accept its terms.
 
 *)
 
