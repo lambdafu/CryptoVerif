@@ -8,7 +8,7 @@
 <script type="text/javascript">
 function download()
 {
-  parent.location = 'cryptoverifVERSION.tar.gz';
+  parent.location = 'cryptoverifVERSIONN.tar.gz';
 }
 </script>
 

@@ -1,2 +1,2 @@
-s/VERSION/2.05/g
+s/VERSIONN/2.05/g
 s/YEAR/2021/g
