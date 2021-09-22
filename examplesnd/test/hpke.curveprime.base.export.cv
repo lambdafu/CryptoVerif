@@ -376,9 +376,9 @@ expand AEAD_nonce(
   Seal_inner,
   Open_inner,
   injbot, (* injection from plaintext to bitstringbot:
-          (* injbot(plaintext): bitstringbot *)
+             injbot(plaintext): bitstringbot *)
   Zero,   (* returns a plaintext of same length, consisting of zeros:
-          (* Zero(plaintext): plaintext *)
+             Zero(plaintext): plaintext *)
   (* probabilities *)
   P_cpa,
   P_ctxt
@@ -956,7 +956,7 @@ let Responder_PSK_adv(key_extr_psk: hash_key_t, key_extr_zz: hash_key_t, info_ha
     Context_Export(ctx, exp_ctx_1) in
   let Context_Export_success(export_2: expand_t) =
     Context_Export(ctx, exp_ctx_2) in
-  out(c_resp, ((*find i <= N_initiators_psk suchthat defined(enc[i]) && enc[i] = enc_recv then false else export_1(*, export_2*)))
+  out(c_resp, ((*find i <= N_initiators_psk suchthat defined(enc[i]) && enc[i] = enc_recv then false else export_1, export_2*)))
   (* TODO We could enhance this oracle and give the adversary the
      exported keys if enc is not an ephemeral created by the
      initiator. *)

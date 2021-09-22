@@ -413,9 +413,9 @@ expand AEAD_nonce(
   Seal_inner,
   Open_inner,
   injbot, (* injection from plaintext to bitstringbot:
-          (* injbot(plaintext): bitstringbot *)
+             injbot(plaintext): bitstringbot *)
   Zero,   (* returns a plaintext of same length, consisting of zeros:
-          (* Zero(plaintext): plaintext *)
+             Zero(plaintext): plaintext *)
   (* probabilities *)
   P_cpa,
   P_ctxt
@@ -1002,7 +1002,7 @@ Next steps:
 - mode_psk
 - mode_auth_psk
 
-- in mode_auth, mode_psk, mode_auth_psk, compromise gets interesting
+- in mode_auth, mode_psk, mode_auth_psk, compromise gets interesting *)
 
 (* EXPECTED
 Error: This expression has type bitstring but expects type G_t

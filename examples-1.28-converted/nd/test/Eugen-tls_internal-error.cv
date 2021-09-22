@@ -274,9 +274,10 @@ const B : host.   (* server *)
 const Pa : host.  (* client's cipher suites *)
 const Pb : host.  (* server's cipher suites *)
 (* const lMS : label. (* client's finished label = "client_finished" *)
-(* const lSF : label. (* server's finished label = "server_finished" *)
-(* const lCF : label. (* client's finished label = "client_finished" *)
-(* const lSF : label. (* server's finished label = "server_finished" *)
+ const lSF : label. (* server's finished label = "server_finished" *)
+ const lCF : label. (* client's finished label = "client_finished" *)
+ const lSF : label. (* server's finished label = "server_finished" *)
+ *)
 
 
 

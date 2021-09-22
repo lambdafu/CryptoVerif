@@ -8,6 +8,9 @@ let create_hashtable size init =
   List.iter (fun (key,data) -> Hashtbl.add tbl key data) init;
   tbl
 
+let comment_depth = ref 0
+let comment_extent_list = ref []
+
 let in_proof = ref false
     
 let common_keywords =
@@ -181,6 +184,8 @@ rule token = parse
 | [ '0'-'9' ]+ ((('.' [ '0'-'9' ]*)? ['e' 'E'] ['+' '-']? [ '0'-'9' ]+) |  '.' [ '0'-'9' ]+)
      { FLOAT (float_of_string(Lexing.lexeme lexbuf)) }
 | "(*" {
+      comment_depth := 1;
+      comment_extent_list := (extent lexbuf) :: !comment_extent_list;
          comment lexbuf;
          token lexbuf
        }
@@ -226,10 +231,19 @@ rule token = parse
 | _ { raise (Error("Illegal character", extent lexbuf)) }
 
 and comment = parse
-| "*)" { }
+| "(*" {
+    incr comment_depth;
+    comment_extent_list := (extent lexbuf) :: !comment_extent_list;
+    comment lexbuf }
+| "*)"
+    {
+      decr comment_depth;
+      comment_extent_list := List.tl !comment_extent_list;
+      if !comment_depth = 0 then () else comment lexbuf
+    }
 | "\010" | "\013" | "\013\010"
      { Lexing.new_line lexbuf; comment lexbuf }
-| eof { }
+| eof { raise (Error("Unterminated comment", List.hd !comment_extent_list)) }
 | _ { comment lexbuf }
 
 and string = parse 

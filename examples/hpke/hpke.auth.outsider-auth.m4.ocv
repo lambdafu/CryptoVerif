@@ -73,17 +73,17 @@ query event(adv_wins).
 process
 
   (* The adversary can generate up to N honest keypairs/users by calling
-  (* the Osetup() oracle. The nested oracles Oaenc() and Oadec()
-  (* will be available for each honest keypair. *)
+     the Osetup() oracle. The nested oracles Oaenc() and Oadec()
+     will be available for each honest keypair. *)
   (foreach i <= N do
    Osetup() :=
      let (the_sk: skey_t, the_pk: pkey_t) = GenerateKeyPair() in
      (* The public key of each honest keypair is made available
-     (* to the adversary. *)
+        to the adversary. *)
      return(the_pk);
 
      (* This block defines the oracles Oaenc() and Oadec() which
-     (* are available for each honest keypair. *)
+        are available for each honest keypair. *)
      (
        (* This defines the Oaenc() oracle with up to Qeperuser calls per keypair *)
        (foreach iae <= Qeperuser do

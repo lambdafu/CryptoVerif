@@ -213,16 +213,16 @@ fun hash_output_to_bitstring(hash_output_t): bitstring [data].
 
 (*expand ROM_hash_1(
   (* types *)
-(*  hash_key_t,
+  hash_key_t,
   bitstring, (* hashinput1: pskID and info are both bitstrings *)
-(*  hash_output_t,
+  hash_output_t,
   (* functions *)
-(*  Hash_inner,
+  Hash_inner,
   (* processes *)
-(*  Hash_oracle,
+  Hash_oracle,
   (* parameters *)
-(*  N_qHash  (* number of queries to the oracle by the adversary *)
-(*).*)
+  N_qHash  (* number of queries to the oracle by the adversary *)
+).*)
 
 proba P_hash.    (* probability of breaking collision resistance *)
 expand CollisionResistant_hash(
@@ -446,9 +446,9 @@ expand AEAD_nonce(
   Seal_inner,
   Open_inner,
   injbot, (* injection from plaintext to bitstringbot:
-          (* injbot(plaintext): bitstringbot *)
+             injbot(plaintext): bitstringbot *)
   Zero,   (* returns a plaintext of same length, consisting of zeros:
-          (* Zero(plaintext): plaintext *)
+             Zero(plaintext): plaintext *)
   (* probabilities *)
   P_cpa,
   P_ctxt

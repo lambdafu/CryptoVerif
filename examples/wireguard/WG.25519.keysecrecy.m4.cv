@@ -382,13 +382,13 @@ expand AEAD_nonce(
   nonce_t,   (* nonces *)
   (* functions *)
   enc,     (* encryption:
-           (* enc(plaintext, additional data, key, nonce): ciphertext *)
+              enc(plaintext, additional data, key, nonce): ciphertext *)
   dec,  (* decryption:
-        (* dec(ciphertext, additional data, key, nonce): bitstringbot *)
+           dec(ciphertext, additional data, key, nonce): bitstringbot *)
   injbot,    (* injection from plaintext to bitstringbot:
-             (* injbot(plaintext): bitstringbot *)
+                injbot(plaintext): bitstringbot *)
   Zero,      (* returns a plaintext of same length, consisting of zeros:
-             (* Zero(plaintext): plaintext *)
+                Zero(plaintext): plaintext *)
   (* probabilities *)
   P_enc,     (* breaking IND-CPA *)
   P_encctxt  (* breaking INT-CTXT *)
@@ -406,15 +406,15 @@ fun rom1_input(G_t, G_t): rom1_input_t [data].
 expand ROM_hash_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
-               (* hash function *)
+                  hash function *)
   rom1_input_t, (* input type *)
   key_t,       (* output type *)
   (* functions *)
   rom1_intermediate,  (* name of the random oracle hash function:
-               (* rom1(hashkey_t, rom2_input_t): key_t *)
+                  rom1(hashkey_t, rom2_input_t): key_t *)
   (* processes *)
   rom1_oracle, (* name of the oracle that will be available to the
-               (* attacker *)
+                  attacker *)
   (* variables *)
   r_rom1,
   x_rom1,
@@ -435,15 +435,15 @@ fun rom2_input(G_t, G_t, G_t): rom2_input_t [data].
 expand ROM_hash_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
-               (* hash function *)
+                  hash function *)
   rom2_input_t, (* input type *)
   key_t,       (* output type *)
   (* functions *)
   rom2_intermediate,        (* Name of the random oracle hash function:
-               (* rom2(hashkey_t, rom2_input_t): key_t *)
+                  rom2(hashkey_t, rom2_input_t): key_t *)
   (* processes *)
   rom2_oracle, (* Name of the oracle that will be available to the
-               (* attacker. *)
+                  attacker. *)
   (* variables *)
   r_rom2,
   x_rom2,
@@ -474,7 +474,7 @@ type four_keys_t [large,fixed].
 expand ROM_hash_refactored(
   (* types *)
   hashkey_t, (* Key of the hash function, models the choice of the hash
-             (* function. *)
+                function. *)
   rom3_input_t, (* input type *)
   four_keys_t,  (* intermediary output type of the actual random      *)
                 (* oracle *)

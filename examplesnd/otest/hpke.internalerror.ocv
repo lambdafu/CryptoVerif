@@ -672,9 +672,9 @@ expand multikey_AEAD(
   Seal_inner,
   Open_inner,
   injbot, (* injection from plaintext to bitstringbot:
-          (* injbot(plaintext): bitstringbot *)
-  Length,   (* returns a plaintext of same length, consisting of zeros:
-          (* Length(plaintext): plaintext *)
+             injbot(plaintext): bitstringbot *)
+  Length, (* returns a plaintext of same length, consisting of zeros:
+             Length(plaintext): plaintext *)
   (* probabilities *)
   Adv_cpa,
   Adv_ctxt
@@ -848,13 +848,13 @@ process
   Ostart() := b <-R bool; return();
 
   (* The adversary can generate up to N honest keypairs/users by calling
-  (* the Osetup() oracle. The nested oracles Oaenc(), Oadec(), Ochall()
-  (* will be available for each keypair. *)
+     the Osetup() oracle. The nested oracles Oaenc(), Oadec(), Ochall()
+     will be available for each keypair. *)
   (foreach i <= N do
    Osetup() :=
      let (the_sk: skey_t, the_pk: pkey_t) = GenerateKeyPair() in
      (* The public key of each honest keypair is made available
-     (* to the adversary. *)
+        to the adversary. *)
      return(the_pk);
 
      (
@@ -886,8 +886,8 @@ process
                 insert E(the_pk, pk, enc_star, c_star, aad, info);
                 return((enc_star, c_star))
               (* SealAuth does not fail, but CryptoVerif's language
-              (* requires we indicate the else branch. It will be
-              (* removed with the eliminate_failing step. *)
+                 requires we indicate the else branch. It will be
+                 removed with the eliminate_failing step. *)
               ) else return(bottom)
             ) else return(bottom) (* ends the condition on m0 and m1 lengths *)
           ) else return(bottom) (* ends the find inside Ochall() *)

@@ -50,7 +50,7 @@ const lbytes_empty: extract_salt_t.
 fun eae_input(extract_salt_t, extract_key_t, expand_info_t): eae_input_t [data].
 
 (* The core of ExtractAndExpand, a.k.a. HKDF.
-(* Usage of the RO assumption is for example justified in Lemma 6 of
+Usage of the RO assumption is for example justified in Lemma 6 of
 Benjamin Lipp, Bruno Blanchet, Karthikeyan Bhargavan,
 A Mechanised Cryptographic Proof of the WireGuard Virtual Private Network Protocol,
 EuroSP2019 *)

@@ -377,13 +377,13 @@ expand AEAD_nonce(
   nonce_t,   (* nonces *)
   (* functions *)
   enc,     (* encryption:
-           (* enc(plaintext, additional data, key, nonce): ciphertext *)
+              enc(plaintext, additional data, key, nonce): ciphertext *)
   dec,  (* decryption:
-        (* dec(ciphertext, additional data, key, nonce): bitstringbot *)
+           dec(ciphertext, additional data, key, nonce): bitstringbot *)
   injbot,    (* injection from plaintext to bitstringbot:
-             (* injbot(plaintext): bitstringbot *)
+                injbot(plaintext): bitstringbot *)
   Zero,      (* returns a plaintext of same length, consisting of zeros:
-             (* Zero(plaintext): plaintext *)
+                Zero(plaintext): plaintext *)
   (* probabilities *)
   P_enc,     (* breaking IND-CPA *)
   P_encctxt  (* breaking INT-CTXT *)
@@ -398,18 +398,18 @@ fun hashoutput_to_bitstring(hashoutput_t): bitstring [data].
 expand ROM_hash_large_pair_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
-               (* hash function *)
+                  hash function *)
   G_t,         (* The two arguments that get hashed are of type G_t,
-               (* that is, the                    *)
+                  that is, the                    *)
   G_t,         (* ephemeral of the initiator and the DH between it and
-               (* the responder's longterm key. *)
+                  the responder's longterm key. *)
   key_t,       (* output type *)
   (* functions *)
   rom1,        (* name of the random oracle hash function:
-               (* rom1(hashkey_t, G_t, G_t): key_t *)
+                  rom1(hashkey_t, G_t, G_t): key_t *)
   (* processes *)
   rom1_oracle, (* name of the oracle that will be available to the
-               (* attacker *)
+                  attacker *)
   (* variables *)
   r_rom1,
   x1_rom1,
@@ -421,7 +421,7 @@ expand ROM_hash_large_pair_refactored(
 expand ROM_hash_large_triple_refactored(
   (* types *)
   hashkey_t,   (* key of the hash function, models the choice of the
-               (* hash function *)
+                  hash function *)
   G_t,        (* The three arguments that get hashed are of type G_t. *)
   G_t,        (* The first two are the same as for rom1, the third is *)
   G_t,        (* the DH between the initiator's and the responder's   *)
@@ -430,10 +430,10 @@ expand ROM_hash_large_triple_refactored(
   key_t,       (* output type *)
   (* functions *)
   rom2,        (* Name of the random oracle hash function:
-               (* rom2(hashkey_t, G_t, G_t, G_t): key_t *)
+                  rom2(hashkey_t, G_t, G_t, G_t): key_t *)
   (* processes *)
   rom2_oracle, (* Name of the oracle that will be available to the
-               (* attacker. *)
+                  attacker. *)
   (* variables *)
   r_rom2,
   x1_rom2,
@@ -456,7 +456,7 @@ type four_keys_t [large,fixed].
 expand ROM_hash_large_seven(
   (* types *)
   hashkey_t, (* Key of the hash function, models the choice of the hash
-             (* function. *)
+                function. *)
   G_t,    (* The first six of the seven arguments that get hashed are *)
   G_t,    (* of type G_t. The first three are the same as in rom2.    *)
   G_t,    (* The remaining are the following:                         *)
@@ -486,7 +486,7 @@ expand ROM_hash_large_seven(
   get_1st_data_key,
   get_2nd_data_key,
   concat_four_keys, (* function used in the sequence of game that
-                    (* concats the four parts. *)
+                       concats the four parts. *)
   (* processes *)
   rom3_oracle,        (* name of the oracle available to the attacker *)
   (* variables *)
@@ -574,7 +574,7 @@ const counter_0: counter_t. (* constant for counter with value 0  *)
 fun nonce_to_counter(nonce_t) : counter_t [data].
   (* This is [data] because WireGuard enforces a new handshake before *)
   (* the counter would overflow. So basically we have a bijection
-  (* between counter and nonce. *)
+     between counter and nonce. *)
 
 equation nonce_to_counter(nonce_0) = counter_0.
   (* nonce 0 and counter 0 relate *)
@@ -590,8 +590,8 @@ const reserved: reserved_t.
 
 type session_index_t [fixed]. (* 4 byte session identifier field *)
 type session_index_large_t [fixed,large]. (* used for the table
-  (* serving to prohibit nonce reuse. We want this to be a large type
-  (* so the probability can actually become negligible. *)
+   serving to prohibit nonce reuse. We want this to be a large type
+   so the probability can actually become negligible. *)
 const dummy_session_index: session_index_t.
 const dummy_session_index_large: session_index_large_t.
 type timestamp_t [fixed].     (* 12 byte timestamps *)
@@ -674,7 +674,7 @@ expand boolean_choice(
 
 event sent1(
   (* values sent in the first protocol message *)
-(*  bool,    (* true if talking to responder *)
+(*  bool,     true if talking to responder *)
   G_t,                (* initiator's ephemeral public key *)
   bitstring,          (* msg.static *)
   G_t,                (* S_i_pub *)

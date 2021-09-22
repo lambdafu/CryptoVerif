@@ -481,9 +481,9 @@ expand AEAD_nonce(
   Seal_inner,
   Open_inner,
   injbot, (* injection from plaintext to bitstringbot:
-          (* injbot(plaintext): bitstringbot *)
-  Length,   (* returns a plaintext of same length, consisting of zeros:
-          (* Length(plaintext): plaintext *)
+             injbot(plaintext): bitstringbot *)
+  Length, (* returns a plaintext of same length, consisting of zeros:
+             Length(plaintext): plaintext *)
   (* probabilities *)
   P_cpa,
   P_ctxt

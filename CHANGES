@@ -1,6 +1,11 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- Allow nested comments in the input file. All comments must be closed.
+  CryptoVerif will raise an error otherwise.
+
 Version 2.05
 
 - Allow comparisons between indices and tables (insert, get)
