@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow assignments ("let x = M in", "x <- M;") in queries, equation and
+  collision statements.
 - Allow nested comments in the input file. All comments must be closed.
   CryptoVerif will raise an error otherwise.
 

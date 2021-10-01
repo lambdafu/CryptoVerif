@@ -1888,9 +1888,9 @@ let rec interpret_command interactive state = function
       let lparsed = List.concat (List.map (fun (s, ext_s) ->
 	let (vars, ql) = Syntax.parse_from_string Parser.focusquery (s,ext_s) in
 	List.map (function
-	  PQEventQ(vars', t1, t2, pub_vars) ->
+	  PQEventQ(vars', t, pub_vars) ->
 	    assert(vars' == []);
-	    (PQEventQ(vars, t1, t2, pub_vars), ext_s)
+	    (PQEventQ(vars, t, pub_vars), ext_s)
 	| q -> (q, ext_s)
 	      ) ql
 	  ) l)

@@ -229,6 +229,7 @@ let pinstruct_name = function
   | PInsertE _ -> "insert"
   | PQEvent _ -> "query event"
   | PIndepOf _ -> "independent of"
+  | PBefore _ -> "==>"
     
 let add_var_list env in_find_cond cur_array bindl =
   List.fold_left (fun env (s, tyopt) ->
@@ -413,6 +414,8 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       check_term1 env_t1 in_find_cond cur_array env t2
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PBefore _,ext ->
+      raise_error "==> allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 	
@@ -1434,6 +1437,8 @@ let rec check_term defined_refs_opt cur_array env prog = function
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PBefore _,ext ->
+      raise_error "==> allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 
@@ -1602,8 +1607,14 @@ let rec check_term_nobe env = function
       try 
 	match StringMap.find s env with
 	  EVar(b) ->
-	    Terms.new_term b.btype ext2
-	      (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
+	    begin
+	      match b.link with
+	      | NoLink ->
+		  Terms.new_term b.btype ext2
+		    (Var(b,List.map Terms.term_from_repl_index b.args_at_creation))
+	      | TLink t ->
+		  Terms.copy_term DeleteFacts t
+	    end
 	| EFunc(f) ->
       	    if fst (f.f_type) = [] then
 	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, []))
@@ -1646,10 +1657,27 @@ let rec check_term_nobe env = function
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
-  | (PArray _ | PTestE _ | PFindE _ | PLetE _ | PResE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
-      raise_error "If, find, let, new, event, insert, get, and array references forbidden in forall statements" ext
+  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_term_nobe env' t2
+  | PLetE _, ext ->
+      raise_error "let pat = t in is forbidden in queries, equation, and collision statements when pat is not a variable or there is an else branch" ext
+  | (PArray _ | PTestE _ | PFindE _ | PResE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
+      raise_error "If, find, new, event, insert, get, and array references forbidden in queries, equation, and collision statements" ext
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PBefore _,ext ->
+      raise_error "==> allowed only at the top of queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions, under && or ||" ext
 
@@ -1827,6 +1855,8 @@ let rec check_term_proba env = function
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
+  | PBefore _,ext ->
+      raise_error "==> allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 
@@ -2660,6 +2690,19 @@ let rec check_side_cond restr_may_be_equal forall restr env = function
       if not (List.memq v2' restr) then
 	raise_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
       (IC_Indep(v1', v2'), Terms.make_true())
+  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_side_cond restr_may_be_equal forall restr env' t2
   | t ->
       let t' = check_term_nobe env t in
       check_type (snd t) t' Settings.t_bool;
@@ -3176,6 +3219,7 @@ let rec rename_term (t,ext) =
   | PDiff(t1,t2) -> PDiff(rename_term t1, rename_term t2)
   | POr(t1,t2) -> POr(rename_term t1, rename_term t2)
   | PAnd(t1,t2) -> PAnd(rename_term t1, rename_term t2)
+  | PBefore(t1,t2) -> PBefore(rename_term t1, rename_term t2)
   | PIndepOf(i1,i2) -> PIndepOf(rename_ie i1, rename_ie i2)
   in
   (t',ext)
@@ -3298,9 +3342,9 @@ let rename_eqmember (l,ext1) =
 
 let rename_query = function
     PQSecret (i, pub_vars, options) -> PQSecret (rename_ie i, List.map rename_ie pub_vars, options)
-  | PQEventQ(decl,t1,t2, pub_vars) -> 
+  | PQEventQ(decl,t, pub_vars) -> 
       PQEventQ(List.map (fun (x,t) -> (rename_ie x, rename_ty t)) decl, 
-	      rename_term t1, rename_term t2, List.map rename_ie pub_vars)
+	      rename_term t, List.map rename_ie pub_vars)
 
 
 
@@ -3709,9 +3753,9 @@ let rec check_one = function
       (* The bound variables are defined globally for the group of queries [l].
 	 Put them for each queries that uses bound variables, that is, [PQEventQ] queries *)
       queries_parse := (List.map (function
-	  PQEventQ(vars', t1, t2, pub_vars) ->
+	  PQEventQ(vars', t, pub_vars) ->
 	    assert(vars' == []);
-	    PQEventQ(vars, t1, t2, pub_vars)
+	    PQEventQ(vars, t, pub_vars)
 	| q -> q
 	      ) l) @ (!queries_parse)
   | PDef((s1,ext1),vardecl,p) ->
@@ -3814,6 +3858,19 @@ let rec check_term_query1 env = function
       raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
       (check_term_query1 env t1) @ (check_term_query1 env t2)
+  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_term_query1 env' t2
   | _,ext2 -> raise_error "the left-hand side of a correspondence query should be an event or a conjunction of events" ext2
 
 let rec check_term_query2 env = function
@@ -3839,13 +3896,6 @@ let rec check_term_query2 env = function
       with Not_found -> 
 	raise_error (s ^ " not defined. Expected a variable or a function (letfun forbidden).") ext
       end
-  | (PFunApp((s,ext), tl),ext2) as x ->
-      let tl' = List.map (check_term_nobe env) tl in
-      let f = get_function_no_letfun env s ext in
-      check_type_list ext2 tl tl' (fst f.f_type);
-      let x' = Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) in
-      check_type (snd x) x' Settings.t_bool;
-      QTerm x'
   | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
       let tl' = List.map (check_term_nobe env) tl in
       let f = get_event env s ext in
@@ -3857,11 +3907,46 @@ let rec check_term_query2 env = function
       QAnd(check_term_query2 env t1, check_term_query2 env t2)
   | POr(t1,t2), ext ->
       QOr(check_term_query2 env t1, check_term_query2 env t2)
+  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_term_query2 env' t2
   | x -> 
       let x' = check_term_nobe env x in
       check_type (snd x) x' Settings.t_bool;
       QTerm x'
 
+let rec check_term_query3 env = function
+  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_term_query3 env' t2
+  | PBefore(t1,t2),ext ->
+      let t1' = check_term_query1 env t1 in
+      let t2' = check_term_query2 env t2 in
+      (t1',t2')
+  | x -> 
+      let x' = check_term_query1 env x in
+      (x', QTerm (Terms.make_false()))
+	    
 let rec find_inj = function
     QAnd(t1,t2) | QOr(t1,t2) -> find_inj t1 || find_inj t2
   | QEvent(b,t) -> b
@@ -3898,16 +3983,15 @@ let check_query = function
 	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
       QSecret (get_global_binder "in a secrecy query" i,
 	       get_qpubvars pub_vars, !onesession)
-  | PQEventQ (vl,t1,t2, pub_vars) -> 
+  | PQEventQ (vl,t, pub_vars) -> 
       let (env',l') = check_binder_list_typaram (!env) vl in
-      let t1' = check_term_query1 env' t1 in
-      let t2' = check_term_query2 env' t2 in
+      let t1',t2' = check_term_query3 env' t in
       let has_inj_before_impl = List.exists (fun (b,_) -> b) t1' in
       let has_inj_after_impl = find_inj t2' in
       if has_inj_before_impl && not has_inj_after_impl then
-	raise_error "In this query, inj-event is present before ==> but not after ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t1);
+	raise_error "In this query, inj-event is present before ==> but not after ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t);
       if (not has_inj_before_impl) && has_inj_after_impl then
-	raise_error "In this query, inj-event is present after ==> but not before ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t2);
+	raise_error "In this query, inj-event is present after ==> but not before ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t);
       QEventQ(t1',t2', get_qpubvars pub_vars)
 
 let get_impl ()=
@@ -4144,7 +4228,7 @@ let rec collect_id_term accu (t,ext) =
       add_id accu tbl;
       List.iter (collect_id_term accu) tl;
       collect_id_term accu t
-  | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) ->
+  | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) | PBefore(t1,t2) ->
       collect_id_term accu t1;
       collect_id_term accu t2
   | PIndepOf(i1,i2) ->
@@ -4328,10 +4412,9 @@ let collect_id_query accu = function
     PQSecret(i,pub_vars,options) ->
       add_id accu i;
       List.iter (add_id accu) pub_vars
-  | PQEventQ(decl,t1,t2,pub_vars) ->
+  | PQEventQ(decl,t,pub_vars) ->
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) decl;
-      collect_id_term accu t1;
-      collect_id_term accu t2;
+      collect_id_term accu t;
       List.iter (add_id accu) pub_vars
 
 let collect_id_impl accu = function

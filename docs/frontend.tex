@@ -89,10 +89,9 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 
 \begin{figure}
 \def\phst{\phantom{\nonterm{simpleterm} = }\mid}
+\def\phlt{\phantom{\nonterm{letterm} = }\mid}
 \def\pht{\phantom{\nonterm{term} = }\mid}
 \def\phpat{\phantom{\nonterm{pattern} = }\mid}
-\def\phq{\phantom{\nonterm{query} = }\mid}
-\def\phqt{\phantom{\nonterm{queryterm} = }\mid}
 \begin{minipage}{8.5cm}
 \begin{align*}
 &\nonterm{identbound} ::= [\nonterm{ident}\texttt{ =}]\ \nonterm{ident} \texttt{ <= }\nonterm{ident}\\
@@ -117,11 +116,15 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 \end{align*}
 \end{minipage}\\
 \begin{align*}
+&\nonterm{letterm} ::= \ldots \text{(as in $\nonterm{simpleterm}$ with 
+$\nonterm{letterm}$ instead of $\nonterm{simpleterm}$)}\\
+&\phlt \nonterm{basicpat} \texttt{ <- } \nonterm{letterm}\texttt{;}\nonterm{letterm}\\
+&\phlt \texttt{let } \nonterm{basicpat} \texttt{ = }\nonterm{letterm}\texttt{ in }\nonterm{letterm}\\
 &\nonterm{term} ::= \ldots \text{(as in $\nonterm{simpleterm}$ with 
 $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\pht \Resavt\texttt{;}\nonterm{term}\\
 &\pht \Resbvt\texttt{;}\nonterm{term}\\
-&\pht \nonterm{basicpat} \texttt{ <- } \nonterm{term}\\
+&\pht \nonterm{basicpat} \texttt{ <- } \nonterm{term}\texttt{;}\nonterm{term}\\
 &\pht \texttt{let } \nonterm{pattern} \texttt{ = }\nonterm{term}\texttt{ in }\nonterm{term}\ [\texttt{else }\nonterm{term}]\\
 &\pht \texttt{if }\nonterm{cond}\texttt{ then } \nonterm{term} \texttt{ else }\nonterm{term}\\
 &\pht \texttt{find}[\texttt{[unique]}]\ \nonterm{tfindbranch}\ (\texttt{orfind }\nonterm{tfindbranch})^*\texttt{ else }\nonterm{term}\\
@@ -137,19 +140,31 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\nonterm{pattern} ::= \nonterm{basicpat}\\
 &\phpat \nonterm{ident}\texttt{(} \seq{pattern}\texttt{)}\\
 &\phpat \texttt{(} \seq{pattern}\texttt{)}\\
-&\phpat \texttt{=} \nonterm{term}\\
-&\nonterm{event} ::= \texttt{event(}\nonterm{ident}[\texttt{(}\seq{simpleterm}\texttt{))}]\\
-&\phantom{\nonterm{event} =}\mid \texttt{inj-event(}\nonterm{ident}[\texttt{(}\seq{simpleterm}\texttt{))}]\\
-&\nonterm{queryterm} ::= \nonterm{queryterm}\texttt{ \&\& }\nonterm{queryterm}\\
-&\phqt \nonterm{queryterm}\texttt{ || }\nonterm{queryterm}\\
-&\phqt \nonterm{event}\\
-&\phqt \nonterm{simpleterm}\\
-&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\ [\texttt{[onesession]}]\\
-&\phq \nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \texttt{ ==> }\nonterm{queryterm}\ [\texttt{public\_vars}\ \seq{ident}]\\
-&\phq \nonterm{event}\ (\texttt{\&\& }\nonterm{event})^* \ [\texttt{public\_vars}\ \seq{ident}]
+&\phpat \texttt{=} \nonterm{term}
 \end{align*}
-\caption{Grammar for terms, patterns, and queries}
+\caption{Grammar for terms and patterns}
 \label{fig:syntax1}
+\end{figure}
+
+\begin{figure}
+\def\phq{\phantom{\nonterm{query} = }\mid}
+\def\phqt{\phantom{\nonterm{queryterm} = }\mid}
+\begin{align*}
+&\nonterm{event} ::= \texttt{event(}\nonterm{ident}[\texttt{(}\seq{letterm}\texttt{))}]\\
+&\phantom{\nonterm{event} =}\mid \texttt{inj-event(}\nonterm{ident}[\texttt{(}\seq{letterm}\texttt{))}]\\
+&\nonterm{queryterm} ::= \texttt{(}\nonterm{queryterm}\texttt{)}\\
+&\phqt \nonterm{queryterm}\texttt{ \&\& }\nonterm{queryterm}\\
+&\phqt \nonterm{queryterm}\texttt{ || }\nonterm{queryterm}\\
+&\phqt \nonterm{queryterm}\texttt{ ==> }\nonterm{queryterm}\\
+&\phqt \nonterm{event}\\
+&\phqt \nonterm{basicpat} \texttt{ <- } \nonterm{letterm}\texttt{;}\nonterm{queryterm}\\
+&\phqt \texttt{let } \nonterm{basicpat} \texttt{ = }\nonterm{letterm}\texttt{ in }\nonterm{queryterm}\\
+&\phqt \nonterm{letterm}\\
+&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\ [\texttt{[onesession]}]\\
+&\phq \nonterm{queryterm}\ [\texttt{public\_vars}\ \seq{ident}]
+\end{align*}
+\caption{Grammar for queries}
+\label{fig:syntax1.5}
 \end{figure}
 
 \begin{figure}
@@ -354,7 +369,7 @@ A library file (specified on the command-line by the
 {\tt -lib} option) consists of a list of declarations.
 Notations are summarized in Figure~\ref{fig:syntax0}
 and various syntactic elements are described in 
-Figures~\ref{fig:syntax1}, \ref{fig:syntax2}, \ref{fig:syntax3},
+Figures~\ref{fig:syntax1}, \ref{fig:syntax1.5}, \ref{fig:syntax2}, \ref{fig:syntax3},
 and~\ref{fig:syntax3ch}.
 
 Processes are described in a process calculus.
@@ -1728,7 +1743,7 @@ $P$. (We use $x_i \texttt{<=} N_i$ instead of
 When parsing a process, $\mathit{proc}(M_1, \dots, M_n)$ will be replaced with $P\{M_1/x_1, \dots, M_n/x_n\}$ when $P$ is an input process. In this case, the terms $M_1, \dots, M_n$ must contain only variables, replication indices, and function applications and the variables $x_1, \dots, x_n$ cannot have array accesses.
 The process $\mathit{proc}(M_1, \dots, M_n)$ will be replaced with $\texttt{let}$ $x_1 = M_1$ $\texttt{in}$ \dots $\texttt{let}$ $x_n = M_n$ $\texttt{in}$ $P$ when $P$ is an output process.
 
-\item $\texttt{equation }[\texttt{forall }\seq{vartype}\texttt{;}]\nonterm{simpleterm}\ [\texttt{if}\ \nonterm{simpleterm}]\texttt{.}$
+\item $\texttt{equation }[\texttt{forall }\seq{vartype}\texttt{;}]\nonterm{letterm}\ [\texttt{if}\ \nonterm{letterm}]\texttt{.}$
 
 $\texttt{equation forall }x_1:T_1, \ldots, x_n:T_n\texttt{;}M\texttt{.}$ says
 that for all values of $x_1, \ldots, x_n$ in types $T_1, \ldots, T_n$
@@ -1746,6 +1761,8 @@ When $M$ is an inequality, $M_1 \texttt{<>} M_2$, CryptoVerif rewrites
 $M_1 \eqt  M_2$ to false and $M_1 \texttt{<>} M_2$ to true.
 %
 Otherwise, it rewrites $M$ to true.
+
+Variables bound by assignments inside $M$ are replaced by their value.
 
 $\texttt{equation forall }x_1:T_1, \ldots, x_n:T_n\texttt{;}M\texttt{ if }M'\texttt{.}$ says
 that for all values of $x_1, \ldots, x_n$ in types $T_1, \ldots, T_n$
@@ -1790,14 +1807,17 @@ the same type.
 $\texttt{collision }\nonterm{res}^*
 [\texttt{[random\_choices\_may\_be\_equal]}]
 [\texttt{forall }\seq{vartype}\texttt{;}]$\\
-\null\qquad $\texttt{return(}\nonterm{simpleterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{simpleterm}\texttt{)}
+\null\qquad $\texttt{return(}\nonterm{letterm}\texttt{) <=(}\nonterm{proba}\texttt{)=> return(}\nonterm{letterm}\texttt{)}
 [\ \texttt{if}\ \nonterm{cond}]\texttt{.}$\\
 where
 \begin{align*}
-\nonterm{cond} &::= \nonterm{simpleterm}\\
+\nonterm{cond} &::= (\nonterm{cond})\\
+&\ \ \mid \ \nonterm{letterm}\\
 &\ \ \mid \ \nonterm{ident}\texttt{ independent-of }\nonterm{ident}\\
 &\ \ \mid \ \nonterm{cond}\texttt{ \&\& }\nonterm{cond}\\
-&\ \ \mid \ \nonterm{cond}\texttt{ || }\nonterm{cond}
+&\ \ \mid \ \nonterm{cond}\texttt{ || }\nonterm{cond}\\
+&\ \ \mid \ \nonterm{basicpat} \texttt{ <- } \nonterm{letterm}\texttt{;}\nonterm{cond}\\
+&\ \ \mid \ \texttt{let } \nonterm{basicpat} \texttt{ = }\nonterm{letterm}\texttt{ in }\nonterm{cond}
 \end{align*}
 
 $\texttt{collision }\Resa{x_1}{T_1}\texttt{;}\ldots 
@@ -1840,6 +1860,8 @@ the independence conditions can also be ``$x_i$ \texttt{independent-of} $x_j$'',
 where $x_i$ and $x_j$ are both bound by \texttt{new}. This condition
 then means $x_i$ and $x_j$ are different random choices, so
 $x_j$ is also independent of $x_i$. 
+
+Variables bound by assignments inside $M_1$, $M_2$, $c$ are replaced by their value.
 
 \ifchannels
 \item $\texttt{equiv}[\texttt{(}\nonterm{ident}[\texttt{(}\nonterm{ident}\texttt{)}]\texttt{)}]$\\
@@ -2525,10 +2547,11 @@ In addition to the option \texttt{cv\_onesession}, the options \texttt{real\_or\
 but ignored. Real-or-random secrecy is the default for CryptoVerif and
 the options starting with \texttt{pv\_} are for ProVerif.
 
-\item $M \texttt{ ==> } M'$.
+\item $M_0\ [\texttt{public\_vars}\ l]$, where in $M_0$, \texttt{==>} is not allowed under \texttt{\&\&} or \texttt{||}, and the term before \texttt{==>} cannot contain \texttt{||}, so that after replacing variables bound by assignments by their value, $M_0$ is of form $M \texttt{ ==> } M'$ or $M$, where $M$ and $M'$ do not contain \texttt{==>}. The query $M$ is an abbreviation for $M \texttt{ ==> false}$, so we only need to consider $M \texttt{ ==> } M'$.
+
 The system shows that, for all values of variables that occur in $M$,
 if $M$ is true then there exist values of variables of $M'$ that do not
-occur in $M$ such that $M'$ is true.
+occur in $M$ such that $M'$ is true, even when the variables in $l$ are public.
 
 $M$ must be a conjunction of terms $\texttt{event(}e\texttt{)}$, $\texttt{inj-event(}e\texttt{)}$, 
 $\texttt{event(}e\texttt{(}M_1, \ldots, M_n\texttt{))}$, or 
@@ -2561,8 +2584,6 @@ executed at least $N_1 \times \ldots \times N_n$ times.
 The $\texttt{inj-event}$ marker must
 occur either both before and after $\texttt{==>}$ or not at all. (Otherwise,
 the query would be equivalent to a non-injective correspondence.)
-
-\item $M$. This query is an abbreviation for $M \texttt{ ==> false}$.
 
 \end{itemize}
 

@@ -24,7 +24,8 @@ type term = PIdent of ident
 	  | POr of term_e * term_e
 	  | PAnd of term_e * term_e
 	  | PIndepOf of ident * ident
-
+	  | PBefore of term_e * term_e
+		
 and term_e = term * Parsing_helper.extent
 
 and pattern = PPatVar of ident * ty option(*optional type*)
@@ -152,7 +153,7 @@ type pval =
 
 type query = 
     PQSecret of ident * ident list(*public variables*) * ident list(*options*)
-  | PQEventQ of (ident * ty(*type*)) list * term_e * term_e * ident list(*public variables*)
+  | PQEventQ of (ident * ty(*type*)) list * term_e * ident list(*public variables*)
 
 (* Implementation *)
 

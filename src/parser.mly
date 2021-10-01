@@ -173,6 +173,7 @@ let return_channel = (dummy_channel, None)
       
 /* Precedence (from low to high) and associativities */
 %nonassoc OPTIMIF
+%nonassoc IMPLIES
 %left BAR
 %right OR
 %right AND
@@ -800,7 +801,9 @@ term:
 |       term OR term
         { POr($1, $3), parse_extent() }
 |       term AND term
-        { PAnd($1, $3), parse_extent() }
+    { PAnd($1, $3), parse_extent() }
+| term IMPLIES term
+    { PBefore($1, $3), parse_extent() }
 |       IDENT INDEPOF IDENT
         { PIndepOf($1, $3), parse_extent() }
     
@@ -1023,11 +1026,8 @@ queryseq:
 query:
     SECRET IDENT optpublicvars options
     { PQSecret ($2,$3,$4) }
-|   term IMPLIES term optpublicvars
-    { PQEventQ([], $1, $3, $4) }
 |   term optpublicvars
-    { (* "M" interpreted as "M ==> false" as in ProVerif *)
-      PQEventQ([], $1, cst_false, $2) }
+    { PQEventQ([], $1, $2) }
     
 optpublicvars:
     

@@ -574,6 +574,8 @@ let rec check_term defined_refs cur_array env = function
       Terms.make_or_ext ext t1' t2'
   | PQEvent _,ext -> 
       raise (Error("event(...) and inj-event(...) allowed only in queries", ext))
+  | PBefore _,ext ->
+      raise_error "==> allowed only in queries" ext
   | PIndepOf _, ext ->
       raise (Error("independent-of allowed only in side-conditions of collisions", ext))
 
