@@ -19,6 +19,7 @@ maintainer: "Bruno Blanchet <Bruno.Blanchet@inria.fr>"
 authors: "Bruno Blanchet <Bruno.Blanchet@inria.fr> and David Cadé <David.Cade@normalesup.org>"
 license: "CECILL-B"
 homepage: "https://cryptoverif.inria.fr"
+dev-repo: "https://gitlab.inria.fr/bblanche/CryptoVerif"
 bug-reports: "Bruno.Blanchet@inria.fr"
 depends: [ "ocaml" { >= "4.03" } "ocamlfind" { post } "cryptokit" { post } "conf-m4" { post } ]
 build: [
