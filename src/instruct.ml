@@ -41,6 +41,9 @@ let rec forget_games final_game ins_next state =
 let forget_old_games state =
   match state.prev_state with
     None -> ()
+  | Some (IFocus _,_,ins,s') ->
+	 (* Do not forget the game just before a [focus] instruction *)
+      forget_games s'.game ins s'
   | Some (_,_,ins,s') -> forget_games state.game ins s'
 
 

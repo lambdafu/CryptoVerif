@@ -7,6 +7,7 @@ Version
   collision statements.
 - Allow nested comments in the input file. All comments must be closed.
   CryptoVerif will raise an error otherwise.
+- Fixed internal error due to a forgotten game before focus command.
 
 Version 2.05
 
