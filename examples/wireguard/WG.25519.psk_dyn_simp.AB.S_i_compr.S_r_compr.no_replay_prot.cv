@@ -1,63 +1,15 @@
 (* Model of WireGuard written by Benjamin Lipp and Bruno Blanchet, Inria Paris.
 
-   This file generates several CryptoVerif scripts using the m4 preprocessor.
-   It uses the following settings:
+  In this model, the static keys are compromised from the beginning, the
+  ephemeral keys are not compromised, and the adversary can dynamically
+  compromise the psk.
 
-   - Compromise settings:
-   m4_S_i_compr When this macro is defined, the long-term secret key 
-   		S_i_priv of the initiator can be dynamically compromised.
-   m4_S_r_compr When this macro is defined, the long-term secret key 
-   		S_r_priv of the responder can be dynamically compromised.
-   m4_E_i_compr When this macro is defined, the ephemeral E_i_priv
-   		of the initiator is compromised.
-   m4_E_r_compr When this macro is defined, the ephemeral E_r_priv
-   		of the responder is compromised.
+  This proof includes forward secrecy with respect to the psk.
 
-   - Other settings:
-   m4_AB             When this macro is defined, the script models sessions
-   		     in which A is the initiator and B is the responder.
-		     When it is not defined, the script also models sessions 
-		     in which B is the initiator and A is the responder
-		     (the ephemerals are always compromised for these sessions;
-		     it does not prove security for these sessions;
-		     security holds by symmetry).
-   m4_replay_prot    When this macro is defined, the first message is protected
-   		     against replays using the timestamp.
-   m4_zero_test      When this macro is defined, the process fails in case
-   		     a Diffie-Hellman shared secret is zero.
-   m4_only_psk	     When this macro is defined, the proof relies on the pre-shared
-   		     key psk between A and B. The long-term keys secret keys
-		     are compromised from the beginning.
-		     When this macro is not defined, the proof does not rely
-		     on the pre-shared key psk: psk is received from the adversary. 
-   m4_uniquesession_chbinding_weakUKS
-                     When this macro is defined, the long-term keys secret keys
-		     are compromised from the beginning and the psk is received 
-		     from the adversary. CryptoVerif proves session uniqueness,
-		     channel binding for the hash, and a weak version of resistance 
-		     to unknown key share attacks (long-term keys equal modulo pow8).
-   m4_first_msg_auth When this macro is defined, the script proves authentication
-   		     of the first message. For this to hold, the long-term
-		     secret keys must not be compromised at the moment
-		     the first message is received. For simplicity, we assume that
-		     the long-term secret keys are never compromised; compromising
-		     them after event rcvd1 is executed clearly does not affect
-		     the truth of the correspondence.
-		     When this macro is not defined, it proves all other security
-		     properties.
-
-The proof indications need to be adapted to the various settings.
-We use the following 7 combinations
--Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr
--Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr
--Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr
--Dm4_S_i_compr -Dm4_S_r_compr
--Dm4_E_i_compr -Dm4_S_r_compr
--Dm4_S_i_compr -Dm4_E_r_compr
--Dm4_E_i_compr -Dm4_E_r_compr
-with in addition m4_AB defined or not, m4_replay_prot defined or not,
-and m4_zero_test defined.
-The other combinations may not work.
+  This file is simplified to models generated from WG.25519.psk_dyn.m4.cv
+  by considering that the honest principals only talk to honest principals.
+  This is ok because the adversary can simulate the other sessions:
+  they use a different psk and the static keys are compromised.
 *)
 
 
@@ -68,143 +20,37 @@ set autoMergeBranches = false.
 (* To save memory *)
 set forgetOldGames = true.
 
-(* m4_E_ir_compr is defined when both ephemerals E_i_priv and E_r_priv are compromised *)
-ifdef(`m4_E_r_compr',`
-  ifdef(`m4_E_i_compr',`
-    define(`m4_E_ir_compr')
-  ')
-')
-
-(* The macro m4_out_game outputs the current game to a file.
-   The file name contains a number that is increased at each output. *)
-define(`m4_gamenumber', 0)
-define(`m4_out_game',`define(`m4_gamenumber', incr(m4_gamenumber))out_game "m4_name.m4_gamenumber.out.cv" occ')
 
 (* Proof indications *)
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
+
 proof {
-  success;
-  insert after "in(ch1_rom3" "let rom3_input(x1_rom3, G8_to_G(x2_rom3), G8_to_G(x3_rom3), x4_rom3, G8_to_G(x5_rom3), G8_to_G(x6_rom3), v_psk) = x_rom3 in";
-  crypto rom(rom3_intermediate);
-  crypto splitter(concat_four_keys) **;
-  success;
-  interactive
-}
-',`
-proof {
-  (* Useful when using Curve25519 because we need to apply equalities
-     pow8(..) = pow8(..) when testing whether a term matches 
-     another term, and CryptoVerif would not apply them by default.
-     However, that is costly. *)
-  set useKnownEqualitiesWithFunctionsInMatching = true;
-  (* This is in fact the default; mentioned here just as a reminder.
-     We unset it later for speed. *)
-  set elsefindFactsInSimplify = true;
-  m4_out_game;
-(* Case distinctions *)
-ifdef(`m4_AB',`
-(* Case sessions A initiator - B responder only *)
-ifdef(`m4_only_psk', `
-  (* Distinguish whether the ephemeral E_i_pub received by the responder comes from the initiator *)
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_2[i]) && E_i_pub_rcvd_2 = E_i_pub_2[i] then";
-',`
-  (* We say that two public keys are X_pub and Y_pub are "equivalent"
-     when X_pub^8 = Y_pub^8, written in CryptoVerif pow8(X_pub) = pow8(Y_pub).
-     Such equivalent public keys yield the same Diffie-Hellman shared
-     secrets because all secret keys are multiple of 8.
-  
-     Distinguish whether the initiator talks to a responder with a public
-     key S_X_pub equivalent to the one of honest responder (S_B_pub). *)
-  insert after "in(c_config_initiator\\[" "if pow8(S_X_pub) = pow8(S_B_pub) then";
-  (* Use different names for the ephemeral E_i_pub of the initiator,
-     depending on the cases distinguished above *) 
-  SArename E_i_pub_2;
-  m4_out_game;
-  (* Distinguish whether the responder talks to an initiator with a public
-     key S_i_pub_rcvd_2 equivalent to the one of the honest initiator (S_A_pub) *)
-  insert after "let injbot(G_to_bitstring(S_i_pub_rcvd_2: G_t))" "if pow8(S_i_pub_rcvd_2) = pow8(S_A_pub) then";
-ifdef(`m4_E_ir_compr',`',`
-  m4_out_game;
-  (* Distinguish whether the ephemeral E_i_pub_rcvd_2 received by the
-     responder is equivalent to an ephemeral (E_i_pub_4 or E_i_pub_3)
-     generated by the honest initiator.
-     This case distinction is useful when E_i_priv is not compromised,
-     and also when E_r_priv is not compromised (in this case, we use
-     it to show that we decrypt static_i_enc with the same key as the
-     encryption key) *)
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_4[i]) then orfind i <= N_init_parties suchthat defined(E_i_pub_3[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_3[i]) then";
-')
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-  (* Distinguish whether S_i/S_r are corrupted when 
-     the received ephemeral of the responder is not equivalent to one generated by the initiator
-     and the public key S_i_pub_rcvd_2 is equivalent to S_A_pub. *)
-  insert before_nth 5 "let ss_r_2: G_t" "if defined(S_i_is_corrupted) then";
-  insert before_nth 6 "let ss_r_2: G_t" "if defined(S_r_is_corrupted) then"; 
-')
-')
-ifdef(`m4_E_r_compr',`',`
-  m4_out_game;
-  (* Distinguish whether the ephemeral E_r_pub_rcvd_1 received by the
-     initiator is equivalent to an ephemeral E_r_pub generated by
-     the honest responder.
-     This case distinction is useful only when E_r_priv is not compromised. *)
-  insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j]) then";
-  m4_out_game;
-  insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j]) then";
-')
-')
-',`
-(* Case sessions A initiator - B responder and B initiator - A responder together.
-   We make case distinctions similar to when there are only sessions with 
-   A initiator - B responder, but the variable numbers differ and there are
-   a few more case distinctions here. *)
-ifdef(`m4_only_psk', `
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && E_i_pub_rcvd_3 = E_i_pub_4[i] then";
-',`
-  insert after "in(c_config_initiator\\[" "if pow8(S_X_pub) = pow8(S_B_pub) then";
-  SArename E_i_pub_4;
-  m4_out_game;
-  insert after "let injbot(G_to_bitstring(S_i_pub_rcvd_4: G_t))" "if pow8(S_i_pub_rcvd_4) = pow8(S_A_pub) then";
-ifdef(`m4_first_msg_auth',`
-  insert after "let injbot(G_to_bitstring(S_i_pub_rcvd_6: G_t))" "if pow8(S_i_pub_rcvd_6) = pow8(S_B_pub) then";
-')
-ifdef(`m4_E_ir_compr',`',`
-  m4_out_game;
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_7[i]) && pow8(E_i_pub_rcvd_3) = pow8(E_i_pub_7[i]) then orfind i <= N_init_parties suchthat defined(E_i_pub_6[i]) && pow8(E_i_pub_rcvd_3) = pow8(E_i_pub_6[i]) then";
-')
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-  (* Distinguish whether S_i/S_r are corrupted when 
-     the received ephemeral of the responder is not equivalent to one generated by the initiator
-     and the public key S_i_pub_rcvd_2 is equivalent to S_A_pub. *)
-  insert before_nth 5 "let ss_r_4: G_t" "if defined(S_i_is_corrupted) then";
-  insert before_nth 6 "let ss_r_4: G_t" "if defined(S_r_is_corrupted) then"; 
-', `
-  insert before_nth 5 "let ss_r_4: G_t" "if defined(S_i_is_corrupted) then";
-')
-')
-ifdef(`m4_E_r_compr',`',`
-  m4_out_game;
-  insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub[j]) then";
-  m4_out_game;
-  insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub[j]) then";
-')
-ifdef(`m4_S_i_compr',`
-  (* Distinguish in the swapped sessions whether the interlocutor has 
-     a key equivalent to the other honest key *)
-  insert after "in(c_config_initiator_sw\\[" "if pow8(S_X_pub_sw) = pow8(S_A_pub) then";
-  insert after "let injbot(G_to_bitstring(S_i_pub_rcvd_6: G_t))" "if pow8(S_i_pub_rcvd_6) = pow8(S_B_pub) then";
-')
-')
-')
-(* End of case distinctions *)
-  m4_out_game;
+  (* put the event init_break_auth in the initiator, when it is supposed to talk to the honest
+     responder, the psk is not corrupted, and still E_r does not match one generated by the
+     honest responder. *)
+  insert before_nth 2 "rcvd2" "find j5 <= N_resp_parties suchthat defined(E_r_pub[j5]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j5]) then else event_abort init_break_auth";
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.1.out.cv";
+  (* put the event resp_break_auth in the responder, when it is supposed to talk to the honest
+     initiator, the psk is not corrupted, and still E_i does not match one generated by the 
+     honest initiator. *)
+  insert before_nth 5 "injbot(plaintext" "find j7 <= N_init_parties suchthat defined(E_i_pub_2[j7]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_2[j7]) then";
+  insert_event resp_break_auth after_nth 7 "injbot(plaintext";
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.2.out.cv";
   simplify;
-  m4_out_game;
+
+
+  (* We first prove that init_break_auth and resp_break_auth happen
+     with negligible probability *)
+  focus "query event(init_break_auth)", "query event(resp_break_auth)";
+  success simplify;
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.3.out.cv";
+  (* Distinguish whether the responder received an E_i that comes from the honest initiator *)
+  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_2[i]) && E_i_pub_rcvd_2 = E_i_pub_2[i] then";
+  simplify;
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.4.out.cv";
+
   (* We apply the ROM assumptions in the order rom3, rom2, rom1
      the reduce the number of case distinctions made by CryptoVerif.
-     Since rom2 and rom3 are called after rom1, if we applied 
+     Since rom2 and rom3 are called after rom1, if we applied
      rom1 first, that would copy the calls to rom2 and rom3
      for each case distinguished by rom1, and thus creates many
      more calls and case distinctions to make in rom2 and rom3.
@@ -222,86 +68,149 @@ ifdef(`m4_S_i_compr',`
   insert after "in(ch1_rom3" "let rom3_input(x1_rom3, G8_to_G(x2_rom3), G8_to_G(x3_rom3), x4_rom3, G8_to_G(x5_rom3), G8_to_G(x6_rom3), v_psk) = x_rom3 in";
   (* Apply the ROM assumption to rom3 *)
   crypto rom(rom3_intermediate);
-  m4_out_game;
   (* Similar case distinction to the above, adapted to the calls to
      rom2 made in the protocol *)
   insert after "in(ch1_rom2" "let rom2_input(x1_rom2, G8_to_G(x2_rom2), G8_to_G(x3_rom2)) = x_rom2 in";
   (* Apply the ROM assumption to rom2 *)
   crypto rom(rom2_intermediate);
-  m4_out_game;
   (* Similar case distinction to the above, adapted to the calls to
      rom1 made in the protocol *)
   insert after "in(ch1_rom1" "let rom1_input(x1_rom1, G8_to_G(x2_rom1)) = x_rom1 in";
   (* Apply the ROM assumption to rom1 *)
   crypto rom(rom1_intermediate);
-  m4_out_game;
-ifdef(`m4_only_psk',`',`
-  (* Apply the gap Diffie-Hellman assumption. 
+
+  (* Unset useKnownEqualitiesWithFunctionsInMatching and
+     elsefindFactsInSimplify for speed. They are not necessary
+     in this part of the proof. *)
+  set useKnownEqualitiesWithFunctionsInMatching = false;
+  set elsefindFactsInSimplify = false;
+  (* Split the 4 random keys returned by rom3.
+     The indication ** means that we apply splitter(concat_four_keys)
+     as many times as we can, without performing a full simplification
+     between each application. Avoiding that simplification
+     here and for the ind_cpa transformation saves about 12% of the runtime. *)
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.5.out.cv";
+  crypto splitter(concat_four_keys) **;
+  (* avoid trying SA renaming variables in case the next int_ctxt does not work
+     immediately. The proof also works without that indication, but it is slower. *)
+  set noAdviceCrypto = true;
+  (* Apply ciphertext integrity for the AEAD scheme *)
+  crypto int_ctxt(enc) *;
+  success; (* no nonce reuse, init_break_auth and resp_break_auth *)
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.6.out.cv";
+
+  (* back to before focus *)
+
+
+  (* Useful when using Curve25519 because we need to apply equalities
+     pow8(..) = pow8(..) when testing whether a term matches
+     another term, and CryptoVerif would not apply them by default.
+     However, that is costly. *)
+  set useKnownEqualitiesWithFunctionsInMatching = true;
+  set elsefindFactsInSimplify = true;
+(* Case distinctions *)
+
+(* Case sessions A initiator - B responder only *)
+
+  (* We say that two public keys are X_pub and Y_pub are "equivalent"
+     when X_pub^8 = Y_pub^8, written in CryptoVerif pow8(X_pub) = pow8(Y_pub).
+     Such equivalent public keys yield the same Diffie-Hellman shared
+     secrets because all secret keys are multiple of 8. *)
+
+  (* Distinguish whether the ephemeral E_i_pub_rcvd_2 received by the
+     responder is equivalent to an ephemeral generated by the honest initiator.
+     This case distinction is useful when E_i_priv is not compromised,
+     and also when E_r_priv is not compromised (in this case, we use
+     it to show that we decrypt static_i_enc with the same key as the
+     encryption key) *)
+  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_2[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_2[i]) then";
+
+
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.7.out.cv" occ;
+  (* Distinguish whether the ephemeral E_r_pub_rcvd_1 received by the
+     initiator is equivalent to an ephemeral E_r_pub generated by
+     the honest responder.
+     This case distinction is useful only when E_r_priv is not compromised. *)
+  insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j]) then";
+
+
+
+(* End of case distinctions *)
+  simplify;
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.8.out.cv" occ;
+  (* We apply the ROM assumptions in the order rom3, rom2, rom1
+     the reduce the number of case distinctions made by CryptoVerif.
+     Since rom2 and rom3 are called after rom1, if we applied
+     rom1 first, that would copy the calls to rom2 and rom3
+     for each case distinguished by rom1, and thus creates many
+     more calls and case distinctions to make in rom2 and rom3.
+     Appliying them in the reverse order avoids that.
+
+     In the random oracle rom3 provided to the adversary,
+     distinguish whether the argument of rom3 is a 7-tuple in which the
+     components 2, 3, 5, 6 are elements of the subgroup of curve25519
+     generated by the base point.
+     In all calls to rom3 made in the protocol, this property is
+     satisfied because these components are Diffie-Hellman shared
+     secrets computed as X_pub^Y_priv where Y_priv is a multiple of 8.
+     Hence, calls made by the adversary that do not satisfy this condition
+     cannot collide with calls made in the protocol. *)
+  insert after "in(ch1_rom3" "let rom3_input(x1_rom3, G8_to_G(x2_rom3), G8_to_G(x3_rom3), x4_rom3, G8_to_G(x5_rom3), G8_to_G(x6_rom3), v_psk) = x_rom3 in";
+  (* Apply the ROM assumption to rom3 *)
+  crypto rom(rom3_intermediate);
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.9.out.cv" occ;
+  (* Similar case distinction to the above, adapted to the calls to
+     rom2 made in the protocol *)
+  insert after "in(ch1_rom2" "let rom2_input(x1_rom2, G8_to_G(x2_rom2), G8_to_G(x3_rom2)) = x_rom2 in";
+  (* Apply the ROM assumption to rom2 *)
+  crypto rom(rom2_intermediate);
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.10.out.cv" occ;
+  (* Similar case distinction to the above, adapted to the calls to
+     rom1 made in the protocol *)
+  insert after "in(ch1_rom1" "let rom1_input(x1_rom1, G8_to_G(x2_rom1)) = x_rom1 in";
+  (* Apply the ROM assumption to rom1 *)
+  crypto rom(rom1_intermediate);
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.11.out.cv" occ;
+
+  (* Apply the gap Diffie-Hellman assumption.
      The previous case distinctions allow us to isolate Diffie-Hellman
      shared secrets that the adversary cannot compute because he does not
      have the two secret shares.
      The ROM assumptions applied before make comparisons with these
      Diffie-Hellman shared secrets appear. *)
-ifdef(`m4_AB',`
-  crypto gdh(exp_div8) S_B_priv E_i_priv_5 S_A_priv E_r_priv_2;
-',`
-  crypto gdh(exp_div8) S_B_priv E_i_priv_8 S_A_priv E_r_priv_4;
-')
-')
-  (* Unset useKnownEqualitiesWithFunctionsInMatching and 
+
+  crypto gdh(exp_div8) S_B_priv E_i_priv_2 S_A_priv E_r_priv_2;
+
+  (* Unset useKnownEqualitiesWithFunctionsInMatching and
      elsefindFactsInSimplify for speed. They are not necessary
      in the rest of the proof. *)
   set useKnownEqualitiesWithFunctionsInMatching = false;
   set elsefindFactsInSimplify = false;
-  m4_out_game;
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.12.out.cv" occ;
   (* Split the 4 random keys returned by rom3.
      The indication ** means that we apply splitter(concat_four_keys)
      as many times as we can, without performing a full simplification
      between each application. Avoiding that simplification
      here and for the ind_cpa transformation saves about 12% of the runtime. *)
   crypto splitter(concat_four_keys) **;
-  success; (* unknown key-share *)
+  success; (* identity mis-binding *)
   simplify;
-  m4_out_game;
+  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.13.out.cv" occ;
   (* avoid trying SA renaming variables in case the next int_ctxt does not work
      immediately. The proof also works without that indication, but it is about
      15% slower. *)
   set noAdviceCrypto = true;
   (* Apply ciphertext integrity for the AEAD scheme *)
   crypto int_ctxt(enc) *;
-  success; (* some nonce reuse *)
+  success; (* some nonce reuse, and all but secrecy. *)
   simplify;
 
-ifdef(`m4_S_i_compr',`
-  m4_out_game;
-  ifdef(`m4_S_r_compr',`
-    (* When both S_i_priv and S_r_priv may be corrupted, 
-       distinguish which one is corrupted in the ROM2 oracle. *)
-    insert after "let rom2_input" "if defined(S_i_is_corrupted) then";  
-  ')
-  (* This covers, on the responder side, the case of dishonest E_i_pub
-     and honest S_i_pub, in case of possible corruption of S_i_priv. *)
-  crypto int_ctxt_corrupt(enc) r_rom2_2;
-  ifdef(`m4_AB', `',`
-  (* Also for a key that comes from swapped sessions *)
-  crypto int_ctxt_corrupt(enc) ifdef(`m4_S_r_compr',`r_rom2_12',`r_rom2_11');  
-  ')
-')  
-
-ifdef(`m4_S_r_compr',`
-  m4_out_game;
-  (* This covers, on the initiator"s side, the case of honest S_r_pub
-     but dishonest E_r_pub in the case of possible corruption of
-     S_r_priv: The attacker can"t produce a valid ciphertext in protocol
-     message 2 (empty plaintext) if the key wasn"t compromised, thus
-     the decryption will fail on the initiator"s side and the protocol
-     won"t continue.
-     The else case, not the huge find. *)
-  crypto int_ctxt_corrupt(enc) ifdef(`m4_AB',`ifdef(`m4_S_i_compr',`k_45',`k_32')',`ifdef(`m4_S_i_compr',`k_55',`k_43')');
-')
-  success
+  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.14.out.cv" occ;
+  (* Apply IND-CPA of the AEAD scheme *)
+  crypto ind_cpa(enc) **;
+  success (* secrecy of secret_bit (message indistinguishability) *)
 }
-')
+
 
 param N_init_parties, N_resp_parties.
 param N_resp_send, N_resp_recv.
@@ -518,7 +427,7 @@ expand split_4(
   T_i_recv
 ).
 
-  
+
 
 
 (* A collision resistant hash function is used for chaining hashes
@@ -663,6 +572,7 @@ event rcvd1(
   bitstring,          (* msg.timestamp *)
   timestamp_t         (* timestamp in the clear *)
 ).
+
 event initiator_uniq_Tir(
   N_init_parties, (* initiator replication index *)
   key_t               (* T_i_send = T_r_recv *)
@@ -809,187 +719,20 @@ event rcvd_msg_initiator(G_t, G_t, bitstring, G_t, bitstring, timestamp_t,
                       G_t, bitstring, key_t, key_t,
                       counter_t, bitstring, bitstring).
 
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
-(* Session uniqueness, channel binding, and a weak version of
-   resistance to unknown key share attacks (see below) can be proved
-   in a model with all keys (psk, long-term, and ephemeral)
-   compromised. *)
 
-(* Session uniqueness
-   1. Single session with same key *)
 
-query
-  i_init <= N_init_parties,
-  i_init2 <= N_init_parties,
-  (* key calculated by the protocol. *)
-  Tir: key_t;
-  event(initiator_uniq_Tir(i_init, Tir)) &&
-  event(initiator_uniq_Tir(i_init2, Tir)) ==> i_init = i_init2.
 
-query
-  i_init <= N_init_parties,
-  i_init2 <= N_init_parties,
-  (* key calculated by the protocol. *)
-  Tri: key_t;
-  event(initiator_uniq_Tri(i_init, Tri)) &&
-  event(initiator_uniq_Tri(i_init2, Tri)) ==> i_init = i_init2.
-
-query
-  i_resp <= N_resp_parties,
-  i_resp2 <= N_resp_parties,
-  (* key calculated by the protocol. *)
-  Tir: key_t;
-  event(responder_uniq_Tir(i_resp, Tir)) &&
-  event(responder_uniq_Tir(i_resp2, Tir)) ==> i_resp = i_resp2.
-
-query
-  i_resp <= N_resp_parties,
-  i_resp2 <= N_resp_parties,
-  (* key calculated by the protocol. *)
-  Tri: key_t;
-  event(responder_uniq_Tri(i_resp, Tri)) &&
-  event(responder_uniq_Tri(i_resp2, Tri)) ==> i_resp = i_resp2.
-
-(* 2. Single session with same public messages *)
-
-query
-  i_init <= N_init_parties,
-  i_init2 <= N_init_parties,
-  (* Values sent in the first protocol message. *)
-  E_i_pub: G_t,
-  static_i_enc: bitstring,
-  timestamp_i_enc: bitstring,
-  (* Values sent in the second protocol message, that
-     have not yet been sent in the first. *)
-  E_r_pub_rcvd: G_t,
-  empty_bitstring_enc_rcvd: bitstring;
-  event(initiator_uniq_pubmsg(i_init,
-            E_i_pub, static_i_enc, timestamp_i_enc, 
-            E_r_pub_rcvd, empty_bitstring_enc_rcvd)) &&
-  event(initiator_uniq_pubmsg(i_init2,
-            E_i_pub, static_i_enc, timestamp_i_enc, 
-            E_r_pub_rcvd, empty_bitstring_enc_rcvd)) ==> i_init = i_init2.
-
-query
-  i_resp <= N_resp_parties,
-  i_resp2 <= N_resp_parties,
-  (* Values sent in the first protocol message. *)
-  E_i_pub_rcvd: G_t,
-  static_i_enc_rcvd: bitstring,
-  timestamp_i_enc_rcvd: bitstring,
-  (* Values sent in the second protocol message, that
-     have not yet been sent in the first. *)
-  E_r_pub: G_t,
-  empty_bitstring_enc: bitstring;
-  event(responder_uniq_pubmsg(i_resp,
-            E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd, 
-            E_r_pub, empty_bitstring_enc)) &&
-  event(responder_uniq_pubmsg(i_resp2,
-            E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd, 
-            E_r_pub, empty_bitstring_enc)) ==> i_resp = i_resp2.
-
-(* Channel binding *)
-
-query
-  S_i_pub: G_t,
-  S_i_pub_rcvd : G_t,
-  S_X_pub : G_t,
-  S_r_pub : G_t,
-  E_i_pub_sent : G_t,
-  E_i_pub_rcvd : G_t,
-  E_r_pub_rcvd : G_t,
-  E_r_pub_sent : G_t,
-  timestamp_i: timestamp_t,
-  timestamp_i_rcvd: timestamp_t,
-  Q_i: psk_t,
-  Q_r: psk_t,
-  T_i_send: key_t,
-  T_r_recv: key_t,
-  T_i_recv: key_t,
-  T_r_send: key_t,
-  H7: hashoutput_t;
-  event(initiator_H7(S_i_pub, S_X_pub, E_i_pub_sent, E_r_pub_rcvd, timestamp_i, Q_i, T_i_send, T_i_recv, H7)) &&
-  event(responder_H7(S_i_pub_rcvd, S_r_pub, E_i_pub_rcvd, E_r_pub_sent, timestamp_i_rcvd, Q_r, T_r_recv, T_r_send, H7)) ==>
-  (S_i_pub = S_i_pub_rcvd) && (S_X_pub = S_r_pub) &&
-  (E_i_pub_sent = E_i_pub_rcvd) && (E_r_pub_rcvd = E_r_pub_sent) &&
-  (timestamp_i = timestamp_i_rcvd) && (Q_i = Q_r) &&
-  (T_i_send = T_r_recv) && (T_i_recv = T_r_send)
-  public_vars T_i_recv_secr, T_i_send_secr, T_r_recv_secr, T_r_send_secr.
-
-(* Resistance against Unknown Key-Share attacks.
-   We prove a weaker version when all keys are compromised
-   (pow8(S_i_pub) = pow8(S_i_pub_rcvd) && pow8(S_r_pub) = pow8(S_r_pub_rcvd)) *)
-query
-  (* We prove resistance againts an unknown key-share attack even in
-     the dishonest case (keys compromised, talking to the attacker. *)
-  (* The keys calculated by the protocol. *)
-  T_i_send: key_t,
-  T_i_recv: key_t,
-  (* Ephemerals. *)
-  E_i_pub: G_t,
-  E_i_pub_rcvd: G_t,
-  E_r_pub: G_t,
-  E_r_pub_rcvd: G_t,
-  (* Static keys. *)
-  S_i_pub: G_t,
-  S_i_pub_rcvd: G_t,
-  S_r_pub: G_t,
-  S_r_pub_rcvd: G_t;
-  event(responder_imb(T_i_send, T_i_recv, 
-            E_i_pub_rcvd, E_r_pub, S_i_pub_rcvd, S_r_pub))
-  &&
-  event(initiator_imb(T_i_send, T_i_recv,
-  	    E_i_pub, E_r_pub_rcvd, S_i_pub, S_r_pub_rcvd))
-  ==> E_i_pub = E_i_pub_rcvd && E_r_pub = E_r_pub_rcvd && pow8(S_i_pub) = pow8(S_i_pub_rcvd) && pow8(S_r_pub) = pow8(S_r_pub_rcvd).
-',`
-
-ifdef(`m4_first_msg_auth',`
-(* Prove authentication of the first protocol message
-   Holds when the static keys are not compromised (at the moment
-   the first message is received);
-   the ephemeral keys may be compromised. *)
-
-(* With the timestamp cache, the first protocol message is not replayable.
-   Without the timestamp cache, we can still prove that the first message
-   was at some point created by the initiator *)
-query
-  S_r_pub: G_t,
-  (* values sent in the first protocol message *)
-  E_i_pub: G_t,
-  static_i_enc: bitstring,
-  S_i_pub: G_t,
-  timestamp_i_enc: bitstring,
-  timestamp_i: timestamp_t;
-ifdef(`m4_replay_prot',`
-  inj-event(rcvd1(true, S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i)) ==>
-  inj-event(sent1(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i))
-  public_vars T_i_recv_secr, T_i_send_secr, T_r_recv_secr, T_r_send_secr.',`
-  event(rcvd1(true, S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i)) ==>
-  event(sent1(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i))
-  public_vars T_i_recv_secr, T_i_send_secr, T_r_recv_secr, T_r_send_secr.
-')
-
-',`
 (* Prove all other properties *)
 
 (* For correctness, use WG.25519.correctness.m4.cv *)
 
-(* Key secrecy *)
-query secret T_i_recv_secr public_vars T_i_send_secr, T_r_recv_secr.
-query secret T_i_send_secr public_vars T_i_recv_secr, T_r_send_secr.
-query secret T_r_recv_secr public_vars T_i_recv_secr, T_r_send_secr.
-query secret T_r_send_secr public_vars T_i_send_secr, T_r_recv_secr.
-
-ifdef(`m4_only_psk',`
-(* The model in version m4_only_psk is not sufficient to
-   prove absence of unknown key share attacks,
-   because it models only sessions with 2 participants
-   sharing a psk. The models m4_uniquesession_chbinding_weakUKS which
-   compromise both the psk and the long-term keys should be
-   used instead for this property. *)
-',`
+(* Secrecy *)
+query secret secret_bit.
 
 (* Resistance against Unknown Key-Share attacks. *)
+
+(* After the psk is compromised, this query is interesting to prove.
+   Before the psk is compromised, the adversary could not succeed anyway. *)
 query
   (* We prove resistance againts an unknown key-share attack even in
      the dishonest case (keys compromised, talking to the attacker. *)
@@ -1006,13 +749,13 @@ query
   S_i_pub_rcvd: G_t,
   S_r_pub: G_t,
   S_r_pub_rcvd: G_t;
-  event(responder_imb(T_i_send, T_i_recv, 
+  event(responder_imb(T_i_send, T_i_recv,
             E_i_pub_rcvd, E_r_pub, S_i_pub_rcvd, S_r_pub))
   &&
-  event(initiator_imb(T_i_send, T_i_recv, 
+  event(initiator_imb(T_i_send, T_i_recv,
             E_i_pub, E_r_pub_rcvd, S_i_pub, S_r_pub_rcvd))
   ==> E_i_pub = E_i_pub_rcvd && E_r_pub = E_r_pub_rcvd && S_i_pub = S_i_pub_rcvd && S_r_pub = S_r_pub_rcvd.
-')
+
 
 (* Initiator can authenticate the responder. *)
 query
@@ -1030,19 +773,61 @@ query
   T_i_send: key_t,
   T_i_recv: key_t;
   inj-event(rcvd2(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_i_send, T_i_recv)) ==>
-  inj-event(sent2(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_i_send, T_i_recv))
-  public_vars T_i_recv_secr, T_i_send_secr, T_r_recv_secr, T_r_send_secr.
+  inj-event(sent2(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_i_send, T_i_recv)).
 
-')
-')
+
+query
+  S_r_pub: G_t,
+  (* values sent in the first protocol message *)
+  E_i_pub: G_t,
+  static_i_enc: bitstring,
+  S_i_pub: G_t,
+  timestamp_i_enc: bitstring,
+  timestamp_i: timestamp_t,
+  (* values sent in the second protocol message, that
+     have not yet been sent in the first *)
+  E_r_pub: G_t,
+  empty_bitstring_enc: bitstring,
+  (* new and non-constant values in the transport data message *)
+  counter: counter_t,       (* the attacker-provided nonce *)
+  ciphertext: bitstring,    (* the ciphertext *)
+  plaintext: bitstring,     (* the plaintext *)
+  T_r_recv: key_t,
+  T_r_send: key_t;
+  inj-event(rcvd_msg_responder(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_r_recv, T_r_send, counter, ciphertext, plaintext)) ==>
+  inj-event(sent_msg_initiator(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_r_recv, T_r_send, counter, ciphertext, plaintext)).
+
+query
+  S_r_pub: G_t,
+  (* values sent in the first protocol message *)
+  E_i_pub: G_t,
+  static_i_enc: bitstring,
+  S_i_pub: G_t,
+  timestamp_i_enc: bitstring,
+  timestamp_i: timestamp_t,
+  (* values sent in the second protocol message, that
+     have not yet been sent in the first *)
+  E_r_pub: G_t,
+  empty_bitstring_enc: bitstring,
+  (* new and non-constant values in the transport data message *)
+  counter: counter_t,       (* the attacker-provided nonce *)
+  ciphertext: bitstring,    (* the ciphertext *)
+  plaintext: bitstring,     (* the plaintext *)
+  T_i_send: key_t,
+  T_i_recv: key_t;
+  inj-event(rcvd_msg_initiator(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_i_send, T_i_recv, counter, ciphertext, plaintext)) ==>
+  inj-event(sent_msg_responder(S_r_pub, E_i_pub, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub, empty_bitstring_enc, T_i_send, T_i_recv, counter, ciphertext, plaintext)).
+
+
+
 
 (* Type definitions for return values of functions that
-   prepare or process messages 
-   
+   prepare or process messages
+
    prepare1res_t is an "option" type:
    prepare1succ(...) is the success case
    prepare1fail is the failure case
-   The disequation prepare1succ(x1,x2,x3,x4,x5,x6,x7,x8) <> prepare1fail 
+   The disequation prepare1succ(x1,x2,x3,x4,x5,x6,x7,x8) <> prepare1fail
    guarantees that there is no confusion between these two cases. *)
 type prepare1res_t.
 fun prepare1succ(session_index_t, Z_t, G_t, bitstring, bitstring, G_t, G_t, hashoutput_t): prepare1res_t [data].
@@ -1061,7 +846,7 @@ fun prepare2succ(session_index_t, Z_t, G_t, key_t, key_t, hashoutput_t, bitstrin
 const prepare2fail: prepare2res_t.
 equation forall x1: session_index_t, x2: Z_t, x3: G_t, x4: key_t, x5: key_t, x6: hashoutput_t, x7: bitstring;
    prepare2succ(x1,x2,x3,x4,x5,x6,x7) <> prepare2fail.
-   
+
 type process2res_t.
 fun process2succ(key_t, key_t, hashoutput_t):process2res_t [data].
 const process2fail: process2res_t.
@@ -1100,18 +885,18 @@ letfun prepare1(
   let H_i2: hashoutput_t = mix_hash_G(key_hash, H_i1, E_i_pub) in
 
   let es_i: G_t = DH(S_X_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if es_i = zero then prepare1fail else
-  ')
+  
   let k_i2: key_t = rom1(key_rom1, E_i_pub, es_i) in
 
   let static_i_enc: bitstring = enc_G(S_i_pub, H_i2, k_i2, nonce_0) in
   let H_i3: hashoutput_t = mix_hash_bitstring(key_hash, H_i2, static_i_enc) in
 
   let ss_i: G_t = DH(S_X_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ss_i = zero then prepare1fail else
-  ')
+  
   let k_i3: key_t = rom2(key_rom2, E_i_pub, es_i, ss_i) in
 
   let timestamp_i_enc: bitstring = enc_timestamp(timestamp_i, H_i3, k_i3, nonce_0) in
@@ -1139,9 +924,9 @@ letfun process1(
     let H_r2: hashoutput_t = mix_hash_G(key_hash, H_r1, E_i_pub_rcvd) in
 
     let es_r: G_t = DH(E_i_pub_rcvd, S_r_priv) in
-    ifdef(`m4_zero_test',`
+    
     if es_r = zero then process1fail else
-    ')
+    
     let k_r2: key_t = rom1(key_rom1, E_i_pub_rcvd, es_r) in
 
     let injbot(G_to_bitstring(S_i_pub_rcvd: G_t)) = dec_ad_hash(static_i_enc_rcvd, H_r2, k_r2, nonce_0) in
@@ -1151,9 +936,9 @@ letfun process1(
         let H_r3: hashoutput_t = mix_hash_bitstring(key_hash, H_r2, static_i_enc_rcvd) in
 
         let ss_r: G_t = DH(S_i_pub_rcvd, S_r_priv) in
-        ifdef(`m4_zero_test',`
+        
         if ss_r = zero then process1fail else
-        ')
+        
         let k_r3: key_t = rom2(key_rom2, E_i_pub_rcvd, es_r, ss_r) in
 
         let injbot(timestamp_to_bitstring(timestamp_i_rcvd: timestamp_t)) = dec_ad_hash(timestamp_i_enc_rcvd, H_r3, k_r3, nonce_0) in
@@ -1167,7 +952,7 @@ letfun process1(
       ) else (
         (* peer not allowed *)
         process1fail
-      )      
+      )
     ) else (
       (* static did not decrypt *)
       process1fail
@@ -1186,13 +971,13 @@ letfun prepare2(
   let E_r_pub: G_t = exp(g, E_r_priv) in
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ee_r = zero then prepare2fail else
-  ')
+  
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
+  
   if se_r = zero then prepare2fail else
-  ')
+  
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub) in
 
@@ -1214,17 +999,17 @@ letfun process2(
           key_hash: hashkey_t,
           key_rom3: hashkey_t,
           E_i_priv: Z_t, E_i_pub: G_t, S_i_priv: Z_t, S_i_pub: G_t,
-          E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring, 
+          E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring,
           H_i4: hashoutput_t,
           es_i: G_t, ss_i: G_t, Q: psk_t) =
   let ee_i: G_t = DH(E_r_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if ee_i = zero then process2fail else
-  ')
+  
   let se_i: G_t = DH(E_r_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
+  
   if se_i = zero then process2fail else
-  ')
+  
 
   let H_i5: hashoutput_t = mix_hash_G(key_hash, H_i4, E_r_pub_rcvd) in
 
@@ -1244,6 +1029,7 @@ letfun process2(
     (* weird case where the rom3 pattern matching did not work - actually never happens *)
     process2fail
   ).
+
 
 (* Prepare the payload messages *)
 
@@ -1285,25 +1071,22 @@ letfun process_msg(
 let initiator(key_hash: hashkey_t,
               key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
               S_i_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t,
-              secret_bit_I: bool ifdef(`m4_only_psk', `, Q: psk_t')) =
+              secret_bit_I: bool, Q: psk_t) =
 
   ! i_N_init_parties <= N_init_parties
   (* Receive the public key of the responder we should communicate *)
   (* with, and the timestamp the initiator should use. *)
-  in(c_config_initiator, (S_X_pub: G_t, timestamp_i: timestamp_t ifdef(`m4_only_psk', `', `, Q: psk_t')));
-  ifdef(`m4_only_psk', `if S_X_pub = S_r_pub then (* in this case, using the psk, the initiator really talks to the responder *)')
+  in(c_config_initiator, (S_X_pub: G_t, timestamp_i: timestamp_t ));
+  if S_X_pub = S_r_pub then (* the initiator can and will only use the psk when talking to S_r_pub *)
 
     let prepare1succ(I_i: session_index_t,
          E_i_priv: Z_t, E_i_pub_sent: G_t, static_i_enc: bitstring,
-         timestamp_i_enc: bitstring, 
+         timestamp_i_enc: bitstring,
          es_i: G_t, ss_i: G_t, H_i4: hashoutput_t) =
       prepare1(key_hash, key_rom1, key_rom2, S_X_pub, S_i_priv, S_i_pub, timestamp_i) in
 
-ifdef(`m4_first_msg_auth',`
-    event sent1(S_X_pub, E_i_pub_sent, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i);
-')
 
-    out(c_init2resp_send, (ifdef(`m4_E_i_compr',`E_i_priv',`dummy_z'), (msg_type_init2resp, reserved, I_i, E_i_pub_sent, static_i_enc, timestamp_i_enc)));
+    out(c_init2resp_send, (dummy_z, (msg_type_init2resp, reserved, I_i, E_i_pub_sent, static_i_enc, timestamp_i_enc)));
 
     (* Receive two plaintexts for the indistinguishability game of the
        third protocol message aka key confirmation message. *)
@@ -1317,38 +1100,59 @@ ifdef(`m4_first_msg_auth',`
     event initiator_imb(T_i_send, T_i_recv, E_i_pub_sent, E_r_pub_rcvd, S_i_pub, S_X_pub);
     event initiator_H7(S_i_pub, S_X_pub, E_i_pub_sent, E_r_pub_rcvd, timestamp_i, Q, T_i_send, T_i_recv, H_i7);
 
-    let honest_session = ifdef(`m4_S_r_compr',`(if defined(S_r_is_corrupted) then (find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd) = pow8(E_r_pub[j]) then (* This means we have an honest E_r. *) true else false) else (pow8(S_X_pub) = pow8(S_r_pub)))',`pow8(S_X_pub) = pow8(S_r_pub)') in
+    let honest_session = (
+      if defined(psk_is_corrupted) then (
+        find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd) = pow8(E_r_pub[j]) then
+          (* This means we have an honest E_r. *)
+          true
+        else
+          false
+      ) else (
+        (*pow8(S_X_pub) = pow8(S_r_pub)*)
+        true)
+      ) in
     if not(honest_session) then
       out(c_keyconfirm_send, (T_i_send, T_i_recv))
       (* The adversary can run the rest of the session by himself *)
     else
 
     event rcvd2(S_X_pub, E_i_pub_sent, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, T_i_send, T_i_recv);
-    let T_i_send_secr: key_t = T_i_send in
-    let T_i_recv_secr: key_t = T_i_recv.
+    let preparemsgsucc(ciphertext_keyconfirmation: bitstring, plaintext_keyconfirmation: bitstring) =
+      prepare_msg((is_initiator, i_N_init_parties), secret_bit_I, plaintext_0, plaintext_1, counter_0, T_i_send) in
+
+    event sent_msg_initiator(S_X_pub, E_i_pub_sent, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, T_i_send, T_i_recv, counter_0, ciphertext_keyconfirmation, plaintext_keyconfirmation);
+    out(c_keyconfirm_send, (msg_type_data, reserved, I_r_rcvd, counter_0, ciphertext_keyconfirmation));
+
+    ((
+      ! i_Nis<=N_init_send
+      in(c_N_init_send_config, (plaintext_data_0: bitstring, plaintext_data_1: bitstring, counter: counter_t));
+      let preparemsgsucc(ciphertext_data_send: bitstring, plaintext_data_send: bitstring) = prepare_msg((is_initiator, i_N_init_parties), secret_bit_I, plaintext_data_0, plaintext_data_1, counter, T_i_send) in
+      event sent_msg_initiator(S_X_pub, E_i_pub_sent, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, T_i_send, T_i_recv, counter, ciphertext_data_send, plaintext_data_send);
+      out(c_N_init_send, (msg_type_data, reserved, I_r_rcvd, counter, ciphertext_data_send))
+    )|(
+      ! i_Nir<=N_init_recv
+      in(c_N_init_recv, (=msg_type_data, =reserved, =I_i, counter_rcvd: counter_t, ciphertext_data_rcvd: bitstring));
+      let processmsgsucc(plaintext_data_rcvd: bitstring) = process_msg((is_initiator, i_N_init_parties), counter_rcvd, ciphertext_data_rcvd, T_i_recv) in
+      event rcvd_msg_initiator(S_X_pub, E_i_pub_sent, static_i_enc, S_i_pub, timestamp_i_enc, timestamp_i, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, T_i_send, T_i_recv, counter_rcvd, ciphertext_data_rcvd, plaintext_data_rcvd)
+    )).
 
 (* The responder *)
 
-let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool ifdef(`m4_only_psk', `, Q: psk_t')) =
+let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool, Q: psk_t) =
 
   ! i_N_resp_parties <= N_resp_parties
 
-  in(c_init2resp_recv, (ifdef(`m4_only_psk', `', `Q: psk_t,') allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
+  in(c_init2resp_recv, (allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
 
     let process1succ(es_r: G_t, ss_r: G_t, S_i_pub_rcvd: G_t, H_r4: hashoutput_t, timestamp_i_rcvd: timestamp_t) =
       process1(
         key_hash, key_rom1, key_rom2, allowed_peers, S_r_priv, S_r_pub,
         E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd) in
-    ifdef(`m4_only_psk', `if S_i_pub_rcvd = S_i_pub then' (* in this case, using the psk, the responder is really talking to the initiator *))
+    if S_i_pub_rcvd = S_i_pub then (* the responder can and will only use the psk when talking to S_i_pub *)
 
-ifdef(`m4_replay_prot',`
-    get rcvd_timestamps(=S_r_pub, =S_i_pub_rcvd, =timestamp_i_rcvd) in yield else
-    insert rcvd_timestamps(S_r_pub, S_i_pub_rcvd, timestamp_i_rcvd);
-')
 
-ifdef(`m4_first_msg_auth',` 
-    event rcvd1(pow8(S_i_pub_rcvd) = pow8(S_i_pub), S_r_pub, E_i_pub_rcvd, static_i_enc_rcvd, S_i_pub_rcvd, timestamp_i_enc_rcvd, timestamp_i_rcvd);
-')
+
+
 
     let prepare2succ(I_r: session_index_t, E_r_priv: Z_t, E_r_pub_sent: G_t, T_r_recv: key_t, T_r_send: key_t, H_r7: hashoutput_t, empty_bitstring_enc: bitstring) =
       prepare2(key_hash, key_rom3,
@@ -1360,135 +1164,48 @@ ifdef(`m4_first_msg_auth',`
     event responder_imb(T_r_recv, T_r_send, E_i_pub_rcvd, E_r_pub_sent, S_i_pub_rcvd, S_r_pub);
     event responder_H7(S_i_pub_rcvd, S_r_pub, E_i_pub_rcvd, E_r_pub_sent, timestamp_i_rcvd, Q, T_r_recv, T_r_send, H_r7);
 
-    out(c_resp2init_send, (ifdef(`m4_E_r_compr',`E_r_priv',`dummy_z'), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc)));
+    out(c_resp2init_send, (dummy_z, (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc)));
 
     (* First data transport message is key confirmation. *)
-    in(c_keyconfirm_recv, ());
+    in(c_keyconfirm_recv, (=msg_type_data, =reserved, =I_r, counter_keyconfirmation: counter_t, ciphertext_keyconfirmation_rcvd: bitstring));
       (* This means we have an honest E_i. In this case it cannot be corrupted, because we never corrupt
          S_i and E_i at the same time. Thus, the attacker cannot get the secret key, because E_i_priv is secret. *)
-    let honest_session =
-      ifdef(`m4_S_i_compr',`if defined(S_i_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i_pub_sent[j]) && pow8(E_i_pub_rcvd) = pow8(E_i_pub_sent[j]) then true else false) else')
-      ifdef(`m4_S_r_compr',`if defined(S_r_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i_pub_sent[j]) && pow8(E_i_pub_rcvd) = pow8(E_i_pub_sent[j]) then ifdef(`m4_E_i_compr',`pow8(S_i_pub_rcvd) = pow8(S_i_pub)',`true') else false) else')
-      pow8(S_i_pub_rcvd) = pow8(S_i_pub)
-    in
+    let honest_session = (
+if defined(psk_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i_pub_sent[j]) && pow8(E_i_pub_rcvd) = pow8(E_i_pub_sent[j]) then true else false) else ((*pow8(S_i_pub_rcvd) = pow8(S_i_pub)*)true)) in
     if not(honest_session) then
         out(c_wait_before_2nd_part, (T_r_recv, T_r_send))
         (* The adversary can run the rest of the session by himself *)
+
     else
-	let T_r_recv_secr: key_t = T_r_recv in
-	let T_r_send_secr: key_t = T_r_send.
+    let processmsgsucc(plaintext_keyconfirmation_rcvd: bitstring) =
+      process_msg((is_responder, i_N_resp_parties), counter_keyconfirmation, ciphertext_keyconfirmation_rcvd, T_r_recv) in
+
+    event rcvd_msg_responder(S_r_pub, E_i_pub_rcvd, static_i_enc_rcvd, S_i_pub_rcvd, timestamp_i_enc_rcvd, timestamp_i_rcvd, E_r_pub_sent, empty_bitstring_enc, T_r_recv, T_r_send, counter_keyconfirmation, ciphertext_keyconfirmation_rcvd, plaintext_keyconfirmation_rcvd);
+
+    out(c_wait_before_2nd_part, ());
+    ((
+      ! i_Nrs<=N_resp_send
+      in(c_N_resp_send_config, (plaintext_0: bitstring, plaintext_1: bitstring, counter: counter_t));
+      let preparemsgsucc(ciphertext_data_send: bitstring, plaintext_data_send: bitstring) = prepare_msg((is_responder, i_N_resp_parties), secret_bit_R, plaintext_0, plaintext_1, counter, T_r_send) in
+      event sent_msg_responder(S_r_pub, E_i_pub_rcvd, static_i_enc_rcvd, S_i_pub_rcvd, timestamp_i_enc_rcvd, timestamp_i_rcvd, E_r_pub_sent, empty_bitstring_enc, T_r_recv, T_r_send, counter, ciphertext_data_send, plaintext_data_send);
+      out(c_N_resp_send, (msg_type_data, reserved, I_i_rcvd, counter, ciphertext_data_send))
+    )|(
+      ! i_Nrr<=N_resp_recv
+      in(c_N_resp_recv, (=msg_type_data, =reserved, =I_r, counter_rcvd: counter_t, ciphertext_data_rcvd: bitstring));
+      let processmsgsucc(plaintext_data_rcvd: bitstring) = process_msg((is_responder, i_N_resp_parties), counter_rcvd, ciphertext_data_rcvd, T_r_recv) in
+      event rcvd_msg_responder(S_r_pub, E_i_pub_rcvd, static_i_enc_rcvd, S_i_pub_rcvd, timestamp_i_enc_rcvd, timestamp_i_rcvd, E_r_pub_sent, empty_bitstring_enc, T_r_recv, T_r_send, counter_rcvd, ciphertext_data_rcvd, plaintext_data_rcvd)
+    )).
 
 
-(* Swapped initiator and responder - we prove no security properties for these sessions *)
-
-(* Copy of prepare2 because we need to change the name of the variable
-   E_r_pub to avoid a confusion with that variable in I->R case. *)
-
-letfun prepare2_sw(
-    key_hash: hashkey_t,
-    key_rom3: hashkey_t,
-    S_i_pub_rcvd: G_t, E_i_pub_rcvd: G_t,
-    H_r4: hashoutput_t, es_r: G_t, ss_r: G_t, Q: psk_t) =
-
-  new I_r: session_index_t;
-  new E_r_priv: Z_t;
-  let E_r_pub_sw: G_t = exp(g, E_r_priv) in
-
-  let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if ee_r = zero then prepare2fail else
-  ')
-  let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if se_r = zero then prepare2fail else
-  ')
-
-  let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub_sw) in
-
-  let concat_four_keys(tau_r4: key_t, k_r4: key_t, T_r_recv: key_t, T_r_send: key_t) = rom3(key_rom3, E_i_pub_rcvd, es_r, ss_r, E_r_pub_sw, ee_r, se_r, Q) in
-  (
-    let H_r6: hashoutput_t = mix_hash_key(key_hash, H_r5, tau_r4) in
-
-    let empty_bitstring_r_enc: bitstring = enc_bitstring(empty_bitstring, H_r6, k_r4, nonce_0) in
-    let H_r7: hashoutput_t = mix_hash_bitstring(key_hash, H_r6, empty_bitstring_r_enc) in
-
-    prepare2succ(I_r, E_r_priv, E_r_pub_sw, T_r_recv, T_r_send, H_r7, empty_bitstring_r_enc)
-  ) else (
-    prepare2fail
-  ).
-
-
-let initiator_swapped(key_hash: hashkey_t,
-              key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
-              S_i_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t,
-              secret_bit_I: bool ifdef(`m4_only_psk', `, Q: psk_t')) =
-
-  ! i_N_init_parties <= N_init_parties_sw
-  (* Receive the public key of the responder we should communicate *)
-  (* with, and the timestamp the initiator should use. *)
-  in(c_config_initiator_sw, (S_X_pub_sw: G_t, timestamp_i: timestamp_t ifdef(`m4_only_psk', `', `, Q: psk_t')));
-  ifdef(`m4_only_psk', `if S_X_pub_sw = S_r_pub then (* in this case, using the psk, the initiator really talks to the responder *)')
-
-    let prepare1succ(I_i: session_index_t,
-         E_i_priv: Z_t, E_i_pub_sent_sw: G_t, static_i_enc: bitstring,
-         timestamp_i_enc: bitstring, 
-         es_i: G_t, ss_i: G_t, H_i4: hashoutput_t) =
-      prepare1(key_hash, key_rom1, key_rom2, S_X_pub_sw, S_i_priv, S_i_pub, timestamp_i) in
-
-    out(c_init2resp_send_sw, (E_i_priv (* Always compromise ephemeral *), (msg_type_init2resp, reserved, I_i, E_i_pub_sent_sw, static_i_enc, timestamp_i_enc)));
-
-    (* Receive two plaintexts for the indistinguishability game of the
-       third protocol message aka key confirmation message. *)
-    in(c_resp2init_recv_sw, (plaintext_0: bitstring, plaintext_1: bitstring, (=msg_type_resp2init, =reserved, I_r_rcvd: session_index_t, =I_i, E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring)));
-
-    let process2succ(T_i_send: key_t, T_i_recv: key_t, H_i7: hashoutput_t) =
-      process2(key_hash, key_rom3, E_i_priv, E_i_pub_sent_sw, S_i_priv, S_i_pub, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, H_i4, es_i, ss_i, Q) in
-
-    out(c_keyconfirm_send_sw, (T_i_send, T_i_recv)).
-    (* The adversary can run the rest of the session by himself *)
-
-
-let responder_swapped(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool ifdef(`m4_only_psk', `, Q: psk_t')) =
-
-  ! i_N_resp_parties <= N_resp_parties_sw
-
-  in(c_init2resp_recv_sw, (ifdef(`m4_only_psk', `', `Q: psk_t,') allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
-
-    let process1succ(es_r: G_t, ss_r: G_t, S_i_pub_rcvd: G_t, H_r4: hashoutput_t, timestamp_i_rcvd: timestamp_t) =
-      process1(
-        key_hash, key_rom1, key_rom2, allowed_peers, S_r_priv, S_r_pub,
-        E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd) in
-    ifdef(`m4_only_psk', `if S_i_pub_rcvd = S_i_pub then' (* in this case, using the psk, the responder is really talking to the initiator *))
-
-ifdef(`m4_replay_prot',`
-    get rcvd_timestamps(=S_r_pub, =S_i_pub_rcvd, =timestamp_i_rcvd) in yield else
-    insert rcvd_timestamps(S_r_pub, S_i_pub_rcvd, timestamp_i_rcvd);
-')
-
-    let prepare2succ(I_r: session_index_t, E_r_priv: Z_t, E_r_pub_sent: G_t, T_r_recv: key_t, T_r_send: key_t, H_r7: hashoutput_t, empty_bitstring_enc: bitstring) =
-      prepare2_sw(key_hash, key_rom3,
-        S_i_pub_rcvd, E_i_pub_rcvd, H_r4, es_r, ss_r, Q) in
-    out(c_resp2init_send_sw, (E_r_priv (* Always compromise ephemeral *), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
-    (* The adversary can run the rest of the session by himself *)
-
-(* Corruption processes: the adversary uses them to corrupt
-   the long-term keys dynamically *)
-
-let corrupt_S_i(S_i_priv: Z_t) =
-  in(c_corrupt_S_i, ());
-  let S_i_is_corrupted: bool = true in
-  out(c_corrupt_S_i, S_i_priv).
-
-let corrupt_S_r(S_r_priv: Z_t) =
-  in(c_corrupt_S_r, ());
-  let S_r_is_corrupted: bool = true in
-  out(c_corrupt_S_r, S_r_priv).
-
+let corrupt_psk(psk: psk_t) =
+  in(c_corrupt_psk, ());
+  let psk_is_corrupted: bool = true in
+  out(c_corrupt_psk, psk).
 
 process
   in(c_start, ());
 
-  ifdef(`m4_only_psk', `new psk: psk_t;')
+  new psk: psk_t;
 
   new key_hash: hashkey_t;
   new key_rom1: hashkey_t;
@@ -1504,241 +1221,19 @@ process
   new secret_bit : bool;
 
   (* hand over control to the attacker *)
-  out(c_publickeys, (ifdef(`m4_uniquesession_chbinding_weakUKS',`S_A_priv, S_B_priv, ')ifdef(`m4_only_psk',`S_A_priv, S_B_priv, ')S_A_pub, S_B_pub));
+  out(c_publickeys, (S_A_priv, S_B_priv, S_A_pub, S_B_pub));
 
-  (initiator(key_hash, key_rom1, key_rom2, key_rom3, S_A_priv, S_A_pub, S_B_pub, secret_bit ifdef(`m4_only_psk', `, psk')) |
-   responder(key_hash, key_rom1, key_rom2, key_rom3, S_B_priv, S_A_pub, S_B_pub, secret_bit ifdef(`m4_only_psk', `, psk')) |
-ifdef(`m4_AB',`',`
-   (* Swapped initiator and responder *)
-   initiator_swapped(key_hash, key_rom1, key_rom2, key_rom3, S_B_priv, S_B_pub, S_A_pub, secret_bit ifdef(`m4_only_psk', `, psk')) |
-   responder_swapped(key_hash, key_rom1, key_rom2, key_rom3, S_A_priv, S_B_pub, S_A_pub, secret_bit ifdef(`m4_only_psk', `, psk')) |
-')
+  (initiator(key_hash, key_rom1, key_rom2, key_rom3, S_A_priv, S_A_pub, S_B_pub, secret_bit, psk) |
+   responder(key_hash, key_rom1, key_rom2, key_rom3, S_B_priv, S_A_pub, S_B_pub, secret_bit, psk) |
+
    rom1_oracle(key_rom1) | rom2_oracle(key_rom2) | rom3_oracle(key_rom3) |
    hash_oracle(key_hash)
-ifdef(`m4_S_i_compr',` |
-   corrupt_S_i(S_A_priv)')
-ifdef(`m4_S_r_compr',` |
-   corrupt_S_r(S_B_priv)')
+ |
+   corrupt_psk(psk)
   )
 
-ifdef(`m4_AB',`
-ifdef(`m4_replay_prot',`
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
-(* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 1
+
+(* EXPECTED
 All queries proved.
-1.156s (user 1.156s + system 0.000s), max rss 27620K
+88.564s (user 88.440s + system 0.124s), max rss 265576K
 END *)
-',`
-ifdef(`m4_only_psk',`
-(* WG.25519.keysecrecy.AB.only_psk.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 2
-All queries proved.
-4.384s (user 4.340s + system 0.044s), max rss 38260K
-END *)
-',`
-ifdef(`m4_first_msg_auth',`
-(* WG.25519.keysecrecy.AB.1st_msg.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 3
-All queries proved.
-13.908s (user 13.828s + system 0.080s), max rss 53000K
-END *)
-',`
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 4
-All queries proved.
-522.308s (user 521.864s + system 0.444s), max rss 233744K
-END *)
-',`
-(* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 5
-All queries proved.
-228.192s (user 227.972s + system 0.220s), max rss 94996K
-END *)
-')
-',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 6
-All queries proved.
-201.152s (user 200.892s + system 0.260s), max rss 138188K
-END *)
-',`
-(* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 7
-All queries proved.
-14.536s (user 14.472s + system 0.064s), max rss 53004K
-END *)
-')
-')
-')
-')
-')
-',`
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
-(* WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 8
-All queries proved.
-1.096s (user 1.084s + system 0.012s), max rss 27512K
-END *)
-',`
-ifdef(`m4_only_psk',`
-(* WG.25519.keysecrecy.AB.only_psk.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 9
-All queries proved.
-3.252s (user 3.208s + system 0.044s), max rss 38128K
-END *)
-',`
-ifdef(`m4_first_msg_auth',`
-(* WG.25519.keysecrecy.AB.1st_msg.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 10
-All queries proved.
-10.324s (user 10.272s + system 0.052s), max rss 47112K
-END *)
-',`
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 11
-All queries proved.
-320.868s (user 320.424s + system 0.444s), max rss 204424K
-END *)
-',`
-(* WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 12
-All queries proved.
-129.972s (user 129.800s + system 0.172s), max rss 94928K
-END *)
-')
-',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 13
-All queries proved.
-118.932s (user 118.684s + system 0.248s), max rss 138104K
-END *)
-',`
-(* WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 14
-All queries proved.
-11.024s (user 10.956s + system 0.068s), max rss 52508K
-END *)
-')
-')
-')
-')
-')
-')
-',`
-ifdef(`m4_replay_prot',`
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
-(* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 15
-All queries proved.
-2.112s (user 2.104s + system 0.008s), max rss 30180K
-END *)
-',`
-ifdef(`m4_only_psk',`
-(* WG.25519.keysecrecy.AB-BA.only_psk.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 16
-All queries proved.
-10.860s (user 10.780s + system 0.080s), max rss 58820K
-END *)
-',`
-ifdef(`m4_first_msg_auth',`
-(* WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 17
-All queries proved.
-84.384s (user 84.232s + system 0.152s), max rss 107624K
-END *)
-',`
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 18
-All queries proved.
-973.840s (user 973.068s + system 0.772s), max rss 402072K
-END *)
-',`
-(* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 19
-All queries proved.
-819.424s (user 819.012s + system 0.412s), max rss 205720K
-END *)
-')
-',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 20
-All queries proved.
-273.068s (user 272.720s + system 0.348s), max rss 205088K
-END *)
-',`
-(* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 21
-All queries proved.
-34.756s (user 34.636s + system 0.120s), max rss 84012K
-END *)
-')
-')
-')
-')
-')
-',`
-ifdef(`m4_uniquesession_chbinding_weakUKS',`
-(* WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 22
-All queries proved.
-1.944s (user 1.932s + system 0.012s), max rss 33252K
-END *)
-',`
-ifdef(`m4_only_psk',`
-(* WG.25519.keysecrecy.AB-BA.only_psk.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 23
-All queries proved.
-8.248s (user 8.156s + system 0.092s), max rss 58984K
-END *)
-',`
-ifdef(`m4_first_msg_auth',`
-(* WG.25519.keysecrecy.AB-BA.1st_msg.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 24
-All queries proved.
-44.480s (user 44.328s + system 0.152s), max rss 101704K
-END *)
-',`
-ifdef(`m4_S_i_compr',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 25
-All queries proved.
-523.036s (user 522.352s + system 0.684s), max rss 351344K
-END *)
-',`
-(* WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 26
-All queries proved.
-303.648s (user 303.300s + system 0.348s), max rss 180440K
-END *)
-')
-',`
-ifdef(`m4_S_r_compr',`
-(* WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 27
-All queries proved.
-145.132s (user 144.772s + system 0.360s), max rss 179864K
-END *)
-',`
-(* WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.no_replay_prot
-EXPECTED FILENAME: examples/wireguard/WG.25519.keysecrecy.m4.cv TAG: 28
-All queries proved.
-24.948s (user 24.760s + system 0.188s), max rss 83988K
-END *)
-')
-')
-')
-')
-')
-')
-')

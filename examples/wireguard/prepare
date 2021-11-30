@@ -41,12 +41,15 @@ done
 
 sourcefile=WG.25519.m4.cv
 sourcefileks=WG.25519.keysecrecy.m4.cv
+sourcefilepd=WG.25519.psk_dyn.m4.cv
 file_exists_or_abort $sourcefile
 file_exists_or_abort $sourcefileks
+file_exists_or_abort $sourcefilepd
 for sessions in AB AB-BA
 do
     pattern=WG.25519.$sessions
     patternks=WG.25519.keysecrecy.$sessions
+    patternpd=WG.25519.psk_dyn.$sessions
     for replay_status in no_replay_prot replay_prot
     do
 
@@ -97,5 +100,19 @@ do
 	    done
 	done
 
+	## Variant with dynamic compromise of the psk
+	
+	for icompr in S_i_compr E_i_compr
+	do
+	    for rcompr in S_r_compr E_r_compr
+	    do
+		if [ \( $icompr = S_i_compr \) -o \( $rcompr = S_r_compr \) ]
+		then
+		    modname=$patternpd.$icompr.$rcompr.$replay_status
+		    m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefilepd > $modname.cv
+		fi
+	    done
+	done
+	
     done
 done
