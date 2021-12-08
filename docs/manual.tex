@@ -1973,7 +1973,15 @@ Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
 with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
 \texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{PRF\_ODH2}
 must be applied to the subgroup, e.g.
-$\texttt{expand\ PRF\_ODH2(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$.
+\begin{align*}
+  &\texttt{expand\ DH\_single\_coord\_ladder}(G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{Znw}, \vn{ZnwtoZ}, \vn{g\_k},\\
+  &\qquad\vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{pow\_k}, \vn{subGtoG}, \vn{zero}, \vn{sub\_zero}\texttt{).}\\
+  &\texttt{expand\ PRF\_ODH2(}\vn{subG}, \vn{Znw}, \vn{prf\_in}, \vn{prf\_out},
+  \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{mult},\\
+  &\qquad\vn{prf\_subG}, p\texttt{).}\\
+  &\texttt{fun}\ \vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}.\\
+  &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
+\end{align*}
 (The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{PRF\_ODH2}.)
 
      \item $\texttt{expand\ square\_PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH1 assumption and the PRF-ODH1 assumption.
@@ -2009,7 +2017,15 @@ Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
 with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
 \texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{square\_PRF\_ODH2}
 must be applied to the subgroup, e.g.
-$\texttt{expand\ square\_PRF\_ODH2(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$.
+\begin{align*}
+  &\texttt{expand\ DH\_single\_coord\_ladder}(G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{Znw}, \vn{ZnwtoZ}, \vn{g\_k},\\
+  &\qquad\vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{pow\_k}, \vn{subGtoG}, \vn{zero}, \vn{sub\_zero}\texttt{).}\\
+  &\texttt{expand\ square\_PRF\_ODH2(}\vn{subG}, \vn{Znw}, \vn{prf\_in}, \vn{prf\_out},
+  \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \\
+  &\qquad\vn{mult}, \vn{prf\_subG}, p, \vn{sqp}\texttt{).}\\
+  &\texttt{fun}\ \vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}.\\
+  &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
+\end{align*}
 (The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{square\_PRF\_ODH2}.)
 
 
