@@ -1,0 +1,202 @@
+bblanche@adleman:$ ./run AB
+WG.25519.dos
+All queries proved.
+0.312s (user 0.280s + system 0.032s), max rss 19944K
+WG.25519.AB.correctness.no_replay_prot
+All queries proved.
+3.140s (user 3.000s + system 0.140s), max rss 26452K
+WG.25519.AB.identityhiding.no_replay_prot
+All queries proved.
+147.804s (user 144.404s + system 3.400s), max rss 138112K
+WG.25519.AB.uniquesession_chbinding_weakUKS.no_replay_prot
+All queries proved.
+2.484s (user 2.320s + system 0.164s), max rss 29084K
+WG.25519.AB.only_psk.no_replay_prot
+All queries proved.
+23.808s (user 22.156s + system 1.652s), max rss 99496K
+WG.25519.AB.1st_msg.no_replay_prot
+All queries proved.
+17.692s (user 16.380s + system 1.312s), max rss 67648K
+WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+506.704s (user 494.428s + system 12.276s), max rss 609912K
+WG.25519.AB.S_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+231.116s (user 225.668s + system 5.448s), max rss 204084K
+WG.25519.AB.E_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+296.244s (user 286.296s + system 9.948s), max rss 526296K
+WG.25519.AB.E_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+30.340s (user 28.684s + system 1.656s), max rss 93712K
+WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.no_replay_prot
+All queries proved.
+1.472s (user 1.380s + system 0.092s), max rss 26480K
+WG.25519.keysecrecy.AB.only_psk.no_replay_prot
+All queries proved.
+4.256s (user 3.684s + system 0.572s), max rss 40864K
+WG.25519.keysecrecy.AB.1st_msg.no_replay_prot
+All queries proved.
+10.128s (user 9.252s + system 0.876s), max rss 57608K
+WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+388.316s (user 381.360s + system 6.956s), max rss 266108K
+WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+129.980s (user 127.132s + system 2.848s), max rss 106256K
+WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+137.320s (user 132.324s + system 4.996s), max rss 156548K
+WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+10.556s (user 9.620s + system 0.936s), max rss 57508K
+WG.25519.AB.correctness.replay_prot
+All queries proved.
+3.656s (user 3.524s + system 0.132s), max rss 29388K
+WG.25519.AB.identityhiding.replay_prot
+All queries proved.
+1524.332s (user 1520.108s + system 4.224s), max rss 138328K
+WG.25519.AB.uniquesession_chbinding_weakUKS.replay_prot
+All queries proved.
+3.020s (user 2.856s + system 0.164s), max rss 29312K
+WG.25519.AB.only_psk.replay_prot
+All queries proved.
+27.244s (user 25.412s + system 1.832s), max rss 106344K
+WG.25519.AB.1st_msg.replay_prot
+All queries proved.
+24.440s (user 23.028s + system 1.412s), max rss 72980K
+WG.25519.AB.S_i_compr.S_r_compr.replay_prot
+All queries proved.
+782.544s (user 765.864s + system 16.680s), max rss 695056K
+WG.25519.AB.S_i_compr.E_r_compr.replay_prot
+All queries proved.
+457.532s (user 451.620s + system 5.912s), max rss 204244K
+WG.25519.AB.E_i_compr.S_r_compr.replay_prot
+All queries proved.
+462.276s (user 451.188s + system 11.088s), max rss 605400K
+WG.25519.AB.E_i_compr.E_r_compr.replay_prot
+All queries proved.
+37.444s (user 35.560s + system 1.884s), max rss 93612K
+WG.25519.keysecrecy.AB.uniquesession_chbinding_weakUKS.replay_prot
+All queries proved.
+1.500s (user 1.400s + system 0.100s), max rss 29108K
+WG.25519.keysecrecy.AB.only_psk.replay_prot
+All queries proved.
+5.748s (user 5.124s + system 0.624s), max rss 45948K
+WG.25519.keysecrecy.AB.1st_msg.replay_prot
+All queries proved.
+13.808s (user 12.908s + system 0.900s), max rss 57768K
+WG.25519.keysecrecy.AB.S_i_compr.S_r_compr.replay_prot
+All queries proved.
+637.144s (user 627.712s + system 9.432s), max rss 266124K
+WG.25519.keysecrecy.AB.S_i_compr.E_r_compr.replay_prot
+All queries proved.
+234.636s (user 231.424s + system 3.212s), max rss 120448K
+WG.25519.keysecrecy.AB.E_i_compr.S_r_compr.replay_prot
+All queries proved.
+241.708s (user 236.264s + system 5.444s), max rss 156524K
+WG.25519.keysecrecy.AB.E_i_compr.E_r_compr.replay_prot
+All queries proved.
+14.860s (user 13.976s + system 0.884s), max rss 64524K
+
+bblanche@adleman:$ ./run AB-BA
+WG.25519.dos
+All queries proved.
+0.308s (user 0.288s + system 0.020s), max rss 19892K
+WG.25519.AB-BA.correctness.no_replay_prot
+All queries proved.
+3.268s (user 3.120s + system 0.148s), max rss 29248K
+WG.25519.AB.identityhiding.no_replay_prot
+All queries proved.
+145.280s (user 141.596s + system 3.684s), max rss 138152K
+WG.25519.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
+All queries proved.
+4.080s (user 3.832s + system 0.248s), max rss 36228K
+WG.25519.AB-BA.only_psk.no_replay_prot
+All queries proved.
+42.684s (user 39.640s + system 3.044s), max rss 203864K
+WG.25519.AB-BA.1st_msg.no_replay_prot
+All queries proved.
+51.568s (user 48.372s + system 3.196s), max rss 157040K
+WG.25519.AB-BA.S_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+554.676s (user 534.904s + system 19.772s), max rss 834600K
+WG.25519.AB-BA.S_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+272.140s (user 263.820s + system 8.320s), max rss 266456K
+WG.25519.AB-BA.E_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+358.256s (user 343.936s + system 14.320s), max rss 796320K
+WG.25519.AB-BA.E_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+48.264s (user 45.172s + system 3.092s), max rss 156896K
+WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.no_replay_prot
+All queries proved.
+2.760s (user 2.608s + system 0.152s), max rss 32328K
+WG.25519.keysecrecy.AB-BA.only_psk.no_replay_prot
+All queries proved.
+10.624s (user 9.332s + system 1.292s), max rss 64660K
+WG.25519.keysecrecy.AB-BA.1st_msg.no_replay_prot
+All queries proved.
+40.840s (user 38.284s + system 2.556s), max rss 120948K
+WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+596.064s (user 581.864s + system 14.200s), max rss 459204K
+WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+303.972s (user 296.976s + system 6.996s), max rss 266404K
+WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.no_replay_prot
+All queries proved.
+170.304s (user 163.108s + system 7.196s), max rss 232888K
+WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.no_replay_prot
+All queries proved.
+24.008s (user 22.080s + system 1.928s), max rss 93832K
+WG.25519.AB-BA.correctness.replay_prot
+All queries proved.
+3.584s (user 3.396s + system 0.188s), max rss 29348K
+WG.25519.AB.identityhiding.replay_prot
+All queries proved.
+1523.776s (user 1519.464s + system 4.312s), max rss 138128K
+WG.25519.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
+All queries proved.
+4.680s (user 4.508s + system 0.172s), max rss 35972K
+WG.25519.AB-BA.only_psk.replay_prot
+All queries proved.
+53.624s (user 50.236s + system 3.388s), max rss 203808K
+WG.25519.AB-BA.1st_msg.replay_prot
+All queries proved.
+90.460s (user 87.132s + system 3.328s), max rss 156980K
+WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot
+All queries proved.
+1010.064s (user 988.884s + system 21.180s), max rss 915012K
+WG.25519.AB-BA.S_i_compr.E_r_compr.replay_prot
+All queries proved.
+664.788s (user 656.116s + system 8.672s), max rss 306120K
+WG.25519.AB-BA.E_i_compr.S_r_compr.replay_prot
+All queries proved.
+635.980s (user 620.180s + system 15.800s), max rss 913716K
+WG.25519.AB-BA.E_i_compr.E_r_compr.replay_prot
+All queries proved.
+69.228s (user 65.720s + system 3.508s), max rss 156508K
+WG.25519.keysecrecy.AB-BA.uniquesession_chbinding_weakUKS.replay_prot
+All queries proved.
+3.060s (user 2.900s + system 0.160s), max rss 32392K
+WG.25519.keysecrecy.AB-BA.only_psk.replay_prot
+All queries proved.
+14.832s (user 13.472s + system 1.360s), max rss 73380K
+WG.25519.keysecrecy.AB-BA.1st_msg.replay_prot
+All queries proved.
+73.828s (user 71.028s + system 2.800s), max rss 137500K
+WG.25519.keysecrecy.AB-BA.S_i_compr.S_r_compr.replay_prot
+All queries proved.
+1118.656s (user 1102.904s + system 15.752s), max rss 459500K
+WG.25519.keysecrecy.AB-BA.S_i_compr.E_r_compr.replay_prot
+All queries proved.
+829.492s (user 821.204s + system 8.288s), max rss 305628K
+WG.25519.keysecrecy.AB-BA.E_i_compr.S_r_compr.replay_prot
+All queries proved.
+333.648s (user 326.188s + system 7.460s), max rss 232996K
+WG.25519.keysecrecy.AB-BA.E_i_compr.E_r_compr.replay_prot
+All queries proved.
+36.596s (user 34.440s + system 2.156s), max rss 106112K
+
