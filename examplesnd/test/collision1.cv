@@ -2,7 +2,7 @@ type G [large,nonuniform,bounded].
 type subG [large,nonuniform,bounded].
 type Z [large,nonuniform,bounded].
 
-expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero, is_zero_subG).
 
 channel c.
 

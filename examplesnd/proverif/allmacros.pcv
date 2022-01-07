@@ -202,6 +202,8 @@ proba PCollKey1.
 proba PCollKey2.
 proba PCollKey3.
 proba PCollKey4.
+expand DH_basic(G, tZ, g, exp, exp', mult).
+expand DH_basic_with_is_neutral(G, tZ, g10, exp10, exp10', mult10, is_neutral10).
 expand DH_proba_collision(G, tZ, g, exp, exp', mult, PCollKey1, PCollKey2).
 
 proba PDist.
@@ -247,13 +249,14 @@ expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_O
 expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH2, pSQPRF_ODH2).
 
 
+expand DH_basic(G, tZ, g5, exp5, exp5', mult5).
 expand square_DH_proba_collision(G, tZ, g5, exp5, exp5', mult5, PCollKey1, PCollKey2, PCollKey3).
 expand DH_good_group(G, tZ, g6, exp6, exp6', mult6).
 type subG [bounded].
-expand DH_X25519(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero7, sub_zero).
+expand DH_X25519(G, tZ, g7, exp7, mult7, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G7, is_zero_subG7).
 type tZnw [bounded].
-expand DH_X448(G, tZ, g8, exp8, mult8, subG, tZnw, ZnwtoZ, g_k2, exp_div_k2, exp_div_k2', pow_k2, subGtoG2, zero8, sub_zero2).
-expand DH_single_coord_ladder(G, tZ, g9, exp9, mult9, subG, tZnw, ZnwtoZ3, g_k3, exp_div_k3, exp_div_k3', pow_k3, subGtoG3, zero9, sub_zero3).
+expand DH_X448(G, tZ, g8, exp8, mult8, subG, tZnw, ZnwtoZ, g_k2, exp_div_k2, exp_div_k2', pow_k2, subGtoG2, is_zero_G8, is_zero_subG8).
+expand DH_single_coord_ladder(G, tZ, g9, exp9, mult9, subG, tZnw, ZnwtoZ3, g_k3, exp_div_k3, exp_div_k3', pow_k3, subGtoG3, is_zero_G9, is_zero_subG9).
 (*
 type D [bounded]. 
 proba POW.

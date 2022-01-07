@@ -171,8 +171,8 @@ expand DH_X25519(
   exp_div8', (* a symbol that replaces exp_div8 after game transformation *)
   pow8,
   G8_to_G,
-  zero,
-  zero8
+  is_zero,
+  is_zero8
 ).
 
 expand GDH(
@@ -634,7 +634,7 @@ letfun prepare1(
 
   let es_i: G_t = DH(S_X_pub_rcvd, E_i_priv) in
   
-  if es_i = zero then prepare1fail else
+  if is_zero(es_i) then prepare1fail else
   
   let k_i2: key_t = rom1(key_rom1, E_i_pub, es_i) in
 
@@ -643,7 +643,7 @@ letfun prepare1(
 
   let ss_i: G_t = DH(S_X_pub_rcvd, S_i_priv) in
   
-  if ss_i = zero then prepare1fail else
+  if is_zero(ss_i) then prepare1fail else
   
   let k_i3: key_t = rom2(key_rom2, E_i_pub, es_i, ss_i) in
 
@@ -673,7 +673,7 @@ letfun process1(
 
     let es_r: G_t = DH(E_i_pub_rcvd, S_r_priv) in
     
-    if es_r = zero then process1fail else
+    if is_zero(es_r) then process1fail else
     
     let k_r2: key_t = rom1(key_rom1, E_i_pub_rcvd, es_r) in
 
@@ -685,7 +685,7 @@ letfun process1(
 
         let ss_r: G_t = DH(S_i_pub_rcvd, S_r_priv) in
         
-        if ss_r = zero then process1fail else
+        if is_zero(ss_r) then process1fail else
         
         let k_r3: key_t = rom2(key_rom2, E_i_pub_rcvd, es_r, ss_r) in
 
@@ -720,11 +720,11 @@ letfun prepare2(
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
   
-  if ee_r = zero then prepare2fail else
+  if is_zero(ee_r) then prepare2fail else
   
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
   
-  if se_r = zero then prepare2fail else
+  if is_zero(se_r) then prepare2fail else
   
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub) in
@@ -752,11 +752,11 @@ letfun process2(
           es_i: G_t, ss_i: G_t, Q: psk_t) =
   let ee_i: G_t = DH(E_r_pub_rcvd, E_i_priv) in
   
-  if ee_i = zero then process2fail else
+  if is_zero(ee_i) then process2fail else
   
   let se_i: G_t = DH(E_r_pub_rcvd, S_i_priv) in
   
-  if se_i = zero then process2fail else
+  if is_zero(se_i) then process2fail else
   
 
   let H_i5: hashoutput_t = mix_hash_G(key_hash, H_i4, E_r_pub_rcvd) in

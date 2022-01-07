@@ -49,7 +49,7 @@ https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb
    but done when generating a key pair:
 https://github.com/signalapp/libsignal-protocol-javascript/blob/f5a838f1ccc9bddb5e93b899a63de2dea9670e10/src/curve25519_wrapper.js#L25
 *)
-expand DH_X25519(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, zero, sub_zero).
+expand DH_X25519(G, Z, g, gexp, mult, subG, g_8, gexp_div_8, gexp_div_8', pow8, subGtoG, is_zero_G, is_zero_subG).
 proba psqGDH.
 proba pDistRerandom.
 expand square_GDH_RSR(subG, Z, g_8, gexp_div_8, gexp_div_8', mult, psqGDH, pDistRerandom).

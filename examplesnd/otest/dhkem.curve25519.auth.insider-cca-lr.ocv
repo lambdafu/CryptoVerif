@@ -147,8 +147,8 @@ expand DH_X25519(
   exp_div_k1,
   pow_k,
   subGtoG,
-  zero,
-  sub_zero
+  is_zero,
+  is_zero_subG_t
 ).
 
 proba P_GDH.

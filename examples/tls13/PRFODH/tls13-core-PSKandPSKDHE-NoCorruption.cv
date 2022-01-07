@@ -26,7 +26,7 @@ param N1,N5,N6,
 (* The proof can be guided as follows, but the automatic proof strategy works. 
 
 proof {
-      crypto rom(HKDF_extract_zero_salt);
+      crypto prf(HKDF_extract_zero_salt);
       crypto prf1;
       crypto suf_cma(mac) *;
       crypto prf2 *;
@@ -70,11 +70,11 @@ letfun dh_keygen() =
 param N, N', N'', N2, N3, N4.
 
 (* HKDF_extract_zero_salt, that is, HKDF_extract with salt argument 
-   0, is a random oracle. *)
+   0, is a PRF. *)
 
-type hashkey [large,fixed].
-
-expand ROM_hash_large(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
+proba Pprf0.
+const zero: extracted.
+expand PRF(key, extracted, extracted, HKDF_extract_zero_salt, Pprf0).
 
 (* We use the lemma proved in KeySchedule1.cv *)
 
@@ -798,28 +798,22 @@ let ServerDHE(earlySecret: extracted, binder_key: key) =
 
 
 process 
-  in(io20,());
-  new hk: hashkey; (* Key that models the choice of the random oracle *)
+  in(io22,());
   new psk: key;
-  let earlySecret = HKDF_extract_zero_salt(hk, psk) in
+  let earlySecret = HKDF_extract_zero_salt(psk, zero) in
   let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
   let handshakeSecret = HKDF_extract_zero1(earlySecret) in
       (* handshake secret for the PSK variant without DHE *)
-  out(io21,());
-  ((in(io22, ()); out(io23, ()); 
-      ((in(io24, ()); out(io25, ()); (Client(earlySecret, binder_key, handshakeSecret) | ClientDHE(earlySecret, binder_key))) | 
-       (in(io26, ()); out(io27, ()); (Server(earlySecret, binder_key, handshakeSecret) | ServerDHE(earlySecret, binder_key))))) | 
-   hashoracle(hk))
+  out(io23,());
+  ((in(io24, ()); out(io25, ()); (Client(earlySecret, binder_key, handshakeSecret) | ClientDHE(earlySecret, binder_key))) | 
+   (in(io26, ()); out(io27, ()); (Server(earlySecret, binder_key, handshakeSecret) | ServerDHE(earlySecret, binder_key))))
 
 
 (* 
 
 This code is equivalent to:
 
-  in(io20,());
-  new hk: hashkey; 
-  out(io21,());
-  ((in(io22, ()); new psk: key; out(io23, ()); 
+  in(io22, ()); new psk: key; out(io23, ()); 
       ((in(io24, ()); 
         let earlySecret = HKDF_extract_zero_salt(hk, psk) in
         let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
@@ -829,8 +823,8 @@ This code is equivalent to:
         let earlySecret = HKDF_extract_zero_salt(hk, psk) in
         let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
         let handshakeSecret = HKDF_extract_zero1(earlySecret) in
-        out(io27, ()); (Server | ServerDHE)))) | 
-   hashoracle)
+        out(io27, ()); (Server | ServerDHE)))
+
 
 The version above is easier to verify for CryptoVerif,
 because  

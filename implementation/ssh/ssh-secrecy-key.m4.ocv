@@ -117,6 +117,8 @@ const null_string: bitstring. (*the string of length 0 *)
 
 (*CDH*)
 
+expand DH_basic(G, Z, g, exp, exp', mult).
+
 proba pCollKey1.
 proba pCollKey2.
 expand DH_proba_collision(G, Z, g, exp, exp', mult, pCollKey1, pCollKey2).

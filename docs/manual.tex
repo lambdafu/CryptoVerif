@@ -1567,7 +1567,7 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
    \begin{itemize}
    \item One from the following set of macros, which defines properties of the group:
      \begin{itemize}
-     \item $\texttt{expand\ DH\_basic(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ defines a group $G$.
+     \item $\texttt{expand\ DH\_basic(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ defines a Diffie-Hellman structure $G$.
 
        $G$: type of group elements (must be \texttt{bounded} and \texttt{large}).
 
@@ -1600,37 +1600,103 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
        macro. They must not be declared elsewhere, and they can be used
        only after expanding the macro.
 
-     \item $\texttt{expand\ DH\_proba\_collision(}G, Z, g, \vn{exp},
-       \vn{exp}', \vn{mult}, \vn{PCollKey1},
-       \vn{PCollKey2}\texttt{).}$ defines a group $G$ like
-       \texttt{DH\_basic}, with the following additional properties:
-       the probability that $\vn{exp}(g, x) = Y$ where $x$ is random and
-       $Y$ is independent of $x$ is at most $\vn{PCollKey1}$, and
-       the probability that $\vn{exp}(g, \vn{mult}(x,y)) = Y$ where
-       $x$ and $y$ are independent random private keys and 
-       $Y$ is independent of $x$ or $y$ is at most
-       $\vn{PCollKey2}$. These probabilities are negligible in most
-       Diffie-Hellman groups, but need to be evaluated more precisely
-       for using this property.
-       
-       The types $G$ and $Z$ and the probabilities $\vn{PCollKey1}$
-       and $\vn{PCollKey2}$ must be declared before this macro.  The
-       functions $g$, $\vn{exp}$, and $\vn{mult}$ are defined by this
-       macro. They must not be declared elsewhere, and they can be
-       used only after expanding the macro.
+     \item $\texttt{expand\ DH\_basic\_with\_is\_neutral(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{is\_neutral}\texttt{).}$ defines a Diffie-Hellman structure like $\texttt{expand\ DH\_basic(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ with additionally $\vn{is\_neutral}(g)$ is false and for $X$ in $G$, $\vn{is\_neutral}(\vn{exp}(X,y))$ if and only if $\vn{is\_neutral}(X)$.
 
-     \item $\texttt{expand\ square\_DH\_proba\_collision(}G, Z, g, \vn{exp},
-       \vn{exp}', \vn{mult}, \vn{PCollKey1},
-       \vn{PCollKey2}$, $\vn{PCollKey3}\texttt{).}$ is similar to \texttt{DH\_proba\_collision}, but additionally
-   says that the probability that $\vn{exp}(g, \vn{mult}(x,x)) = Y$ where
-   $x$ is random and $Y$ is independent of $x$ is at most $\vn{PCollKey3}$, with $\vn{PCollKey3} \geq \vn{PCollKey2}$.
-       
-       The types $G$ and $Z$ and the probabilities $\vn{PCollKey1}$, $\vn{PCollKey2}$, 
-       and $\vn{PCollKey3}$ must be declared before this macro.  The
-       functions $g$, $\vn{exp}$, and $\vn{mult}$ are defined by this
-       macro. They must not be declared elsewhere, and they can be
-       used only after expanding the macro.
+       $\vn{is\_neutral}(G):\vn{bool}$ is defined by this macro. It must not be
+       declared elsewhere, and can be used only after expanding the
+       macro.
 
+       Prime-order groups with the neutral element included satisfy
+       this assumption, for instance, where $\vn{is\_neutral}(X)$ is true
+       if and only if $X$ is the neutral element.
+       Prime-order groups without the neutral element also satisfy
+       this assumption, with $\vn{is\_neutral}(X) = \vn{false}$.
+       
+     \item $\texttt{expand\ DH\_subgroup(}G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k'}$, $\vn{pow\_k}$, $\vn{subGtoG}\texttt{).}$ defines a Diffie-Hellman structure that satisfies the following properties:
+
+       $G$: type of elements (must be \texttt{bounded} and \texttt{large}).
+       
+       $Z$: type of exponents, a set of integers multiple of $k$, prime to $n$ (possibly modulo $kn$);
+       $k$ is prime to $n$; $Z$ must be \texttt{bounded} and \texttt{large}.
+
+       $g$: an element of $G$.
+
+       There is an exponentiation function such that for $X$ in $G$ and $y$ integer, we have $X^y$ in $G$ with the following properties:
+       \begin{enumerate}
+       \item $(X^x)^y = X^(xy)$;
+       \item $\vn{subG} = \{ X^k \mid X \in G \}$ is a subset of $G$;
+       \item for $X, X'$ in $\vn{subG}$, for any $x$ prime to $n$, $X^x = X'^x \Rightarrow X = X'$;
+       \item exponentiation yields the same results for exponents equal modulo kn.
+       \end{enumerate}
+
+       $\vn{exp}(G,Z):G$ is defined by $\vn{exp}(X,y) = X^y $.
+
+       $\vn{mult}(Z,Z):Z$ is the product of integers (possibly modulo $kn$), commutative.
+
+       $\vn{subG} = \{ X^k \mid X \in G \}$ is a subset of $G$ as mentioned above.
+       The type $\vn{subG}$ must be \texttt{bounded} and \texttt{large}.
+
+       $\vn{g\_k} = g^k \in \vn{subG}$.
+
+       $\vn{exp\_div\_k}(\vn{subG},Z):\vn{subG}$ is defined by $\vn{exp\_div\_k}(X,y) = X^{y/k}$.
+       
+       $\vn{exp\_div\_k'}$ is defined like $\vn{exp\_div\_k}$; it replaces $\vn{exp\_div\_k}$ after games transformations.
+
+       $\vn{pow\_k}(G):\vn{subG}$ is defined by $\vn{pow\_k}(X) = X^k$.
+
+       $\vn{subGtoG}(\vn{subG}):G$ is the injection from $\vn{subG}$ to $G$.
+
+       The types $G$, $Z$, and $\vn{subG}$ must be declared before expanding this macro.
+       The constants $g$ and $\vn{g\_k}$, and the functions $\vn{exp}$, $\vn{mult}$, $\vn{exp\_div\_k}$,
+       $\vn{exp\_div\_k'}$, $\vn{pow\_k}$, $\vn{subGtoG}$ are defined by this macro. They must not be
+       declared elsewhere, and they can be used only after expanding the
+       macro.
+
+       When this macro is used, the other Diffie-Hellman macros (detailed below)
+       except \texttt{DH\_exclude\_weak\_keys} should be applied to the subgroup, that is,
+       $\texttt{expand\ }\vn{assumption}\texttt{(}\vn{subG}$, $\vn{Z}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$
+       
+       Curve25519 satisfies these properties with $k = 8$, $n = pp'$ where the curve has order
+       $kp$ and the quadratic twist has order $k'p'$ ($k' = 4$, $p$ and $p'$ are large primes). See
+       \url{https://hal.inria.fr/hal-02100345}.
+
+       Curve448 satisfies these properties with $k = 4$, $n = pp'$ after removing the weak private key $kp$ which is not prime to $n = pp'$, where the curve has order $kp$ and the quadratic twist 
+has order $k'p'$ ($k = k' = 4$, $p$ and $p'$ are large primes). This can be done as follows
+using \texttt{DH\_exclude\_weak\_keys} defined below:
+\begin{align*}
+  &\texttt{expand\ DH\_subgroup(}G, \vn{Znw}, g, \vn{expnw}, \vn{mult}, \vn{subG}, \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k'}, \\
+  &\qquad \vn{pow\_k}, \vn{subGtoG}\texttt{).}\\
+  &\texttt{letproba}\ \vn{Pweak\_key} = 2\texttt{\string^}-445.\\
+  &\texttt{expand\ DH\_exclude\_weak\_keys(}G, Z, \vn{Znw}, \vn{ZnwtoZ}, \vn{exp}, \vn{expnw}, \vn{Pweak\_key}\texttt{).}
+\end{align*}
+
+Groups of prime order $q$ also satisfy these properties, with $k = 1$, $n = q$, $\vn{subG} = G$,
+$\vn{g\_k} = g$, $\vn{pow\_k}$ and $\vn{subGtoG}$ are the identity (assuming private keys are chosen in 
+$\{1, \dots, q-1\}$). 
+
+\item $\texttt{expand\ DH\_subgroup\_with\_is\_neutral(}G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k'}$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{is\_neutral\_G}$, $\vn{is\_neutral\_subG}\texttt{).}$ defines a Diffie-Hellman structure like $\texttt{expand\ DH\_subgroup(}G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k'}$, $\vn{pow\_k}$, $\vn{subGtoG}\texttt{).}$ with additionally $\vn{is\_neutral}(g^k)$ is false and for $X$ in $\vn{subG}$, $\vn{is\_neutral}(X^y)$ if and only if $\vn{is\_neutral}(X)$.
+
+       $\vn{is\_neutral\_G}(G):\vn{bool}$ and
+       $\vn{is\_neutral\_subG}(\vn{subG}):\vn{bool}$ correspond to the
+       function $\vn{is\_neutral}$, respectively on $G$ and on
+       $\vn{subG}$.  These functions are defined by this macro. They
+       must not be declared elsewhere, and they can be used only after
+       expanding the macro.
+
+       Curve22519 satisfies these properties with $\vn{is\_neutral}(X) = (X = 0)$.
+       
+       Curve448 also satisfies these properties with
+       $\vn{is\_neutral}(X) = (X = 0)$, after removing the weak
+       private key as follows:
+       \begin{align*}
+         &\texttt{expand\ DH\_subgroup\_with\_is\_neutral(}G, \vn{Znw}, g, \vn{expnw}, \vn{mult}, \vn{subG}, \vn{g\_k},  \\
+         &\qquad \vn{exp\_div\_k}, \vn{exp\_div\_k'}, \vn{pow\_k}, \vn{subGtoG}, \vn{is\_neutral\_G}, \vn{is\_neutral\_subG}\texttt{).}\\
+         &\texttt{letproba}\ \vn{Pweak\_key} = 2\texttt{\string^}-445.\\
+         &\texttt{expand\ DH\_exclude\_weak\_keys(}G, Z, \vn{Znw}, \vn{ZnwtoZ}, \vn{exp}, \vn{expnw}, \vn{Pweak\_key}\texttt{).}
+       \end{align*}
+  
+  Prime order groups (without the neutral element) satisfy these properties with $\vn{is\_neutral}(X) = false$.
+  
      \item $\texttt{expand\ DH\_good\_group(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}\texttt{).}$ defines a group $G$ like
        \texttt{DH\_basic}, with the following additional properties:
        $G$ is a group of prime order $q$, with the neutral element excluded, 
@@ -1664,7 +1730,7 @@ $\vn{f}(\vn{key}, \vn{input1}, \dots, \vn{input}N):\vn{output}$ is the PRF.
 \newcommand{\modop}{\mathbin{\mathrm{mod}}}%
 \newcommand{\mul}[2]{{#1}\cdot{#2}}
 
-     \item $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models an elliptic curve defined by the equation
+     \item $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{is\_zero\_G}$, $\vn{is\_zero\_subG}\texttt{).}$ models an elliptic curve defined by the equation
    $Y^2 = X^3 + A X^2 + X$ in the field $\F_p$ of non-zero integers modulo the 
    large prime $p$, where $A^2 - 4$ is not a square modulo $p$.
    This curve must form a commutative group of order $kq$ where $k$ is a 
@@ -1732,21 +1798,21 @@ This model is justified in~\cite{LippBlanchetBharagavanInria19}.
 
        $\vn{subGtoG}(\vn{subG}):G$ is $\repr$ restricted to $\vn{subG}$.
 
-       $\vn{zero}: G$ is the public key 0.
+       $\vn{is\_zero\_G}(G): \vn{bool}$ is defined by: $\vn{is\_zero\_G}(X)$ is true when $X$ is the public key 0.
        
-       $\vn{sub\_zero}: \vn{subG}$ is 0, as an element of $\vn{subG}$.
+       $\vn{is\_zero\_subG}(\vn{subG}): \vn{bool}$ is defined by: $\vn{is\_zero\_subG}(X)$ is true when $X$ is the public key 0.
 
        The types $G$, $\vn{subG}$, $Z$, and $\vn{Znw}$ must be declared before this macro.  The
        functions $g$, $\vn{exp}$, $\vn{mult}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$,
-       $\vn{zero}$, $\vn{sub\_zero}$ are defined by this macro. They must not be declared
+       $\vn{is\_zero\_G}$, $\vn{is\_zero\_subG}$ are defined by this macro. They must not be declared
        elsewhere, and they can be used only after expanding the macro.
 
-       When this macro is used, the Diffie-Hellman assumptions (detailed below)
+       When this macro is used, the other Diffie-Hellman macros (detailed below)
        should be applied to the subgroup, that is,
        $\texttt{expand\ }\vn{assumption}\texttt{(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\dots\texttt{).}$
 
 
-     \item $\texttt{expand\ DH\_X25519}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models Curve25519 as defined in RFC 7748 (\url{https://tools.ietf.org/html/rfc7748}). It is justified in detail in~\cite{LippBlanchetBharagavanInria19}.
+     \item $\texttt{expand\ DH\_X25519}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{is\_zero\_G}$, $\vn{is\_zero\_subG}\texttt{).}$ models Curve25519 as defined in RFC 7748 (\url{https://tools.ietf.org/html/rfc7748}). It is justified in detail in~\cite{LippBlanchetBharagavanInria19}.
    More generally, it supports the same curves as \texttt{DH\_single\_coord\_ladder}
    with the additional assumption that all secret keys are prime to $qq'$. 
    Therefore, we do not need to exclude weak secret keys, so the
@@ -1760,9 +1826,10 @@ This model is justified in~\cite{LippBlanchetBharagavanInria19}.
       of $X$ as an element of $\{0, \dots, p-1\}$,
     $n_{min} = 2^{251}$, and $n_{max} = 2^{252}-1$, so $\texttt{Pcoll1rand}(Z) = 2^{-251}$.
        (For simple examples that use Curve25519, using the macro 
-       \texttt{DH\_proba\_collision} may also work.)
+      \texttt{DH\_proba\_collision}, possibly with \texttt{DH\_subgroup} or
+      \texttt{DH\_subgroup\_with\_is\_neutral}, may also work.)
 
-     \item $\texttt{expand\ DH\_X448}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$ models Curve448 as defined in RFC 7748
+     \item $\texttt{expand\ DH\_X448}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{is\_zero\_G}$, $\vn{is\_zero\_subG}\texttt{).}$ models Curve448 as defined in RFC 7748
 (\url{https://tools.ietf.org/html/rfc7748}).
    More generally, it supports the same curves as \texttt{DH\_single\_coord\_ladder}
    with the additional assumptions that there is at most one secret key
@@ -1772,8 +1839,135 @@ This model is justified in~\cite{LippBlanchetBharagavanInria19}.
 
      \end{itemize}
 
-   \item Optionally, 
-     $\texttt{expand\ DH\_dist\_random\_group\_element\_vs\_exponent(}G,
+   \item Optionally, one or more of the following macros:
+     \begin{itemize}
+     \item $\texttt{expand\ DH\_exclude\_weak\_keys(}G$, $Z$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{exp}$, $\vn{expnw}$, $\vn{Pweak\_key}\texttt{).}$ allows excluding weak private keys.
+
+       $Z$ is a set of Diffie-Hellman private keys (exponents), possibly containing weak private keys. The type $Z$ must be \texttt{bounded} and \texttt{large}.
+       
+       $\vn{Znw}$ is the subset of $Z$ obtained by removing weak keys. The type $\vn{Znw}$ must be \texttt{bounded} and \texttt{large}.
+
+       $\vn{ZnwtoZ}(\vn{Znw}:Z$ is the injection from $\vn{Znw}$ to $Z$.
+
+       $\vn{exp}(G,Z):G$ and $\vn{expnw}(G,\vn{Znw}):G$ are exponentiation functions.
+       
+       $\vn{Pweak\_key}$ is the probability that a weak private key is chosen.
+
+       This macro defines an equivalence $\texttt{exclude\_weak\_keys}(Z)$,
+       for use with the \texttt{crypto} command (see Section~\ref{sec:interact}), which replaces the random choice
+       of private keys in $Z$ with a choice in $\vn{Znw}$, so that there are no weak private keys.
+       It should be applied early in the proof, before applying Diffie-Hellman properties.
+
+       The types $G$, $Z$, $\vn{Znw}$, the function $\vn{expnw}$, and the probability $\vn{Pweak\_key}$
+       must be declared before expanding this macro. (The function $\vn{expnw}$
+       should be defined by expanding one of the macros \texttt{DH\_basic},
+       \texttt{DH\_basic\_with\_is\_neutral},
+       \texttt{DH\_subgroup}, 
+       \texttt{DH\_subgroup\_with\_is\_neutral}, or \texttt{DH\_good\_group} with $\vn{Znw}$ instead of $Z$ and $\vn{expnw}$ instead of $\vn{exp}$.) The
+       functions $\vn{ZnwtoZ}$ and $\vn{exp}$ are defined by this macro. They must not be
+       declared elsewhere, and they can be used only after expanding the
+       macro.
+
+       When this macro is used, the other Diffie-Hellman macros must use $\vn{Znw}$ instead of $Z$
+       and $\vn{expnw}$ instead of $\vn{exp}$.
+       This macro should not be used with \texttt{DH\_single\_coord\_ladder},
+       \texttt{DH\_X25519}, \texttt{DH\_X448}. There are no weak keys for \texttt{DH\_X25519} (if the specification of the choice of exponents for Curve25519 is followed). \texttt{DH\_single\_coord\_ladder} and \texttt{DH\_X448} already include the needed removal of weak keys.
+
+This macro is useful for Curve448 (defined using \texttt{DH\_basic}, \texttt{DH\_basic\_with\_is\_neutral}, \texttt{DH\_subgroup}, or \texttt{DH\_subgroup\_with\_is\_neutral}), which has a weak key $kp$, with $k = 4$ where the curve has order
+$kp$, so $\vn{Znw} = Z \setminus \{ kp \}$, $\vn{Pweak\_key} = 2^-445$.
+It is also useful for groups of prime order $q$ in case private keys are chosen in $\{0,\dots,q-1\}$:
+one should eliminate the weak private key $0$, so $Z = \{0,\dots, q-1\}$, $\vn{Znw} = \{1,\dots,p-1\}$, $\vn{Pweak\_key} = 1/q$.
+       
+     \item $\texttt{expand\ DH\_proba\_collision(}G, Z, g, \vn{exp},
+       \vn{exp}', \vn{mult}, \vn{PCollKey1},
+       \vn{PCollKey2}\texttt{).}$ adds the following properties:
+       the probability that $\vn{exp}(g, x) = Y$ where $x$ is random and
+       $Y$ is independent of $x$ is at most $\vn{PCollKey1}$, and
+       the probability that $\vn{exp}(g, \vn{mult}(x,y)) = Y$ where
+       $x$ and $y$ are independent random private keys and 
+       $Y$ is independent of $x$ or $y$ is at most
+       $\vn{PCollKey2}$. These probabilities are negligible in most
+       Diffie-Hellman groups, but need to be evaluated more precisely
+       for using this property.
+       
+       The types $G$ and $Z$ and the probabilities $\vn{PCollKey1}$
+       and $\vn{PCollKey2}$ must be declared before this macro.  The
+       functions $g$, $\vn{exp}$, and $\vn{mult}$ are defined by this
+       macro. They must not be declared elsewhere, and they can be
+       used only after expanding the macro.
+
+       $\texttt{DH\_proba\_collision}$ should be used with 
+       \texttt{DH\_basic}, \texttt{DH\_basic\_with\_is\_neutral},
+       \texttt{DH\_subgroup}, or \texttt{DH\_subgroup\_with\_is\_neutral};
+       with the latter two,
+       it should be applied to the subgroup. (The macros
+       \texttt{DH\_good\_group}, \texttt{DH\_single\_coord\_ladder},
+       \texttt{DH\_X25519}, \texttt{DH\_X448} already include such collision
+       information.) It should not be used with \texttt{square\_DH\_proba\_collision} or \texttt{is\_neutral\_DH\_proba\_collision}:
+       they include information provided by $\texttt{DH\_proba\_collision}$.
+
+     \item $\texttt{expand\ square\_DH\_proba\_collision(}G, Z, g, \vn{exp},
+       \vn{exp}', \vn{mult}, \vn{PCollKey1},
+       \vn{PCollKey2}$, $\vn{PCollKey3}\texttt{).}$ is similar to \texttt{DH\_proba\_collision}, but additionally
+   says that the probability that $\vn{exp}(g, \vn{mult}(x,x)) = Y$ where
+   $x$ is random and $Y$ is independent of $x$ is at most $\vn{PCollKey3}$, with $\vn{PCollKey3} \geq \vn{PCollKey2}$.
+       
+       The types $G$ and $Z$ and the probabilities $\vn{PCollKey1}$, $\vn{PCollKey2}$, 
+       and $\vn{PCollKey3}$ must be declared before this macro.  The
+       functions $g$, $\vn{exp}$, and $\vn{mult}$ are defined by this
+       macro. They must not be declared elsewhere, and they can be
+       used only after expanding the macro.
+
+       $\texttt{square\_DH\_proba\_collision}$ should be used with 
+       \texttt{DH\_basic}, \texttt{DH\_basic\_with\_is\_neutral},
+       \texttt{DH\_subgroup}, or \texttt{DH\_subgroup\_with\_is\_neutral};
+       with the latter two,
+       it should be applied to the subgroup. (The macros
+       \texttt{DH\_good\_group}, \texttt{DH\_single\_coord\_ladder},
+       \texttt{DH\_X25519}, \texttt{DH\_X448} already include such collision
+       information.) It should not be used with \texttt{DH\_proba\_collision}
+       or \texttt{is\_neutral\_DH\_proba\_collision}:
+       it includes information provided by $\texttt{DH\_proba\_collision}$
+       and \texttt{is\_neutral\_DH\_proba\_collision} includes information
+       provided by \texttt{square\_DH\_proba\_collision}.
+
+     \item $\texttt{expand\ is\_neutral\_DH\_proba\_collision(}G, Z, g,
+       \vn{exp}, \vn{exp}', \vn{mult}, \vn{is\_neutral}$, $\vn{PCollKey2}$,
+       $\vn{PCollKey3}$, $\vn{PCollKey4}\texttt{).}$
+       should be used with either
+       \texttt{DH\_basic\_with\_is\_neutral}
+       or \texttt{DH\_subgroup\_with\_is\_neutral};
+       with the latter,
+       it should be applied to the subgroup, as follows:
+       \begin{align*}
+         &\texttt{expand\ DH\_subgroup\_with\_is\_neutral(}G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{g\_k}, \vn{exp\_div\_k},\\
+         &\qquad\vn{exp\_div\_k'}, \vn{pow\_k}, \vn{subGtoG}, \vn{is\_neutral\_G}, \vn{is\_neutral\_subG}\texttt{).}\\
+         &\texttt{expand\ is\_neutral\_DH\_proba\_collision(}\vn{subG}, Z, \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \\
+         &\qquad\vn{mult}, \vn{is\_neutral\_subG}, \vn{PCollKey2}, \vn{PCollKey3}, \vn{PCollKey4}\texttt{).}
+       \end{align*}
+       In addition to the information provided by
+       \texttt{DH\_basic\_with\_is\_neutral} or
+       \texttt{DH\_subgroup\_with\_is\_neutral}, it assumes that
+       \begin{itemize}
+       \item if $\vn{is\_neutral}(X)$ and $\vn{is\_neutral}(Y)$ then $X = Y$
+         (in other words, there is 0 or 1 neutral element in $G$);
+       \item the probability that $\vn{exp}(X,x) = Y$ where $x$ is random and
+         $X$ and $Y$ are independent of $x$ and not neutral is at most
+         $\vn{PCollKey2}$;
+       \item the probability that $\vn{exp}(g, \vn{mult}(x,x)) = Y$ with
+         random $x$ and $Y$ independent of $x$ is at most $\vn{PCollKey3}$,
+         with $\vn{PCollKey3} \geq \vn{PCollKey2}$.
+       \item the probability that $\vn{exp}(X,y) = \vn{exp}(X,z)$ with $y$,
+         $z$ random independent of each other and $X$ is not neutral is
+         at most $\vn{PCollKey4}$.
+       \end{itemize}
+       It states these collisions and others that can be inferred from them.
+
+       It should not be used with \texttt{DH\_proba\_collision}
+       or \texttt{square\_DH\_proba\_collision}: it includes the information
+       provided by these two macros.
+       
+     \item $\texttt{expand\ DH\_dist\_random\_group\_element\_vs\_exponent(}G,
      Z, g, \vn{exp}, \vn{exp}', \vn{mult}$, $\vn{PDist}\texttt{).}$ This macro says
      that the probability of distinguishing a random group element
      from an exponentiation $\vn{exp}(g,x)$ with a random exponent $x$
@@ -1799,10 +1993,10 @@ This model is justified in~\cite{LippBlanchetBharagavanInria19}.
      This macro can be used with any of the previous macros, except
      that it is useless with the macro \texttt{DH\_good\_group}, because this macro
      already includes these properties with $\vn{PDist} = 0$. When the macro 
-$\texttt{DH\_single\_coord\_ladder}$, $\texttt{DH\_X25519}$, or $\texttt{DH\_X448}$ is used, this macro should be applied to the subgroup. For instance, with
+$\texttt{DH\_subgroup}$, $\texttt{DH\_subgroup\_with\_is\_neutral}$, $\texttt{DH\_single\_coord\_ladder}$, $\texttt{DH\_X25519}$, or $\texttt{DH\_X448}$ is used, this macro should be applied to the subgroup. For instance, with
 $\texttt{expand\ DH\_single\_coord\_ladder}(G$, $Z$, $g$, $\vn{exp}$, $\vn{mult}$, $\vn{subG}$, $\vn{Znw}$, $\vn{ZnwtoZ}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{pow\_k}$, $\vn{subGtoG}$, $\vn{zero}$, $\vn{sub\_zero}\texttt{).}$, it should be
      $\texttt{expand\ DH\_dist\_random\_group\_element\_vs\_exponent(}\vn{subG}$, $\vn{Znw}$, $\vn{g\_k}$, $\vn{exp\_div\_k}$, $\vn{exp\_div\_k}'$, $\vn{mult}$, $\vn{Pdist}\texttt{).}$
-     
+     \end{itemize}
    \item One from the following set of macros, which defines the Diffie-Hellman assumption itself:
      \begin{itemize}
      \item $\texttt{expand\ CDH(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p\texttt{).}$ says that the group $G$ satisfies the computational
@@ -1958,7 +2152,20 @@ This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the PRF-ODH1 property, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}).
 
-     \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
+When this assumption is used with \texttt{DH\_subgroup}, \texttt{DH\_subgroup\_with\_is\_neutral}, \texttt{DH\_X25519},
+\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, it
+must be applied to the subgroup, which can be done as follows:
+\begin{align*}
+  &\texttt{expand\ DH\_single\_coord\_ladder}(G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{Znw}, \vn{ZnwtoZ}, \vn{g\_k},\\
+  &\qquad\vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{pow\_k}, \vn{subGtoG}, \vn{zero}, \vn{sub\_zero}\texttt{).}\\
+  &\texttt{expand\ PRF\_ODH1(}\vn{subG}, \vn{Znw}, \vn{prf\_in}, \vn{prf\_out},
+  \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{mult},\\
+  &\qquad\vn{prf\_subG}, p\texttt{).}\\
+  &\texttt{fun}\ \vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}.\\
+  &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
+\end{align*}
+
+       \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
        %
        The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
        %
@@ -1969,20 +2176,13 @@ This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, which corresponds to the PRF-ODH2 property, for use in the \texttt{crypto} command (see
 Section~\ref{sec:interact}).
 
-Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
-with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
-\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{PRF\_ODH2}
-must be applied to the subgroup, e.g.
-\begin{align*}
-  &\texttt{expand\ DH\_single\_coord\_ladder}(G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{Znw}, \vn{ZnwtoZ}, \vn{g\_k},\\
-  &\qquad\vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{pow\_k}, \vn{subGtoG}, \vn{zero}, \vn{sub\_zero}\texttt{).}\\
-  &\texttt{expand\ PRF\_ODH2(}\vn{subG}, \vn{Znw}, \vn{prf\_in}, \vn{prf\_out},
-  \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{mult},\\
-  &\qquad\vn{prf\_subG}, p\texttt{).}\\
-  &\texttt{fun}\ \vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}.\\
-  &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
-\end{align*}
-(The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{PRF\_ODH2}.)
+When this assumption is used with \texttt{DH\_subgroup}, \texttt{DH\_subgroup\_with\_is\_neutral}, \texttt{DH\_X25519},
+\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, it
+must be applied to the subgroup, which can be done as for \texttt{PRF\_ODH1}.
+
+If $G$ is Curve448, the weak private key $kp$ must be excluded,
+which can be done using \texttt{DH\_exclude\_weak\_keys}, \texttt{DH\_X448},
+or \texttt{DH\_single\_coord\_ladder}.
 
      \item $\texttt{expand\ square\_PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH1 assumption and the PRF-ODH1 assumption.
        %
@@ -2000,7 +2200,11 @@ must be applied to the subgroup, e.g.
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH1 and PRF-ODH1 properties, for use in the \texttt{crypto} command (see
        Section~\ref{sec:interact}).
 
-     \item $\texttt{expand\ square\_PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH2 assumption and the PRF-ODH2 assumption.
+       When this assumption is used with \texttt{DH\_subgroup}, \texttt{DH\_subgroup\_with\_is\_neutral}, \texttt{DH\_X25519},
+       \texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, it
+       must be applied to the subgroup, which can be done as for \texttt{PRF\_ODH1}.
+
+       \item $\texttt{expand\ square\_PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH2 assumption and the PRF-ODH2 assumption.
        %
        The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
        %
@@ -2013,21 +2217,13 @@ This macro defines the equivalence
        $\texttt{prf\_odh}(\vn{prf})$, whichs corresponds to the square PRF-ODH2 and PRF-ODH2 properties, for use in the \texttt{crypto} command (see
 Section~\ref{sec:interact}).
 
-Warning: if $G$ is Curve25519 or Curve448, this assumption must be used together
-with the precise model of Curve25519/448 defined in the macros \texttt{DH\_X25519},
-\texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, and \texttt{square\_PRF\_ODH2}
-must be applied to the subgroup, e.g.
-\begin{align*}
-  &\texttt{expand\ DH\_single\_coord\_ladder}(G, Z, g, \vn{exp}, \vn{mult}, \vn{subG}, \vn{Znw}, \vn{ZnwtoZ}, \vn{g\_k},\\
-  &\qquad\vn{exp\_div\_k}, \vn{exp\_div\_k}', \vn{pow\_k}, \vn{subGtoG}, \vn{zero}, \vn{sub\_zero}\texttt{).}\\
-  &\texttt{expand\ square\_PRF\_ODH2(}\vn{subG}, \vn{Znw}, \vn{prf\_in}, \vn{prf\_out},
-  \vn{g\_k}, \vn{exp\_div\_k}, \vn{exp\_div\_k}', \\
-  &\qquad\vn{mult}, \vn{prf\_subG}, p, \vn{sqp}\texttt{).}\\
-  &\texttt{fun}\ \vn{prf}(G, \vn{prf\_in}): \vn{prf\_out}.\\
-  &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
-\end{align*}
-(The existence of equivalent public keys in whole Curve25519/448 breaks \texttt{square\_PRF\_ODH2}.)
+       When this assumption is used with \texttt{DH\_subgroup}, \texttt{DH\_subgroup\_with\_is\_neutral}, \texttt{DH\_X25519},
+       \texttt{DH\_X448}, or \texttt{DH\_single\_coord\_ladder}, it
+       must be applied to the subgroup, which can be done as for \texttt{PRF\_ODH1}.
 
+       If $G$ is Curve448, the weak private key $kp$ must be excluded,
+       which can be done using \texttt{DH\_exclude\_weak\_keys}, \texttt{DH\_X448},
+       or \texttt{DH\_single\_coord\_ladder}.
 
      \end{itemize}
      The argument $\vn{prf}$ of the PRF-ODH macros is defined by these
@@ -2046,102 +2242,6 @@ must be applied to the subgroup, e.g.
        
    \end{itemize}
 
-\iffalse
- \item Another possible set of macros for Diffie-Hellman assumptions is the following.
-   \begin{itemize}
-   \item $\texttt{expand\ DH\_prime\_subgroup\_secret\_keys\_not\_multiple\_k(}G$, $Z$, $g$, $\vn{exp}$, $\vn{exp}'$, $\vn{expblock}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{expsub}$, $\vn{expsub}'$, $\vn{pow\_k}$, $\vn{PCollKey1}$, $\vn{PCollKey2}$, $\vn{PCollKey3}$, $\vn{PCollKey4}\texttt{).}$ defines a Diffie-Hellman group with the following properties.
-
-       $G$: type of group elements (must be \texttt{bounded} and \texttt{large}).   
-       $G$ is a group of cardinal $kq$, where $q$ is a large prime and $k$ is a small integer.
-
-       $\vn{subG}$: type of subgroup elements (must be \texttt{bounded} and \texttt{large}). 
-       $\vn{subG}$ is a subgroup of $G$ of cardinal $q$.
-
-       $Z$: type of exponents (must be \texttt{bounded} and \texttt{large}). 
-       $Z$ is the set of integers modulo $kq$.
-       
-       $g$: an element of the group $G$, which generates the subgroup $\vn{subG}$.
-
-       $\vn{exp}(G, Z): G$: the exponentiation function.  
-
-       $\vn{exp}'$ is a symbol that replaces $\vn{exp}$ after the GDH game transformation.
-
-       $\vn{expblock}$ is a symbol that replaces $\vn{exp}$ after the $\texttt{use\_subgroup}(\vn{exp})$ transformation, explained below.
-
-       $\vn{mult}(Z,Z): Z$ is the product in $Z$.
-
-       $\vn{g\_k} = g^k$. It is an element of $\vn{subG}$, which generates $\vn{subG}$.
-
-       $\vn{expsub}(\vn{subG},Z): \vn{subG}$ is defined by $\vn{expsub}(X,y) = X^y$.
-       
-       $\vn{expsub}'$ is a symbol that replaces $\vn{expsub}$ after GDH game transformation,
-       defined like $\vn{expsub}$.
-
-       $\vn{pow\_k}(G):\vn{subG}$ is defined by $\vn{pow\_k}(x) = x^k$.
-   
-       $\vn{PCollKey1}$ is the maximum probability that $g^{kx} = Y$ with $x$ random in $Z$ and with $Y$ independent of $x$.
-
-       $\vn{PCollKey2}$ is the maximum probability that $g^{kxy} = Y$ with $x$ random in $Z$ and with $y$ and $Y$ independent of $x$.
-
-       $\vn{PCollKey3}$ is the maximum of $\vn{PCollKey2}$ and 
-                the maximum probability that $g^{kxx} = Y$ with $x$ random in $Z$ and with $Y$ independent of $x$.
-
-       $\vn{PCollKey4}$ is the probability that $y = 0$ modulo $q$ for $y$ random in $Z$.
-
-
-       $\texttt{use\_subgroup}(\vn{exp})$ transforms
-       $\vn{exp}(X,a) = Y$ into
-       \[(\vn{expblock}(X,a) = Y) \ \&\&\ (\vn{expsub}(\vn{pow\_k}(X),a) =
-       \vn{pow\_k}(Y))\]
-       $X^a = Y$ implies $(X^a)^k = Y^k$ that is $(X^k)^a = Y^k$, and
-       in the latter equality $X^k$ and $Y^k$ are in the subgroup
-       generated by $g$, so we can apply more equalities.  Since
-       $X^a = Y$ is not equivalent to $(X^k)^a = Y^k$, we keep the
-       original equality $X^a = Y$ as well, but replace $\vn{exp}$
-       with $\vn{expblock}$ to avoid a loop. The transformation
-       $\texttt{use\_subgroup}(\vn{exp})$ should be applied before
-       GDH, using \texttt{crypto} command (see
-       Section~\ref{sec:interact}).
-       
-       The types $G$, $\vn{subG}$, and $Z$ and the probabilities $\vn{PCollKey1}$, $\vn{PCollKey2}$, 
-       $\vn{PCollKey3}$, $\vn{PCollKey4}$ must be declared before this macro.  The
-       functions $g$, $\vn{exp}$, $\vn{exp}'$, $\vn{expblock}$, $\vn{mult}$, $\vn{g\_k}$, $\vn{expsub}$, $\vn{expsub}'$, $\vn{pow\_k}$
-       are defined by this macro. They must not be declared
-       elsewhere, and they can be used only after expanding the macro.
-
-       For instance, these properties are typically satisfied by Curve25519 when
-       the secret keys are not normalized (that is, they may not be multiple of 8).
-
-   \item One of the following two macros:
-     \begin{itemize}
-     \item $\texttt{expand\ GDH\_subgroup(}G$, $Z$, $g$, $\vn{exp}$, $\vn{exp}'$, $\vn{expblock}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{expsub}$, $\vn{expsub}'$, $\vn{pow\_k}$, $p\texttt{).}$ says that the group $G$ satisfies the gap Diffie-Hellman
-       assumption (GDH). It applies the computational Diffie-Hellman assumption in the subgroup $\vn{subG}$, but allows decisional Diffie-Hellman oracle queries in the whole group $G$. The probability $p(t,n)$ is the probability of breaking
-       the GDH assumption for one pair of exponents in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle. This macro defines
-       the equivalence $\texttt{gdh}(\vn{exp})$, whichs corresponds to the GDH property, for use in the
-       \texttt{crypto} command (see Section~\ref{sec:interact}).
-
-     \item $\texttt{expand\ square\_GDH\_subgroup(}G$, $Z$, $g$, $\vn{exp}$, $\vn{exp}'$, $\vn{expblock}$, $\vn{mult}$, $\vn{subG}$, $\vn{g\_k}$, $\vn{expsub}$, $\vn{expsub}'$, $\vn{pow\_k}$, $p$, $\vn{sqp}\texttt{).}$ 
-       says that the group $G$ satisfies the gap Diffie-Hellman (GDH)
-       assumption and the square gap Diffie-Hellman assumption. It applies the (square) computational Diffie-Hellman assumption in the subgroup $\vn{subG}$, but allows decisional Diffie-Hellman oracle queries in the whole group $G$.
-       The probability $p(t)$ is the probability of breaking the GDH assumption, for
-       one pair of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle and $\vn{sqp}(t)$ is the
-       probability of breaking the square GDH assumption, for one pair
-       of exponents, in time $t$ with at most $n$ 
-       calls to the decisional Diffie-Hellman oracle.  This macro defines the equivalence
-       $\texttt{gdh}(\vn{exp})$, whichs corresponds to the (square)
-       GDH property, for use in the \texttt{crypto} command (see
-       Section~\ref{sec:interact}).
-     \end{itemize}
-     We do not define other properties in this case, because we
-     believe that for simpler examples that require only CDH or DDH,
-     it should be possible to use \texttt{DH\_proba\_collision}
-     together with CDH or DDH, which also applies to this kind of
-     groups.
-
-   \end{itemize}
-\fi  
 \item $\texttt{expand\ Xor(}D, \vn{xor}, \vn{zero}\texttt{).}$ defines the
   function symbol $\vn{xor}$ to be exclusive or on the set of
   bitstrings $D$, where $\vn{zero}$ is the bitstring consisting only

@@ -23,6 +23,8 @@ type Z [large,bounded].
 type G [large,bounded].
 type D [fixed].
 
+expand DH_basic(G, Z, g, exp, exp', mult).
+
 (* This collision assumption is needed to prove an injective
    correspondence, because we use ephemerals to distinguish sessions. *)
 proba PCollKey1.

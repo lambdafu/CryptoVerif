@@ -59,6 +59,8 @@ const U, V: t_id.
 type Z [bounded, large].
 type G [bounded, large].
 
+expand DH_basic(G, Z, g, exp, exp', mult).
+
 proba PCollKey1.
 proba PCollKey2.
 expand DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2).

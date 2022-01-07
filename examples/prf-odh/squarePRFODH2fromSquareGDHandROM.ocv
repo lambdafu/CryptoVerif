@@ -9,13 +9,6 @@ proba pDistRerandom.
 expand DH_basic(G, Z, g, exp, exp', mult).
 expand square_GDH(G, Z, g, exp, exp', mult, pGDH, pSqGDH, pDistRerandom).
 
-
-equation forall x:G, x':G, y:Z; (exp(x,y) = exp(x',y)) = (x = x').
-equation forall x:G, x':G, y:Z; (exp'(x,y) = exp'(x',y)) = (x = x').
-
-equation forall x:G, x':Z, y:Z; (exp(x,y) = exp(g, mult(x',y))) = (x = exp(g,x')).
-equation forall x:G, x':Z, y:Z; (exp'(x,y) = exp'(g, mult(x',y))) = (x = exp'(g,x')).
-
 type hashkey [fixed].
 type T. 
 type T' [bounded,large].
@@ -25,7 +18,10 @@ expand ROM_hash_large(hashkey, T, T', H, hashoracle', qH).
 
 proof {
     auto;
-    
+    out_game "g1.cv" occ;
+    replace 87 "false";
+    replace 38 "false";
+    simplify;
     start_from_other_end;
     auto;
     show_game;
@@ -42,7 +38,7 @@ equivalence
     return();
     ((OA() := return(A)) |
      (foreach i <= N do OPRFDH(x : T) := return(F(hk, exp(g, mult(a,a)), x))) |
-     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := if Y = A then return(bottom) else return(F(hk, exp(Y,a), x))) |
+     (foreach i <= N2 do OPRFDHa(x : T, Y: G) := if exp(Y,a) = exp(g,mult(a,a)) then return(bottom) else return(F(hk, exp(Y,a), x))) |
      run hashoracle(hk))
 
     Ogen() :=
@@ -54,7 +50,7 @@ equivalence
     ((OA() := return(A)) |
      (foreach i <= N do OPRFDH(x : T) := return(H(hk', x))) |
      (foreach i <= N2 do OPRFDHa(x : T, Y: G) :=
-        if Y = A then
+        if exp'(Y,a) = exp'(g,mult(a,a)) then
 	  return(bottom)
 	else
 	  return(F(hk, exp'(Y,a), x))) |

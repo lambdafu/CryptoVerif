@@ -72,6 +72,15 @@ set forgetOldGames = true.
 define(`m4_gamenumber', 0)
 define(`m4_out_game',`define(`m4_gamenumber', incr(m4_gamenumber))out_game "m4_name.m4_gamenumber.out.cv" occ')
 
+(* m4_if_zero(x,y) expands to "if is_zero(x) then y else" when m4_zero_test
+is defined *)
+
+ifdef(`m4_zero_test',`
+define(`m4_if_zero',`if is_zero($1) then $2 else')
+', `
+define(`m4_if_zero',`')
+')
+
 (* Proof indications *)
 
 (* Define variable names *)
@@ -367,8 +376,8 @@ expand DH_X25519(
   exp_div8', (* a symbol that replaces exp_div8 after game transformation *)
   pow8,
   G8_to_G,
-  zero,
-  zero8
+  is_zero,
+  is_zero8
 ).
 
 expand GDH_RSR(
@@ -1155,18 +1164,18 @@ letfun prepare1(
   let H_i2: hashoutput_t = mix_hash_G(key_hash, H_i1, E_i_pub) in
 
   let es_i: G_t = DH(S_X_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
-  if es_i = zero then prepare1fail else
-  ')
+
+  m4_if_zero(es_i, prepare1fail)
+
   let k_i2: key_t = rom1(key_rom1, E_i_pub, es_i) in
 
   let static_i_enc: bitstring = enc_G(S_i_pub, H_i2, k_i2, nonce_0) in
   let H_i3: hashoutput_t = mix_hash_bitstring(key_hash, H_i2, static_i_enc) in
 
   let ss_i: G_t = DH(S_X_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
-  if ss_i = zero then prepare1fail else
-  ')
+
+  m4_if_zero(ss_i, prepare1fail)
+
   let k_i3: key_t = rom2(key_rom2, E_i_pub, es_i, ss_i) in
 
   let timestamp_i_enc: bitstring = enc_timestamp(timestamp_i, H_i3, k_i3, nonce_0) in
@@ -1194,9 +1203,9 @@ letfun process1(
     let H_r2: hashoutput_t = mix_hash_G(key_hash, H_r1, E_i_pub_rcvd) in
 
     let es_r: G_t = DH(E_i_pub_rcvd, S_r_priv) in
-    ifdef(`m4_zero_test',`
-    if es_r = zero then process1fail else
-    ')
+
+    m4_if_zero(es_r, process1fail)
+
     let k_r2: key_t = rom1(key_rom1, E_i_pub_rcvd, es_r) in
 
     let injbot(G_to_bitstring(S_i_pub_rcvd: G_t)) = dec_ad_hash(static_i_enc_rcvd, H_r2, k_r2, nonce_0) in
@@ -1206,9 +1215,9 @@ letfun process1(
         let H_r3: hashoutput_t = mix_hash_bitstring(key_hash, H_r2, static_i_enc_rcvd) in
 
         let ss_r: G_t = DH(S_i_pub_rcvd, S_r_priv) in
-        ifdef(`m4_zero_test',`
-        if ss_r = zero then process1fail else
-        ')
+
+        m4_if_zero(ss_r, process1fail)
+
         let k_r3: key_t = rom2(key_rom2, E_i_pub_rcvd, es_r, ss_r) in
 
         let injbot(timestamp_to_bitstring(timestamp_i_rcvd: timestamp_t)) = dec_ad_hash(timestamp_i_enc_rcvd, H_r3, k_r3, nonce_0) in
@@ -1241,13 +1250,12 @@ letfun prepare2(
   let E_r_pub: G_t = exp(g, E_r_priv) in
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if ee_r = zero then prepare2fail else
-  ')
+
+  m4_if_zero(ee_r, prepare2fail)
+
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if se_r = zero then prepare2fail else
-  ')
+
+  m4_if_zero(se_r, prepare2fail)
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub) in
 
@@ -1273,13 +1281,12 @@ letfun process2(
           H_i4: hashoutput_t,
           es_i: G_t, ss_i: G_t, Q: psk_t) =
   let ee_i: G_t = DH(E_r_pub_rcvd, E_i_priv) in
-  ifdef(`m4_zero_test',`
-  if ee_i = zero then process2fail else
-  ')
+
+  m4_if_zero(ee_i, process2fail)
+
   let se_i: G_t = DH(E_r_pub_rcvd, S_i_priv) in
-  ifdef(`m4_zero_test',`
-  if se_i = zero then process2fail else
-  ')
+
+  m4_if_zero(se_i, process2fail)
 
   let H_i5: hashoutput_t = mix_hash_G(key_hash, H_i4, E_r_pub_rcvd) in
 
@@ -1479,13 +1486,12 @@ letfun prepare2_sw(
   let E_r_pub_sw: G_t = exp(g, E_r_priv) in
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if ee_r = zero then prepare2fail else
-  ')
+
+  m4_if_zero(ee_r, prepare2fail)
+
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  ifdef(`m4_zero_test',`
-  if se_r = zero then prepare2fail else
-  ')
+
+  m4_if_zero(se_r, prepare2fail)
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub_sw) in
 

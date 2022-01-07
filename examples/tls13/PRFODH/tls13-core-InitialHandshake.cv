@@ -34,6 +34,7 @@ set casesInCorresp = false.
 
 proof {
       crypto uf_cma_corrupt(sign) kseedS;
+      crypto exclude_weak_keys(Z) **;
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
@@ -44,11 +45,8 @@ proof {
       (* In the client, after "let sil_??? = ..." and before "let s_??? = exp(cgy, x_???)"
       	 gy_2 is the first variable obtained by renaming gy_1 in the server *)
       insert after_nth 1 "let sil_" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
-      crypto rom(HKDF_extract_ES);
-      remove_assign binder s_1;
-      remove_assign binder s_2;
       simplify;
-      crypto gdh(exp) [variables: x_2 -> a, y_5 -> b .];
+      crypto prf_odh(HKDF_extract_ES) [variables: x_6 -> a, x_8 -> b .];
       crypto prf2 *;
       crypto splitter(split2) *;
       crypto prf_fin_key_iv *;
@@ -71,21 +69,27 @@ type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
-(* Gap Diffie-Hellman assumption. Moreover, 
+(* PRF-ODH assumption. Moreover, 
    the probability that exp(g, x) = Y for random x and Y independent of x 
    is at most PCollKey1, and
    the probability that exp(g, mult(x,y)) = Y where x and y are independent 
-   random private keys and Y is independent of x or y is at most PCollKey2. *)
+   random private keys and Y is independent of x or y is at most PCollKey2.
+   We exclude weak secret keys for Curve448. (PWeakKey = 2^-445 for Curve448,
+   0 for Curve25519 and prime order groups.) *)
 
-expand DH_basic(elt, Z, G, exp, exp', mult).
+type Znw [large, bounded, nonuniform].
+
+expand DH_basic(elt, Znw, G, expnw, expnw', mult).
+
+proba PWeakKey.
+expand DH_exclude_weak_keys(elt, Z, Znw, ZnwtoZ, exp, expnw, PWeakKey).
 
 proba PCollKey1.
 proba PCollKey2.
-expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(elt, Znw, G, expnw, expnw', mult, PCollKey1, PCollKey2).
 
-proba pGDH.
-proba pDistRerandom.
-expand GDH_RSR(elt, Z, G, exp, exp', mult, pGDH, pDistRerandom).
+proba pPRF_ODH.
+expand PRF_ODH2(elt, Znw, extracted, extracted, G, expnw, expnw', mult, HKDF_extract_ES, pPRF_ODH).
 
 letfun dh_keygen() =
    new x:Z;
@@ -93,24 +97,7 @@ letfun dh_keygen() =
 
 param N, N', N2, N3, N4.
 
-(* HKDF_extract_zero_salt, that is, HKDF_extract with salt argument 
-   0, is a random oracle.
-   This oracle is not used in the initial handshake, but
-   used in the PSK handshakes. Adding it to the initial handshake
-   simplifies the composition results. *)
-
-type hashkey [large,fixed].
-
-fun HKDF_extract_zero_salt(hashkey, key): extracted.
-
-param qH1 [noninteractive].
-channel ch1, ch2, ch3, ch4.
-let hashoracle1(hk1: hashkey) = ! qH1 in(ch3, x:key); out(ch4, HKDF_extract_zero_salt(hk1,x)). 
-
-(* HKDF_extract_ES, that is, HKDF_extract with salt argument 
-   Early_secret = HKDF_extract(0,0), is a random oracle. *)
-
-expand ROM_hash_large(hashkey, elt, extracted, HKDF_extract_ES, hashoracle, qH).
+const zero: extracted.
 
 (* We use the lemma proved in KeySchedule2.cv *)
 
@@ -330,10 +317,10 @@ const keys_fail: keys_res_t.
 equation forall x1: extracted, x2: key, x3: key, x4: key, x5: key, x6: key, x7: key;
 	 keys_succ(x1,x2,x3,x4,x5,x6,x7) <> keys_fail.
 	 
-letfun recv_server_hello(hk: hashkey, sil:bitstring, x:Z) = 
+letfun recv_server_hello(ES: extracted, sil:bitstring, x:Z) = 
   let ServerHelloLogInfo(cr,gx,sr,gy,l) = sil in
   (let s = exp(gy,x) in
-   let handshakeSecret = HKDF_extract_ES(hk,s) in
+   let handshakeSecret = HKDF_extract_ES(s, ES) in
    let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
    (
      let client_hk = HKDF_expand_key_label(client_hts) in
@@ -379,12 +366,12 @@ letfun get_resumption_secret(masterSecret: extracted, cfl: bitstring) =
 type recv_client_hello_res_t.
 fun recv_client_hello_succ(nonce, elt, extracted): recv_client_hello_res_t [data].
 
-letfun recv_client_hello(hk: hashkey, cr:nonce, gx:elt) = 
+letfun recv_client_hello(ES: extracted, cr:nonce, gx:elt) = 
    new sr:nonce;
    new y: Z;
    let gy = exp(G,y) in
    let s = exp(gx,y) in
-   let handshakeSecret = HKDF_extract_ES(hk,s) in   
+   let handshakeSecret = HKDF_extract_ES(s, ES) in   
    recv_client_hello_succ(sr,gy,handshakeSecret).
 
 letfun onertt_hs_keys(sil:bitstring,handshakeSecret:extracted) = 
@@ -443,7 +430,7 @@ letfun check_client_finished_client_auth(masterSecret: extracted, sfl:bitstring,
       check_client_finished_fail.
 
 
-let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) = 
+let Client(ES: extracted, skC: skey, pkC: certificate, pkS: certificate) = 
 !i1 <= N1
     in(io1,());
     let send_client_hello_succ(cr:nonce,x:Z,cgx:elt) = send_client_hello() in
@@ -451,7 +438,7 @@ let Client(hk:hashkey, skC: skey, pkC: certificate, pkS: certificate) =
     out(io2,ClientHello(cr,cgx));
     in(io3,ServerHelloIn(sr,cgy,log0));
     let sil = ServerHelloLogInfo(cr,cgx,sr,cgy,log0) in
-    let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(hk,sil,x) in
+    let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = recv_server_hello(ES,sil,x) in
     out(io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(io5,(ServerFinishedIn(certS,scv,m,log1), ClientAuth: bool, log2: bitstring)); 
     let recv_server_finished_succ(tuple3keys(cats, c_sats : key, ems)) =
@@ -658,10 +645,10 @@ let ServerAfter05RTT2(pkC: certificate, masterSecret: extracted, sfl: bitstring,
 	     with no security claim, by eliminating private communications *)
 	  out(io28', (s_resumption_secret, s_cats, sats, s_ems)).
 
-let Server(hk: hashkey, skS: skey, pkS: certificate, pkC: certificate) = 
+let Server(ES: extracted, skS: skey, pkS: certificate, pkC: certificate) = 
  !i6 <= N6
    in(io20,ClientHello(cr,sgx));
-   let recv_client_hello_succ(sr:nonce,sgy:elt,handshakeSecret:extracted) = recv_client_hello(hk,cr,sgx) in
+   let recv_client_hello_succ(sr:nonce,sgy:elt,handshakeSecret:extracted) = recv_client_hello(ES,cr,sgx) in
    out(io21,ServerHelloOut(sr,sgy));
    in(io22,log0:bitstring);
    let sil = ServerHelloLogInfo(cr,sgx,sr,sgy,log0) in
@@ -708,22 +695,17 @@ let corruptC(skC: skey) =
   out(cCorruptC2, skC).
 
 process 
-  in(ch1, ());
-  new hk1: hashkey; (* Key that models the choice of the random oracle HKDF_extract_zero_salt *)
-  out(ch2, ());
-  (
-  (in(io33,());
-  new hk: hashkey; (* Key that models the choice of the random oracle HKDF_extract_ES *)
+  in(io33,());
   new kseedS:keyseed;
   let skS = skgen(kseedS) in
   let pkS = pkcert(kseedS) in
   new kseedC:keyseed;
   let skC = skgen(kseedC) in
   let pkC = pkcert(kseedC) in
+  let ES = HKDF_extract_zero(zero) in
   out(io34,(pkS, pkC));
-  (Client(hk, skC, pkC, pkS)  | Server(hk, skS, pkS, pkC) | corruptS(skS) | corruptC(skC) | hashoracle(hk)))
-  |
-  hashoracle1(hk1))
+  (Client(ES, skC, pkC, pkS)  | Server(ES, skS, pkS, pkC) | corruptS(skS) | corruptC(skC))
+
 
 (* EXPECTED
 All queries proved.

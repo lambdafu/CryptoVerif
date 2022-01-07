@@ -619,21 +619,39 @@ def DH_basic(G, Z, g, exp, exp', mult) {
 expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, badKey).
 }
 
-def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
+def DH_basic_with_is_neutral(G, Z, g, exp, exp', mult, is_neutral) {
 expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, badKey).
+
+fun is_neutral(G):bool
+reduc is_neutral(badKey) = true otherwise
+      forall X: G; is_neutral(X) = false.
 }
 
-def square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2, PCollKey3) {
-expand PV_internal_DH_with_bad_key(G, Z, g, exp, exp', mult, badKey).
+
+def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {}
+def square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2, PCollKey3) {}
+def DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist) {}
+
+def DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key) {
+(* Works correctly only when types are ignored *)
+fun ZnwtoZ(Znw): Z [typeConverter].
+fun exp(G, Z): G.  
+equation forall X:G, y:Znw;
+   exp(X,ZnwtoZ(y)) = expnw(X,y).
 }
 
-def DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist) {
-}
-
-(* The next three definitions define far fewer symbols than what they have as arguments.
+(* The next 4 definitions define far fewer symbols than what they have as arguments.
    They should still be sufficient for most protocols. *)
 
-def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
+def DH_subgroup(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG) {
+expand DH_basic(G, Z, g, exp, exp', mult).
+}
+
+def DH_subgroup_with_is_neutral(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_neutral_G, is_neutral_subG) {
+expand DH_basic(G, Z, g, exp, exp', mult, is_neutral_G).
+}
+
+def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
 (* We represent curve elements as elem(low_t, subG), where 
    low_t represents the low-order part and subG the high-order part.
    This is freely inspired by the model used in Tamarin.
@@ -650,7 +668,6 @@ const sub_zero: subG.
 fun elem(low_t,subG):G.
 
 letfun g = elem(id_low,g_high).
-letfun zero = elem(id_low,sub_zero).
 letfun subGtoG(x: subG) = elem(id_low, x).
 
 reduc forall x: low_t, y: subG, x': low_t; changelow(elem(x,y),x') = elem(x',y).
@@ -667,14 +684,21 @@ otherwise forall x: low_t, y: subG; pow_k(elem(x,y)) = exp_high(y,k).
 
 letfun g_k = exp_high(g_high,k).
 
+fun is_zero_subG(subG):bool
+reduc is_zero_subG(sub_zero) = true otherwise
+      forall X: subG; is_zero_subG(X) = false.
+
+fun is_zero_G(G):bool
+reduc is_zero_G(elem(id_low,sub_zero)) = true otherwise
+      forall X: G; is_zero_G(X) = false.
 }
 
-def DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
-expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+def DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
+expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG).
 }
 
-def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
-expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
+expand DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG).
 }
 
 (* The DH assumptions say nothing *)

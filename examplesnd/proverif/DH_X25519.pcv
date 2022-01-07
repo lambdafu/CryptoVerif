@@ -33,7 +33,7 @@ type D [large, fixed].
 
 (* Let's use curve 25519 *)
 type subG [large,bounded].
-expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero, is_zero_subG_t).
 
 (* CDH assumption *)
 proba pCDH.

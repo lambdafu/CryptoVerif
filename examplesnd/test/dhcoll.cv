@@ -1,6 +1,7 @@
 type G [large,bounded].
 type Z [large, bounded].
 
+expand DH_basic(G, Z, g, exp, exp', mult).
 
 proba PCollKey1.
 proba PCollKey2.

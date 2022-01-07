@@ -40,20 +40,16 @@ insert before_nth 2 "ServerAcceptDHE" "find j4 <= N2 suchthat defined(gx_1[j4]) 
 insert_event server_break_auth before_nth 3 "ServerAcceptDHE";
 simplify; (* expand the inserted c_sfl = s_sfl_dhe[j3] to make comparisons 
              between exponentials appear. Must be done early to take
-	     fully advantage of GDH. *)
+	     fully advantage of PRF-ODH. *)
 (* First, prove that client_break_auth and server_break_auth never happen.
    That shows a form of authentication. *)
 focus "query event(client_break_auth)", "query event(server_break_auth)";
 (* Since these events never happen when the PSK is corrupted, we can remove
    the corruption of the PSK. This is what "success simplify" does. *)
 success simplify;
-(* Then the proof is fairly similar to the one for PSKDHE without corruption
-   (We use random oracles instead of PRFs because we need HKDF_extract_DHE
-   to be a random oracle to apply GDH in the other proof.) *)
-crypto rom(HKDF_extract_zero_salt);
-crypto rom(Derive_Secret_psk_binder_key);
-crypto rom(HKDF_extract_DHE);
-crypto rom(Derive_Secret_cets_eems);
+(* Then the proof is fairly similar to the one for PSKDHE without corruption *)
+crypto prf(HKDF_extract_zero_salt);
+crypto prf1;
 crypto suf_cma(mac) *;
 crypto prf2 *;
 crypto splitter(split2) *;
@@ -64,19 +60,17 @@ success; (* All active queries proved. Going back to the last focus command. *)
 (* At this point, I have proved that client_break_auth and server_break_auth never happen.
    I now prove the queries mentioned in the input file. I can consider that the
    PSK is corrupted for this proof. The proof is then fairly similar to the proof
-   of the initial handshake. (It relies on GDH.) *) 
+   of the initial handshake. (It relies on PRF-ODH.) *) 
+crypto exclude_weak_keys(Z) **;
 out_game "g1.out";
 insert after "new sr_" "find j' <= N2 suchthat defined(gx_1[j']) && sgx = gx_1[j'] then";
 (* gy_1 is the value of gy in the server *)
 SArename gy_1;
 out_game "g2.out";
 insert after_nth 1 "let sil_" "find j'' <= N7 suchthat defined(gy_2[j''], sgx[j'']) && gx_1 = sgx[j''] && cgy = gy_2[j''] then";
-crypto rom(HKDF_extract_DHE);
-remove_assign binder s;
-remove_assign binder s_1;
 simplify;
 out_game "g3.out";
-crypto gdh(exp) [variables: x_3 -> a, y_13 -> b .];
+crypto prf_odh(HKDF_extract_DHE) [variables: x_33 -> a, x_35 -> b .];
 crypto prf2 *;
 crypto splitter(split2) *;
 crypto prf_fin_key_iv *;
@@ -96,21 +90,27 @@ type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
-(* Gap Diffie-Hellman assumption. Moreover, 
+(* PRF-ODH assumption. Moreover, 
    the probability that exp(g, x) = Y for random x and Y independent of x 
    is at most PCollKey1, and
    the probability that exp(g, mult(x,y)) = Y where x and y are independent 
-   random private keys and Y is independent of x or y is at most PCollKey2. *)
+   random private keys and Y is independent of x or y is at most PCollKey2.
+   We exclude weak secret keys for Curve448. (PWeakKey = 2^-445 for Curve448,
+   0 for Curve25519 and prime order groups.) *)
 
-expand DH_basic(elt, Z, G, exp, exp', mult).
+type Znw [large, bounded, nonuniform].
+
+expand DH_basic(elt, Znw, G, expnw, expnw', mult).
+
+proba PWeakKey.
+expand DH_exclude_weak_keys(elt, Z, Znw, ZnwtoZ, exp, expnw, PWeakKey).
 
 proba PCollKey1.
 proba PCollKey2.
-expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).
+expand DH_proba_collision(elt, Znw, G, expnw, expnw', mult, PCollKey1, PCollKey2).
 
-proba pGDH.
-proba pDistRerandom.
-expand GDH_RSR(elt, Z, G, exp, exp', mult, pGDH, pDistRerandom).
+proba pPRF_ODH.
+expand PRF_ODH2(elt, Znw, extracted, extracted, G, expnw, expnw', mult, HKDF_extract_DHE, pPRF_ODH).
 
 letfun dh_keygen() =
    new x:Z;
@@ -118,32 +118,36 @@ letfun dh_keygen() =
 
 param N, N', N'', N2, N3, N4.
 
+(* HKDF_extract_zero_salt(psk,zero) = HKDF_extract(0,psk), that is, HKDF_extract with salt argument 
+   0, is a prf. *)
+proba Pprf0.
+const zero: extracted.
+expand PRF(key, extracted, extracted, HKDF_extract_zero_salt, Pprf0).
 
-type hashkey [large,fixed].
+(* We use the lemma proved in KeySchedule1.cv 
+   We swap the arguments of HKDF_extract_DHE to be able to use the PRF_ODH2 macro *)
+
 type two_keys [large,fixed].
+fun Derive_Secret_cets_eems(extracted, bitstring): two_keys.
+fun Derive_Secret_psk_binder_key(extracted): key.
+fun HKDF_extract_zero1(extracted): extracted.
 
-(* HKDF_extract_zero_salt(psk) = HKDF_extract(0,psk), that is, HKDF_extract with salt argument 
-   0, is a random oracle. *)
-expand ROM_hash_large(hashkey, key, extracted, HKDF_extract_zero_salt, hashoracle, qH).
+proba Pprf1.
 
-(* HKDF_extract_DHE(EarlySecret,dh_elt) is a random oracle *)
-expand ROM_hash_large_2(hashkey, extracted, elt, extracted, HKDF_extract_DHE, hashoracle3, qH3).
-
-(* Derive_Secret_psk_binder_key(EarlySecret) = Derive_secret(EarlySecret, "psk_binder_key", empty_log)
-   is a random oracle *)
-expand ROM_hash_large(hashkey, extracted, key, Derive_Secret_psk_binder_key, hashoracle4, qH4).
-
-(* Derive_Secret_cets_eems(EarlySecret, log) = 
-       concat(Derive_secret(EarlySecret, "client_ets", log),
-              Derive_secret(EarlySecret, "eems", log)) is a random oracle *)
-expand ROM_hash_large_2(hashkey, extracted, bitstring, two_keys, Derive_Secret_cets_eems, hashoracle5, qH5).
-
-(* These oracles can be considered as independent random oracles, and 
-   independent from other PRFs that we use below, having distinct domains: 
-   The calls to DeriveSecret use different tags, and use a domain of HMAC 
-   different from the calls to HKDF_extract (different length).
-   The EarlySecret has a negligible probablity of being 0, we can exclude this value. 
-   The dh_elt is supposed to be different from 0. Can be achieved by excluding the 0 value for Curve25519. *)
+equiv(prf1)
+       !N3 new k: extracted; (!N O1(log:bitstring) := return(Derive_Secret_cets_eems(k, log)) |
+		              O2() := return(Derive_Secret_psk_binder_key(k)) |
+			      !N'' O3(DHE: elt) := return(HKDF_extract_DHE(DHE, k)) |
+			      O4() := return(HKDF_extract_zero1(k)))
+     <=(N3 * Pprf1(time + (N3-1)*(time(Derive_Secret_psk_binder_key) + N * time(Derive_Secret_cets_eems, maxlength(log)) + N'' * time(HKDF_extract_DHE) + time(HKDF_extract_zero1)), N, N''))=>
+       !N3 (!N O1(log:bitstring) :=
+	        find[unique] j<=N suchthat defined(log[j],r[j]) && log = log[j] then return(r[j])
+		else new r: two_keys; return(r) |
+	    O2() := new r': key; return(r') |
+	    !N'' O3(DHE: elt) :=
+	        find[unique] j''<=N'' suchthat defined(DHE[j''],r''[j'']) && DHE = DHE[j''] then return(r''[j''])
+		else new r'': extracted; return(r'') |
+      	    O4() := new r''': extracted; return(r''')).
 
 (* We use the lemma proved in KeySchedule2.cv *)
 
@@ -348,11 +352,11 @@ letfun send_client_hello1() =
 type send_client_hello2_res_t.
 fun send_client_hello2_succ(nonce, bitstring, bitstring, tuple2keys_t): send_client_hello2_res_t [data].
 
-letfun send_client_hello2(hk5: hashkey, earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
+letfun send_client_hello2(earlySecret: extracted, binder_key: key, cr: nonce, log1: bitstring, log1': bitstring) =
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
    let binder = mac(chbl, binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    send_client_hello2_succ(cr, binder, chl, split2(cets_eems)).
 
 type keys_res_t.
@@ -406,12 +410,12 @@ const recv_client_hello_fail: recv_client_hello_res_t.
 equation forall x1: nonce, x2: bitstring, x3: tuple2keys_t;
 	 recv_client_hello_succ(x1, x2, x3) <> recv_client_hello_fail.
 
-letfun recv_client_hello(hk5: hashkey, earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
+letfun recv_client_hello(earlySecret: extracted, binder_key: key, cr:nonce, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfo(cr,log1) in
    if mac(chbl, binder_key) = binder then
    (
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    new sr:nonce;
    recv_client_hello_succ(sr,chl,split2(cets_eems))
    )
@@ -468,17 +472,17 @@ letfun send_client_hello1DHE() =
 type send_client_hello2DHE_res_t.
 fun send_client_hello2DHE_succ(nonce, Z, elt, bitstring, bitstring, tuple2keys_t): send_client_hello2DHE_res_t [data].
 
-letfun send_client_hello2DHE(hk5: hashkey, earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
+letfun send_client_hello2DHE(earlySecret: extracted, binder_key: key, cr: nonce, x:Z, gx: elt, log1: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    let binder = mac(chbl,binder_key) in
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    send_client_hello2DHE_succ(cr,x,gx, binder, chl, split2(cets_eems)).
 
-letfun recv_server_helloDHE(hk: hashkey, earlySecret: extracted, sil:bitstring, x:Z) = 
+letfun recv_server_helloDHE(earlySecret: extracted, sil:bitstring, x:Z) = 
   let ServerHelloLogInfoDHE(chl,sr,gy,l2) = sil in
   (let s = exp(gy,x) in
-   let handshakeSecret = HKDF_extract_DHE(hk, earlySecret, s) in
+   let handshakeSecret = HKDF_extract_DHE(s, earlySecret) in
    let tuple2keys(client_hts, server_hts) = split2(Derive_Secret_cs_hts(handshakeSecret,sil)) in
    (
     let client_hk = HKDF_expand_key_label(client_hts) in
@@ -500,17 +504,17 @@ const recv_client_helloDHE_fail: recv_client_helloDHE_res_t.
 equation forall x1: nonce, x2: elt, x3: extracted, x4: bitstring, x5: tuple2keys_t;
 	 recv_client_helloDHE_succ(x1, x2, x3, x4, x5) <> recv_client_helloDHE_fail.
 
-letfun recv_client_helloDHE(hk: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
+letfun recv_client_helloDHE(earlySecret: extracted, binder_key: key, cr:nonce, gx:elt, log1: bitstring, binder: bitstring, log1': bitstring) = 
    let chbl = ClientHelloBinderLogInfoDHE(cr,gx,log1) in
    if mac(chbl, binder_key) = binder then
    (
    let chl = ClientHelloLogInfo(chbl, binder, log1') in
-   let cets_eems = Derive_Secret_cets_eems(hk5, earlySecret, chl) in
+   let cets_eems = Derive_Secret_cets_eems(earlySecret, chl) in
    new sr:nonce;
    new y: Z;
    let gy = exp(G,y) in
    let s = exp(gx,y) in
-   let handshakeSecret = HKDF_extract_DHE(hk,earlySecret,s) in   
+   let handshakeSecret = HKDF_extract_DHE(s,earlySecret) in   
    recv_client_helloDHE_succ(sr,gy,handshakeSecret,chl,split2(cets_eems))
    )
    else
@@ -518,7 +522,7 @@ letfun recv_client_helloDHE(hk: hashkey, hk5: hashkey, earlySecret: extracted, b
 
 (* PSKDHE *)
 
-let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key) = 
+let ClientDHE(earlySecret: extracted, binder_key: key) = 
 !i2 <= N2
     in(dhe_io1,cdhe_log1: bitstring);
     let send_client_hello1DHE_succ(cr: nonce,  x: Z, cgx: elt) = send_client_hello1DHE() in
@@ -527,7 +531,7 @@ let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
        other PSKs (in cdhe_log1') and add them to the ClientHello message *) 
     in(dhe_io2', cdhe_log1': bitstring);
     let send_client_hello2DHE_succ(cdhe_cr:nonce,x:Z,cgx':elt, cdhe_binder: bitstring, chl: bitstring, cets_eems: tuple2keys_t) = 
-       send_client_hello2DHE(hk5, earlySecret, binder_key, cr, x, cgx, cdhe_log1, cdhe_log1') in
+       send_client_hello2DHE(earlySecret, binder_key, cr, x, cgx, cdhe_log1, cdhe_log1') in
     let tuple2keys(cdhe_cets: key, cdhe_eems: key) = cets_eems in
     event ClientEarlyAcceptDHE(cdhe_cr, cgx', cdhe_log1, cdhe_binder);
     (* We drop 0-RTT since we can prove nothing more for it (no forward secrecy) *)
@@ -535,7 +539,7 @@ let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
     in(dhe_io3,ServerHelloInDHE(sr,cgy,log2));
     let sil = ServerHelloLogInfoDHE(chl,sr,cgy,log2) in
     let keys_succ(masterSecret:extracted,client_hk:key,server_hk:key,client_hiv:key,server_hiv:key,cfk:key,sfk:key) = 
-       recv_server_helloDHE(hk3,earlySecret,sil,x) in
+       recv_server_helloDHE(earlySecret,sil,x) in
     out(dhe_io4,(client_hk, server_hk, client_hiv, server_hiv));
     in(dhe_io5,(ServerFinishedIn(log3,m), ClientAuth: bool, log4: bitstring)); 
     let recv_server_finished_succ(tuple3keys(cats, sats, ems)) =
@@ -585,11 +589,11 @@ let ClientDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: ke
 	   with no security claim, by eliminating private communications *)
        out(dhe_io7, (ClientFinishedOut(cfin), (resumption_secret, cats, sats, ems))).
 
-let ServerDHE(hk3: hashkey, hk5: hashkey, earlySecret: extracted, binder_key: key) = 
+let ServerDHE(earlySecret: extracted, binder_key: key) = 
  !i7 <= N7
    in(dhe_io9,ClientHelloInDHE(sdhe_cr: nonce, sgx: elt, sdhe_log1: bitstring, sdhe_binder: bitstring, sdhe_log1': bitstring));
    let recv_client_helloDHE_succ(sr:nonce,sgy:elt,handshakeSecret:extracted, chl: bitstring, cets_eems: tuple2keys_t) = 
-      recv_client_helloDHE(hk3,hk5,earlySecret,binder_key,sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1') in
+      recv_client_helloDHE(earlySecret,binder_key,sdhe_cr,sgx,sdhe_log1,sdhe_binder,sdhe_log1') in
    event ServerEarlyTermDHE(sdhe_cr,sgx,sdhe_log1,sdhe_binder);
    let tuple2keys(sdhe_cets: key, sdhe_eems: key) = cets_eems in
    out(dhe_io10,ServerHelloOutDHE(sr,sgy));
@@ -666,38 +670,22 @@ let corruptPSK(psk: key) =
 (* For a first step, we consider only the version with DHE *)
 
 process 
-  in(io20,());
-  new hk: hashkey; (* Key that models the choice of the random oracle HKDF_extract_zero_salt *)
-  new hk3: hashkey; (* Key that models the choice of the random oracle HKDF_extract_DHE *)
-  new hk4: hashkey; (* Key that models the choice of the random oracle Derive_Secret_psk_binder_key *)
-  new hk5: hashkey; (* Key that models the choice of the random oracle Derive_Secret_cets_eems *)
+  in(io22,());
   new psk: key;
-  let earlySecret = HKDF_extract_zero_salt(hk, psk) in
-  let binder_key = Derive_Secret_psk_binder_key(hk4, earlySecret) in
+  let earlySecret = HKDF_extract_zero_salt(psk, zero) in
+  let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
       (* handshake secret for the PSK variant without DHE *)
-  out(io21,());
-  ((in(io22, ()); out(io23, ()); 
-      ((in(io24, ()); out(io25, ()); ClientDHE(hk3, hk5, earlySecret, binder_key)) | 
-       (in(io26, ()); out(io27, ()); ServerDHE(hk3, hk5, earlySecret, binder_key)) |
-       corruptPSK(psk))) | 
-   hashoracle(hk) |
-   hashoracle3(hk3) |
-   hashoracle4(hk4) |
-   hashoracle5(hk5))
+  out(io23,());
+  ((in(io24, ()); out(io25, ()); ClientDHE(earlySecret, binder_key)) | 
+   (in(io26, ()); out(io27, ()); ServerDHE(earlySecret, binder_key)) |
+   corruptPSK(psk))
 
 
 (* 
 
 This code is equivalent to:
 
-  in(io20,());
-  new hk: hashkey; 
-  new hk2: hashkey; 
-  new hk3: hashkey; 
-  new hk4: hashkey; 
-  new hk5: hashkey; 
-  out(io21,());
-  ((in(io22, ()); new psk: key; out(io23, ()); 
+  in(io22, ()); new psk: key; out(io23, ()); 
       ((in(io24, ()); 
         let earlySecret = HKDF_extract_zero_salt(hk, psk) in
         let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
@@ -705,12 +693,8 @@ This code is equivalent to:
        (in(io26, ()); 
         let earlySecret = HKDF_extract_zero_salt(hk, psk) in
         let binder_key = Derive_Secret_psk_binder_key(earlySecret) in
-        out(io27, ()); ServerDHE))) | 
-   hashoracle(hk) |
-   hashoracle2(hk2) |
-   hashoracle3(hk3) |
-   hashoracle4(hk4) |
-   hashoracle5(hk5))
+        out(io27, ()); ServerDHE) | 
+       corruptPSK(psk))
 
 The version above is easier to verify for CryptoVerif,
 because  

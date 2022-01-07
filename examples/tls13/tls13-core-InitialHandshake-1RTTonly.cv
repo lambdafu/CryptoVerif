@@ -72,6 +72,8 @@ fun elt2bitstring(elt): bitstring [data].
    the probability that exp(g, mult(x,y)) = Y where x and y are independent 
    random private keys and Y is independent of x or y is at most PCollKey2. *)
 
+expand DH_basic(elt, Z, G, exp, exp', mult).
+
 proba PCollKey1.
 proba PCollKey2.
 expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).

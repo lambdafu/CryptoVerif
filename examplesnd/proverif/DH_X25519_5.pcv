@@ -3,7 +3,7 @@ type G [large,bounded].
 type subG [large,bounded].
 
 (* Let's use curve 25519 *)
-expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero).
+expand DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero, is_zero_subG_t).
 
 channel c.
 
@@ -11,7 +11,7 @@ event bad.
 query event(bad) ==> false.
 
 process
-	in(c, X: G); new y: Z; new z: Z; if pow_k(X) <> sub_zero && exp(X,y) = exp(X,z) then event bad
+	in(c, X: G); new y: Z; new z: Z; if not(is_zero_subG_t(pow_k(X))) && exp(X,y) = exp(X,z) then event bad
 
 (* EXPECTED
 All queries proved.

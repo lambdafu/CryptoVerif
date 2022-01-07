@@ -157,8 +157,8 @@ expand DH_X25519(
   exp_div8',
   pow8,
   G8_to_G,
-  zero,
-  zero8
+  is_zero,
+  is_zero8
 ).
 
 proba P_GDH.
@@ -198,8 +198,8 @@ expand DH_X448(
   exp_div8',
   pow8,
   G8_to_G,
-  zero,
-  zero8
+  is_zero,
+  is_zero8
 ).
 
 proba P_GDH.

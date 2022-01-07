@@ -2615,7 +2615,7 @@ expand SUF_CMA_proba_signature_all_args(keyseed, pkey, skey, signinput, signatur
    exp': symbol that replaces exp after game transformation
    mult: the multiplication function for exponents
 
-   The types G and Z must be declared before
+   The types G and Z must be declared before expanding
    this macro.  The functions g, exp, exp', and mult are defined by this
    macro. They must not be declared elsewhere, and they can be used
    only after expanding the macro.
@@ -2639,6 +2639,217 @@ equation forall a:G, x:Z, y:Z;
 
 }
 
+(* DH_basic_with_is_neutral(G, Z, g, exp, exp', mult, is_neutral)
+defines a Diffie-Hellman structure like 
+DH_basic(G, Z, g, exp, exp', mult)
+with additionally
+* for X in G, is_neutral(X^y) if and only if is_neutral(X);
+* not(is_neutral(g)).
+
+is_neutral(G):bool is defined by this macro. It must not be
+declared elsewhere, and can be used only after expanding the
+macro.
+
+Prime-order groups with the neutral element included satisfy
+this assumption, for instance.
+*)
+
+def DH_basic_with_is_neutral(G, Z, g, exp, exp', mult, is_neutral) {
+
+expand DH_basic(G, Z, g, exp, exp', mult).
+
+fun is_neutral(G):bool.
+
+equation is_neutral(g) = false.
+
+equation forall x:G, y:Z; is_neutral(exp(x,y)) = is_neutral(x).
+equation forall x:G, y:Z; is_neutral(exp'(x,y)) = is_neutral(x).
+
+}
+
+(* 
+DH_subgroup(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG) 
+defines a Diffie-Hellman structure that satisfies the following properties:
+
+Z is a set of integers multiple of k, prime to n (possibly modulo kn).
+k is prime to n.
+
+G is a set of elements
+g is an element of G
+
+There is an exponentiation function ^: for X in G, y integer, we have X^y in G.
+with the following properties:
+* (X^x)^y = X^(xy)
+* for X in subG, for any x prime to n, X^x = X'^x => X = X'
+* ^ yields the same results for exponents equal modulo kn.
+
+mult(Z,Z):Z is the product of integers.
+
+subG = { X^k | X \in G } is a subset of G.
+
+g_k = g^k \in subG
+
+exp(G,Z):G  exp(X,y) = X^y 
+exp_div_k(subG,Z):subG  exp_div_k(X,y) = X^{y/k}
+exp_div_k' is defined like exp_div_k; it replaces exp_div_k after games transformations.
+
+pow_k(G):subG  pow_k(X) = X^k
+
+subGtoG(subG):G is the injection from subG to G
+
+The types G, Z, and subG must be declared before expanding this macro.
+The constants g and g_k, and the functions exp, mult, exp_div_k,
+exp_div_k', pow_k, subGtoG are defined by this macro. They must not be
+declared elsewhere, and they can be used only after expanding the
+macro.
+
+Curve25519 satisfies these properties with k = 8, n = pp' where the curve has order
+kp and the quadratic twist has order k'p' (k' = 4). See
+  https://hal.inria.fr/hal-02100345
+
+Curve448 does not satisfy these properties because kp may be chosen as a private key 
+and it is not prime to n = pp' where the curve has order kp and the quadratic twist 
+has order k'p' (k = k' = 4) (weak private key). In order to use DH_subgroup, one should 
+exclude the weak private key using DH_exclude_weak_keys as follows:
+  expand DH_subgroup(G, Znw, g, expnw, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG).
+  letproba Pweak_key = 2^-445.
+  expand DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key).
+
+Groups of prime order p also satisfy these properties, with k = 1, n = p, subG = G,
+g_k = g, pow_k and subGtoG are the identity (assuming private keys are chosen in 
+[1,p-1]). 
+
+*)
+
+def DH_subgroup(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG) {
+
+fun mult(Z,Z): Z. 
+equation builtin commut(mult).
+
+fun pow_k(G):subG.
+fun subGtoG(subG): G [data].
+
+equation forall x:subG, x':subG;
+   (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
+
+const g: G.
+const g_k:subG.
+equation pow_k(g) = g_k.
+
+fun exp_div_k(subG,Z): subG.
+fun exp_div_k'(subG,Z): subG.
+
+(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
+   Used when expanding exp(exp(g,y),z). *)
+equation forall X:subG, y:Z, z:Z;
+   exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
+equation forall X:subG, y:Z, z:Z;
+   exp_div_k'(pow_k(subGtoG(exp_div_k'(X,y))), z) = exp_div_k'(X, mult(y,z)).
+
+equation forall x:subG, x':subG, y:Z; (exp_div_k(x,y) = exp_div_k(x',y)) = (x = x').
+equation forall x:subG, x':subG, y:Z; (exp_div_k'(x,y) = exp_div_k'(x',y)) = (x = x').
+
+(* exp_div_k(g_k, mult(x',y)) = exp_div_k'(X',y) where X' = pow_k(subGtoG(exp_div_k(g_k,x')),
+   we can show the next equalities using the previous ones *)
+equation forall x:subG, x':Z, y:Z; (exp_div_k(x,y) = exp_div_k(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k(g_k,x')))).
+equation forall x:subG, x':Z, y:Z; (exp_div_k'(x,y) = exp_div_k'(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k'(g_k,x')))).
+
+fun exp(G, Z): G.
+
+(* X^y = (X^k)^(y/k) *)
+equation forall X:G, y:Z;
+   exp(X,y) = subGtoG(exp_div_k(pow_k(X),y)).
+
+}
+
+(* DH_subgroup_with_is_neutral(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_neutral_G, is_neutral_subG) defines a Diffie-Hellman structure with the same properties as 
+DH_subgroup(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG)
+and additionally
+* for X in subG, is_neutral(X^y) if and only if is_neutral(X);
+* not(is_neutral(g^k)).
+
+is_neutral_G(G):bool
+is_neutral_subG(subG):bool
+correspond to the function is_neutral, respectively on G and on subG.
+These functions are defined by this macro. They must not be
+declared elsewhere, and they can be used only after expanding the
+macro.
+
+Curve22519 satisfies these properties with is_neutral(X) = (X = 0).
+Curve448 also satisfies these properties with is_neutral(X) = (X = 0), after removing the  
+weak private key as follows:
+  expand DH_subgroup_with_is_neutral(G, Znw, g, expnw, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_neutral_G, is_neutral_subG).
+  letproba Pweak_key = 2^-445.
+  expand DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key).
+Prime order groups satisfy these properties with is_neutral(X) = false.
+*)
+
+def DH_subgroup_with_is_neutral(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_neutral_G, is_neutral_subG) {
+
+expand DH_subgroup(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG).
+
+fun is_neutral_G(G):bool.
+fun is_neutral_subG(subG):bool.
+equation forall X:subG; is_neutral_G(subGtoG(X)) = is_neutral_subG(X).
+
+equation is_neutral_subG(g_k) = false.
+
+equation forall x:subG, y:Z; is_neutral_subG(exp_div_k(x,y)) = is_neutral_subG(x).
+equation forall x:subG, y:Z; is_neutral_subG(exp_div_k'(x,y)) = is_neutral_subG(x).
+
+equation forall x:subG; is_neutral_subG(pow_k(subGtoG(x))) = is_neutral_subG(x).
+
+}
+
+(* DH_exclude_weak_keys allows excluding weak private keys.
+
+Z is a set of Diffie-Hellman private keys (exponents), possibly containing weak private keys
+Znw is the subset of Z obtained by removing weak keys.
+
+ZnwtoZ is the injection from Znw to Z.
+
+Pweak_key is the probability that a weak private key is chosen.
+
+This macro defines an equivalence exclude_weak_keys(Z) which replaces the choice
+of private keys in Z with a choice in Znw, so that there are no weak private keys.
+It should be applied early in the proof, before applying Diffie-Hellman properties.
+
+The type of exponentiation functions is a follows:
+exp(G,Z):G  
+expnw(G,Znw):G
+
+The types G, Z, Znw, the function expnw, and the probability Pweak_key
+must be declared before expanding this macro. (The function expnw
+should be defined by expanding one of the macros DH_basic, DH_subgroup, 
+or DH_good_group with Znw instead of Z and expnw instead of exp.) The
+functions ZnwtoZ and exp are defined by this macro. They must not be
+declared elsewhere, and they can be used only after expanding the
+macro.
+
+This is useful for Curve448 which has a weak key kp, with k = 4 where the curve has order
+kp, so Znw = Z \ { kp }, Pweak_key = 2^-445.
+This is also useful for groups of prime order p in case private keys are chosen in [0,p-1]:
+one should eliminate the weak private key 0, so Z = [0,p-1], Znw = [1,p-1], Pweak_key = 1/p.
+*)
+
+def DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key) {
+
+fun ZnwtoZ(Znw): Z [data].
+
+param N.
+
+equiv(exclude_weak_keys(Z))
+foreach i<=N do x <-R Z; O() := return(x)
+<=(N*Pweak_key)=>
+foreach i<=N do x <-R Znw; O() := return(ZnwtoZ(x)).
+
+fun exp(G, Z): G.  
+
+equation forall X:G, y:Znw;
+   exp(X,ZnwtoZ(y)) = expnw(X,y).
+
+}
+
 (* DH_proba_collision says that 
    the probability that exp(g, x) = Y for random x and Y independent of x 
    is at most PCollKey1, and
@@ -2651,8 +2862,6 @@ equation forall a:G, x:Z, y:Z;
    The other arguments are as in DH_basic. *)
 
 def DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey1, PCollKey2) {
-
-expand DH_basic(G, Z, g, exp, exp', mult).
 
 collision x <-R Z; forall Y: G;
 	  return(exp(g, x) = Y) <=(PCollKey1)=> return(false) if Y independent-of x.
@@ -2734,6 +2943,93 @@ collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [random_choices_may_be_equal]
           return(exp'(g, mult(x1,y1)) = exp'(g, mult(x2,y2))) <=(PCollKey3)=> return(false)
 	    if (x1 independent-of x2 || y1 independent-of y2) &&
 	       (x1 independent-of y2 || y1 independent-of x2).
+
+}
+
+(* is_neutral_DH_proba_collision is meant to be used with 
+   DH_subgroup_with_is_neutral as follows:
+     expand DH_subgroup_with_is_neutral(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_neutral_G, is_neutral_subG).
+     expand is_neutral_DH_proba_collision(subG, Z, g_k, exp_div_k, exp_div_k', mult, is_neutral_subG, PCollKey2, PCollKey3, PCollKey4).
+   or with DH_basic_with_is_neutral as follows:
+     expand DH_basic_with_is_neutral(G, Z, g, exp, exp', mult, is_neutral).
+     expand is_neutral_DH_proba_collision(G, Z, g, exp, exp', mult, is_neutral, PCollKey2, PCollKey3, PCollKey4).
+
+   In both cases, naming the arguments of is_neutral_DH_proba_collision as 
+   follows:
+   is_neutral_DH_proba_collision(G, Z, g, exp, exp', mult, is_neutral, PCollKey2, PCollKey3, PCollKey4)
+   we have
+   * mult is commutative;
+   * if X = g^x, then exp(X, y) = exp(g, mult(x,y));
+   * for X in G, is_neutral(X^y) if and only if is_neutral(X);
+   * for X in G, is_neutral(exp(X,y)) if and only if is_neutral(X);
+   * not(is_neutral(g)).
+
+   is_neutral_DH_proba_collision assumes the following properties:
+   - if is_neutral(X) and is_neutral(Y) then X = Y
+   (in other words, there is 0 or 1 neutral element in G);
+   - the probability that exp(X,x) = Y where x is random and X and Y are 
+   independent of x and not neutral is at most PCollKey2;
+   - the probability that exp(g, mult(x,x)) = Y with random x and Y 
+   independent of x is at most PCollKey3, with PCollKey3 >= PCollKey2.
+   - the probability that exp(X,y) = exp(X,z) with y,z random
+   independent of each other and X is not neutral is at most PCollKey4.
+ *)
+
+def is_neutral_DH_proba_collision(G, Z, g, exp, exp', mult, is_neutral, PCollKey2, PCollKey3, PCollKey4) {
+
+(* The hypothesis implies that
+   - the probability that exp(g, x) = Y for random x and Y independent 
+   of x is at most PCollKey2 (using the probability that exp(X,x) = Y 
+   with X = g not neutral and independent of x; the equality can hold only 
+   when Y is not neutral);
+   - the probability that exp(g, mult(x,y)) = Y where x and y are 
+   independent random private keys and Y is independent of x or y is at most 
+   PCollKey2 (assuming Y is independent of x, we take X = g^y, not neutral and 
+   independent of x and use the probability that exp(X,x) = Y; 
+   the equality can hold only when Y is not neutral; the other case is 
+   symmetric).
+   - the probability that exp(g, mult(x,x)) = Y with random x and Y 
+   independent of x is at most PCollKey3, with PCollKey3 >= PCollKey2. *)
+expand square_DH_proba_collision(G, Z, g, exp, exp', mult, PCollKey2, PCollKey2, PCollKey3).
+
+(* This collision groups 2 cases:
+   - y and z are the same random choice: both sides are true
+   - y and z are independent random choices: implied by hypothesis *)
+collision y <-R Z; z <-R Z; [random_choices_may_be_equal] forall X: G;
+	  return(exp(X, y) = exp(X, z)) <=(PCollKey4)=> return(is_neutral(X) || (y = z)).
+collision y <-R Z; z <-R Z; [random_choices_may_be_equal] forall X: G;
+	  return(exp'(X, y) = exp'(X, z)) <=(PCollKey4)=> return(is_neutral(X) || (y = z)).
+
+(* The next collision is a consequence of the previous one by taking X = g^x. *)
+collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
+  return(exp(g,mult(x,y)) = exp(g,mult(x,y'))) <=(PCollKey4)=> return(y = y').
+collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
+  return(exp'(g,mult(x,y)) = exp'(g,mult(x,y'))) <=(PCollKey4)=> return(y = y').
+
+
+collision x <-R Z; forall X: G, Y: G;
+	  return(exp(X, x) = Y) <=(PCollKey2)=> return(is_neutral(X) && is_neutral(Y))
+	  if X independent-of x && Y independent-of x.
+collision x <-R Z; forall X: G, Y: G;
+	  return(exp'(X, x) = Y) <=(PCollKey2)=> return(is_neutral(X) && is_neutral(Y))
+	  if X independent-of x && Y independent-of x.
+
+(* The next collision is a consequence of the previous one by taking X = g^y *)
+collision x <-R Z; forall y: Z, Y: G; 
+  	  return(exp(g,mult(x,y)) = Y) <=(PCollKey2)=> return(false)
+  	  if y independent-of x && Y independent-of x. 
+collision x <-R Z; forall y: Z, Y: G; 
+  	  return(exp'(g,mult(x,y)) = Y) <=(PCollKey2)=> return(false)
+	  if y independent-of x && Y independent-of x. 
+
+(* The next collision is a consequence of the previous one 
+collision x <-R Z; y <-R Z; forall Y: G; 
+	  return(exp(g,mult(x,y)) = Y) <=(PCollKey2)=> return(false) 
+	  if Y independent-of x || Y independent-of y. 
+collision x <-R Z; y <-R Z; forall Y: G; 
+	  return(exp'(g,mult(x,y)) = Y) <=(PCollKey2)=> return(false) 
+	  if Y independent-of x || Y independent-of y. 
+It is included in square_DH_proba_collision. *)
 
 }
 
@@ -2917,33 +3213,9 @@ collision x <-R Z; forall X: G, Y: G;
    and Z = {1, ..., q-1} so when x varies in Z, exp(g,x) covers each element
    of G exactly once. *)
 
-param N, N'.
+letproba PDist = 0.
 
-equiv(group_to_exp_strict(exp))
-      foreach iX <= N do X <-R G; (OX() := return(X) | foreach iXm <= N' do OXm(m:Z) [useful_change] := return(exp(X,m)))
-<=(0)=> [computational]
-      foreach iX <= N do x <-R Z; (OX() := return(exp(g,x)) | foreach iXm <= N' do OXm(m:Z) := return(exp(g,mult(x,m)))).
-
-(* This equivalence is very general, apply it only manually, because
-   otherwise it might be applied too often.  The equivalence above is
-   particular case applied only when X is inside exp, and good for
-   automatic proofs. *)
-
-equiv(group_to_exp(exp))
-      foreach iX <= N do X <-R G; OX() := return(X) 
-<=(0)=> [manual, computational]    
-      foreach iX <= N do x <-R Z; OX() := return(exp(g,x)).
-
-
-equiv(exp_to_group(exp))
-      foreach iX <= N do x <-R Z; OX() := return(exp(g,x))
-<=(0)=> [computational]
-      foreach iX <= N do X <-R G; OX() := return(X).
-
-equiv(exp'_to_group(exp))
-      foreach iX <= N do x <-R Z; OX() := return(exp'(g,x))
-<=(0)=> [computational]
-      foreach iX <= N do X <-R G; OX() := return(X).
+expand DH_dist_random_group_element_vs_exponent(G, Z, g, exp, exp', mult, PDist).
 
 }
 
@@ -2967,10 +3239,10 @@ equiv(exp'_to_group(exp))
    the function repr, such that red o repr is the identity.
    The Diffie-Hellman "exponentiation" is defined by 
       exp(X,y) = repr((red(X))^y).
-   The secret keys are chosen uniformly in { kn | n \in [n_min,n_max] }
+   The private keys are chosen uniformly in { kn | n \in [n_min,n_max] }
    where n_min < n_max, n_max-n_min < q, and n_max-n_min < q'.
 
-   Therefore the set of secret keys may contain a multiple of q (resp. q').
+   Therefore the set of private keys may contain a multiple of q (resp. q').
    Such keys are weak, in the sense that they yield 0 for all public
    keys on the curve (resp. on the twist). We exclude them.
 
@@ -3002,138 +3274,38 @@ equiv(exp'_to_group(exp))
 
    subGtoG is repr restricted to subG to G.
 
-   zero is the public key 0.
-   sub_zero is 0, as an element of subG.
+   is_zero_G(G):bool  is_zero_G(X) is true when X is the public key 0.
+   is_zero_subG(subG): bool  is defined as is_zero_G, but for arguments of 
+   type subG.
 
    The types G, subG, Z, and Znw must be declared before this macro.  The
    functions g, exp, mult, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG,
-   zero, sub_zero are defined by this macro. They must not be declared
+   is_zero_G, is_zero_subG are defined by this macro. They must not be declared
    elsewhere, and they can be used only after expanding the macro.
 
    This model is justified in https://hal.inria.fr/hal-02100345
+
 *)
 
-def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
+def DH_single_coord_ladder(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
 
-fun mult(Znw,Znw): Znw. 
-equation builtin commut(mult).
+expand DH_subgroup_with_is_neutral(G, Znw, g, expnw, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG).
 
-fun pow_k(G):subG.
-fun subGtoG(subG): G [data].
+letproba Pweak_key = 2*Pcoll1rand(Z).
+expand DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key).
 
-equation forall x:subG, x':subG;
-   (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
-
-const zero:G.
-const sub_zero:subG.
-equation zero = subGtoG(sub_zero).
-
-const g: G.
-const g_k:subG.
-equation pow_k(g) = g_k.
-
-fun ZnwtoZ(Znw): Z [data].
-
-param N.
-
-equiv(exclude_weak_keys(Z))
-foreach i<=N do x <-R Z; O() := return(x)
-<=(2*N*Pcoll1rand(Z))=>
-foreach i<=N do x <-R Znw; O() := return(ZnwtoZ(x)).
-
-fun exp(G, Z): G.  
-fun exp_div_k(subG,Znw): subG.
-fun exp_div_k'(subG,Znw): subG.
-
-(* X^y = (X^k)^(y/k) *)
-equation forall X:G, y:Znw;
-   exp(X,ZnwtoZ(y)) = subGtoG(exp_div_k(pow_k(X),y)).
-
-(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
-   Used when expanding exp(exp(g,y),z). *)
-equation forall X:subG, y:Znw, z:Znw;
-   exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
-equation forall X:subG, y:Znw, z:Znw;
-   exp_div_k'(pow_k(subGtoG(exp_div_k'(X,y))), z) = exp_div_k'(X, mult(y,z)).
-
-equation g_k <> sub_zero.
-equation forall x:subG, y:Znw; (exp_div_k(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k'(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k(x,y) <> sub_zero) = (x <> sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k'(x,y) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG; (pow_k(subGtoG(x)) = sub_zero) = (x = sub_zero).
-equation forall x:subG; (pow_k(subGtoG(x)) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG, x':subG, y:Znw; (exp_div_k(x,y) = exp_div_k(x',y)) = (x = x').
-equation forall x:subG, x':subG, y:Znw; (exp_div_k'(x,y) = exp_div_k'(x',y)) = (x = x').
-
-(* exp_div_k(g_k, mult(x',y)) = exp_div_k'(X',y) where X' = pow_k(subGtoG(exp_div_k(g_k,x')),
-   we can show the next equalities using the previous ones *)
-equation forall x:subG, x':Znw, y:Znw; (exp_div_k(x,y) = exp_div_k(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k(g_k,x')))).
-equation forall x:subG, x':Znw, y:Znw; (exp_div_k'(x,y) = exp_div_k'(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k'(g_k,x')))).
-
-collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k(X, y) = exp_div_k(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
-collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k'(X, y) = exp_div_k'(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
-
-collision x <-R Znw; forall X: subG, Y: subG;
-	  return(exp_div_k(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-collision x <-R Znw; forall X: subG, Y: subG;
-	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-
-
-collision x <-R Znw; forall y: Znw, X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
-
-collision x <-R Znw; forall y: Znw, X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
-
-(* The next collision is a consequence of the previous one *)
-collision x <-R Znw; y <-R Znw; forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Znw; y <-R Znw; forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-
-
-collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(4*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(4*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-(* The next collision is a consequence of the previous one, 
-   as in DH_good_group *)
-collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x1,y1)) = exp_div_k(g_k,mult(x2,y2))) <=(4*Pcoll1rand(Znw))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x1,y1)) = exp_div_k'(g_k,mult(x2,y2))) <=(4*Pcoll1rand(Znw))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-
-collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x,y)) = exp_div_k(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
-
-collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x,y)) = exp_div_k'(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
-
+letproba PCollKey2 = 2*Pcoll1rand(Znw).
+letproba PCollKey3 = 4*Pcoll1rand(Znw).
+letproba PCollKey4 = Pcoll1rand(Znw).
+expand is_neutral_DH_proba_collision(subG, Znw, g_k, exp_div_k, exp_div_k', mult, is_zero_subG, PCollKey2, PCollKey3, PCollKey4).
 
 }
 
 (* DH_X25519 models Curve25519 as defined in RFC 7748.
 https://tools.ietf.org/html/rfc7748
    More generally, it supports the same curves as DH_single_coord_ladder
-   with the additional assumption that all secret keys are prime to qq'. 
-   Therefore, we do not need to exclude weak secret keys, so the
+   with the additional assumption that all private keys are prime to qq'. 
+   Therefore, we do not need to exclude weak private keys, so the
    parameters Znw and ZnwtoZ are removed, and we use Z instead of Znw.
 
    Curve25519 satisfies these assumptions with
@@ -3147,236 +3319,38 @@ https://tools.ietf.org/html/rfc7748
    This model is justified in detail in https://hal.inria.fr/hal-02100345
 *)
 
-def DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
+def DH_X25519(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
 
-fun mult(Z,Z): Z. 
-equation builtin commut(mult).
+expand DH_subgroup_with_is_neutral(G, Z, g, exp, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG).
 
-fun pow_k(G):subG.
-fun subGtoG(subG): G [data].
-
-equation forall x:subG, x':subG;
-   (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
-
-const zero:G.
-const sub_zero:subG.
-equation zero = subGtoG(sub_zero).
-
-const g: G.
-const g_k:subG.
-equation pow_k(g) = g_k.
-
-fun exp(G, Z): G.  
-fun exp_div_k(subG,Z): subG.
-fun exp_div_k'(subG,Z): subG.
-
-(* X^y = (X^k)^(y/k) *)
-equation forall X:G, y:Z;
-   exp(X,y) = subGtoG(exp_div_k(pow_k(X),y)).
-
-(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
-   Used when expanding exp(exp(g,y),z). *)
-equation forall X:subG, y:Z, z:Z;
-   exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
-equation forall X:subG, y:Z, z:Z;
-   exp_div_k'(pow_k(subGtoG(exp_div_k'(X,y))), z) = exp_div_k'(X, mult(y,z)).
-
-equation g_k <> sub_zero.
-equation forall x:subG, y:Z; (exp_div_k(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Z; (exp_div_k'(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Z; (exp_div_k(x,y) <> sub_zero) = (x <> sub_zero).
-equation forall x:subG, y:Z; (exp_div_k'(x,y) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG; (pow_k(subGtoG(x)) = sub_zero) = (x = sub_zero).
-equation forall x:subG; (pow_k(subGtoG(x)) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG, x':subG, y:Z; (exp_div_k(x,y) = exp_div_k(x',y)) = (x = x').
-equation forall x:subG, x':subG, y:Z; (exp_div_k'(x,y) = exp_div_k'(x',y)) = (x = x').
-
-(* exp_div_k(g_k, mult(x',y)) = exp_div_k'(X',y) where X' = pow_k(subGtoG(exp_div_k(g_k,x')),
-   we can show the next equalities using the previous ones *)
-equation forall x:subG, x':Z, y:Z; (exp_div_k(x,y) = exp_div_k(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k(g_k,x')))).
-equation forall x:subG, x':Z, y:Z; (exp_div_k'(x,y) = exp_div_k'(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k'(g_k,x')))).
-
-collision y <-R Z; z <-R Z; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k(X, y) = exp_div_k(X, z)) <=(Pcoll1rand(Z))=> return((X = sub_zero) || (y = z)).
-collision y <-R Z; z <-R Z; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k'(X, y) = exp_div_k'(X, z)) <=(Pcoll1rand(Z))=> return((X = sub_zero) || (y = z)).
-
-collision x <-R Z; forall X: subG, Y: subG;
-	  return(exp_div_k(X, x) = Y) <=(2*Pcoll1rand(Z))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-collision x <-R Z; forall X: subG, Y: subG;
-	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Z))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-
-
-collision x <-R Z; forall y: Z, X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if y independent-of x && X independent-of x. 
-
-collision x <-R Z; forall y: Z, X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if y independent-of x && X independent-of x. 
-
-(* The next collision is a consequence of the previous one *)
-collision x <-R Z; y <-R Z; forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Z; y <-R Z; forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
-
-
-
-collision x <-R Z; y <-R Z; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(4*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Z; y <-R Z; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(4*Pcoll1rand(Z))=> return(false) if X independent-of x || X independent-of y. 
-
-(* The next collision is a consequence of the previous one, 
-   as in DH_good_group *)
-collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x1,y1)) = exp_div_k(g_k,mult(x2,y2))) <=(4*Pcoll1rand(Z))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-collision x1 <-R Z; y1 <-R Z; x2 <-R Z; y2 <-R Z; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x1,y1)) = exp_div_k'(g_k,mult(x2,y2))) <=(4*Pcoll1rand(Z))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-
-collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x,y)) = exp_div_k(g_k,mult(x,y'))) <=(Pcoll1rand(Z))=> return(y = y').
-
-collision x <-R Z; y <-R Z; y' <-R Z; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x,y)) = exp_div_k'(g_k,mult(x,y'))) <=(Pcoll1rand(Z))=> return(y = y').
-
+letproba PCollKey2 = 2*Pcoll1rand(Z).
+letproba PCollKey3 = 4*Pcoll1rand(Z).
+letproba PCollKey4 = Pcoll1rand(Z).
+expand is_neutral_DH_proba_collision(subG, Z, g_k, exp_div_k, exp_div_k', mult, is_zero_subG, PCollKey2, PCollKey3, PCollKey4).
 
 }
 
 (* DH_X448 models Curve448 as defined in RFC 7748.
 https://tools.ietf.org/html/rfc7748
    More generally, it supports the same curves as DH_single_coord_ladder
-   with the additional assumptions that there is at most one secret key
+   with the additional assumptions that there is at most one private key
    multiple of q or q' and that q = -1 \mod 4, so -1 is not a 
    square modulo q. That allows to reduce some probabilities.
 
    This model is justified in https://hal.inria.fr/hal-02100345
 *)
 
-def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, zero, sub_zero) {
+def DH_X448(G, Z, g, exp, mult, subG, Znw, ZnwtoZ, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG) {
 
-fun mult(Znw,Znw): Znw. 
-equation builtin commut(mult).
+expand DH_subgroup_with_is_neutral(G, Znw, g, expnw, mult, subG, g_k, exp_div_k, exp_div_k', pow_k, subGtoG, is_zero_G, is_zero_subG).
 
-fun pow_k(G):subG.
-fun subGtoG(subG): G [data].
+letproba Pweak_key = Pcoll1rand(Z).
+expand DH_exclude_weak_keys(G, Z, Znw, ZnwtoZ, exp, expnw, Pweak_key).
 
-equation forall x:subG, x':subG;
-   (pow_k(subGtoG(x)) = pow_k(subGtoG(x'))) = (x = x'). 
-
-const zero:G.
-const sub_zero:subG.
-equation zero = subGtoG(sub_zero).
-
-const g: G.
-const g_k:subG.
-equation pow_k(g) = g_k.
-
-fun ZnwtoZ(Znw): Z [data].
-
-param N.
-
-equiv(exclude_weak_keys(Z))
-foreach i<=N do x <-R Z; O() := return(x)
-<=(N*Pcoll1rand(Z))=>
-foreach i<=N do x <-R Znw; O() := return(ZnwtoZ(x)).
-
-fun exp(G, Z): G.  
-fun exp_div_k(subG,Znw): subG.
-fun exp_div_k'(subG,Znw): subG.
-
-(* X^y = (X^k)^(y/k) *)
-equation forall X:G, y:Znw;
-   exp(X,ZnwtoZ(y)) = subGtoG(exp_div_k(pow_k(X),y)).
-
-(* ((X^(y/k))^k)^(z/k) = X^(y.z/k) 
-   Used when expanding exp(exp(g,y),z). *)
-equation forall X:subG, y:Znw, z:Znw;
-   exp_div_k(pow_k(subGtoG(exp_div_k(X,y))), z) = exp_div_k(X, mult(y,z)).
-equation forall X:subG, y:Znw, z:Znw;
-   exp_div_k'(pow_k(subGtoG(exp_div_k'(X,y))), z) = exp_div_k'(X, mult(y,z)).
-
-equation g_k <> sub_zero.
-equation forall x:subG, y:Znw; (exp_div_k(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k'(x,y) = sub_zero) = (x = sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k(x,y) <> sub_zero) = (x <> sub_zero).
-equation forall x:subG, y:Znw; (exp_div_k'(x,y) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG; (pow_k(subGtoG(x)) = sub_zero) = (x = sub_zero).
-equation forall x:subG; (pow_k(subGtoG(x)) <> sub_zero) = (x <> sub_zero).
-
-equation forall x:subG, x':subG, y:Znw; (exp_div_k(x,y) = exp_div_k(x',y)) = (x = x').
-equation forall x:subG, x':subG, y:Znw; (exp_div_k'(x,y) = exp_div_k'(x',y)) = (x = x').
-
-(* exp_div_k(g_k, mult(x',y)) = exp_div_k'(X',y) where X' = pow_k(subGtoG(exp_div_k(g_k,x')),
-   we can show the next equalities using the previous ones *)
-equation forall x:subG, x':Znw, y:Znw; (exp_div_k(x,y) = exp_div_k(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k(g_k,x')))).
-equation forall x:subG, x':Znw, y:Znw; (exp_div_k'(x,y) = exp_div_k'(g_k, mult(x',y))) = (x = pow_k(subGtoG(exp_div_k'(g_k,x')))).
-
-collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k(X, y) = exp_div_k(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
-collision y <-R Znw; z <-R Znw; [random_choices_may_be_equal] forall X: subG;
-	  return(exp_div_k'(X, y) = exp_div_k'(X, z)) <=(Pcoll1rand(Znw))=> return((X = sub_zero) || (y = z)).
-
-collision x <-R Znw; forall X: subG, Y: subG;
-	  return(exp_div_k(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-collision x <-R Znw; forall X: subG, Y: subG;
-	  return(exp_div_k'(X, x) = Y) <=(2*Pcoll1rand(Znw))=> return((X = sub_zero) && (Y = sub_zero))
-	  if X independent-of x && Y independent-of x.
-
-
-collision x <-R Znw; forall y: Znw, X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
-
-collision x <-R Znw; forall y: Znw, X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if y independent-of x && X independent-of x. 
-
-(* The next collision is a consequence of the previous one *)
-collision x <-R Znw; y <-R Znw; forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Znw; y <-R Znw; forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-
-
-collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-collision x <-R Znw; y <-R Znw; [random_choices_may_be_equal] forall X: subG; 
-  return(exp_div_k'(g_k,mult(x,y)) = X) <=(2*Pcoll1rand(Znw))=> return(false) if X independent-of x || X independent-of y. 
-
-(* The next collision is a consequence of the previous one, 
-   as in DH_good_group *)
-collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x1,y1)) = exp_div_k(g_k,mult(x2,y2))) <=(2*Pcoll1rand(Znw))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-collision x1 <-R Znw; y1 <-R Znw; x2 <-R Znw; y2 <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x1,y1)) = exp_div_k'(g_k,mult(x2,y2))) <=(2*Pcoll1rand(Znw))=> return(false)
-	    if (x1 independent-of x2 || y1 independent-of y2) &&
-	       (x1 independent-of y2 || y1 independent-of x2).
-
-
-collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k(g_k,mult(x,y)) = exp_div_k(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
-
-collision x <-R Znw; y <-R Znw; y' <-R Znw; [random_choices_may_be_equal]
-  return(exp_div_k'(g_k,mult(x,y)) = exp_div_k'(g_k,mult(x,y'))) <=(Pcoll1rand(Znw))=> return(y = y').
-
+letproba PCollKey2 = 2*Pcoll1rand(Znw).
+letproba PCollKey3 = 2*Pcoll1rand(Znw).
+letproba PCollKey4 = Pcoll1rand(Znw).
+expand is_neutral_DH_proba_collision(subG, Znw, g_k, exp_div_k, exp_div_k', mult, is_zero_subG, PCollKey2, PCollKey3, PCollKey4).
 
 }
 
@@ -3723,9 +3697,9 @@ equiv(ddh(exp))
 	  2^-220 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448). It is needed because, for curve25519/448, to make 
-   the DH decision oracle unambiguous, we generate secret keys in [(p+1)/2,p-1]
-   instead of the set used for generating secret keys in the curve25519/448 implementation.
-   (The latter set yields equivalent secret keys with small probability.)
+   the DH decision oracle unambiguous, we generate private keys in [(p+1)/2,p-1]
+   instead of the set used for generating private keys in the curve25519/448 implementation.
+   (The latter set yields equivalent private keys with small probability.)
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
@@ -4345,9 +4319,9 @@ equiv(ddh(exp))
 	  2^-220 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448). It is needed because, for curve25519/448, to make 
-   the DH decision oracle unambiguous, we generate secret keys in [(p+1)/2,p-1]
-   instead of the set used for generating secret keys in the curve25519/448 implementation.
-   (The latter set yields equivalent secret keys with small probability.)
+   the DH decision oracle unambiguous, we generate private keys in [(p+1)/2,p-1]
+   instead of the set used for generating private keys in the curve25519/448 implementation.
+   (The latter set yields equivalent private keys with small probability.)
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
@@ -4712,7 +4686,7 @@ equiv(prf_odh(prf))
 	 get prf_dh_val(=ia, jb, x, c) in event_abort ev_abort else
          let ka:bool = true in return(a) |
       foreach ia1 <= na1 do Oa1(ma1:G, xa1:prf_in) :=
-      	 find j' <= nb suchthat defined(b[j']) && ma1 = exp'(g, b[j']) then
+      	 find j' <= nb suchthat defined(b[j']) && exp'(ma1,a) = exp'(g, mult(a,b[j'])) then
 	 (
 	    (* In this case, that's the same as Oa2 *)
 	    if defined(kb[j']) then (* b[j'] compromised *) return(prf(exp'(ma1, a), xa1)) else
@@ -4742,7 +4716,7 @@ equiv(prf_odh(prf))
 	 get prf_dh_val(ja, =ib, x, c) in event_abort ev_abort else
          let kb:bool = true in return(b) |
       foreach ib1 <= nb1 do Ob1(mb1:G, xb1:prf_in) :=
-      	 find j' <= na suchthat defined(a[j']) && mb1 = exp'(g, a[j']) then
+      	 find j' <= na suchthat defined(a[j']) && exp'(mb1,b) = exp'(g, mult(a[j'],b)) then
 	 (
 	    (* In this case, that's the same as Oa2 *)
 	    if defined(ka[j']) then (* a[j'] compromised *) return(prf(exp'(mb1, b), xb1)) else
@@ -4801,7 +4775,7 @@ equiv(prf_odh(prf))
          get prf_dh_val(ja, =ia, x, c) in event_abort ev_abort else
          let ka:bool = true in return(a) |
       foreach ia1 <= na1 do Oa1(ma1:G, xa1:prf_in) :=
-      	 find j' <= na suchthat defined(a[j']) && ma1 = exp'(g, a[j']) then
+      	 find j' <= na suchthat defined(a[j']) && exp'(ma1,a) = exp'(g, mult(a[j'],a)) then
 	 (
 	    (* In this case, that's the same as Oa2 *)
 	    if defined(ka[j']) then (* a[j'] compromised *) return(prf(exp'(ma1, a), xa1)) else
@@ -4945,7 +4919,7 @@ equiv(prf_odh(prf))
          get prf_dh_val(ja, =ia, x, c) in event_abort ev_abort else
          let ka:bool = true in return(a) |
       foreach ia1 <= na1 do Oa1(ma1:G, xa1:prf_in) :=
-      	 find j' <= na suchthat defined(a[j']) && ma1 = exp'(g, a[j']) then
+      	 find j' <= na suchthat defined(a[j']) && exp'(ma1,a) = exp'(g, mult(a[j'],a)) then
 	 (
 	    (* In this case, that's the same as Oa2 *)
 	    if defined(ka[j']) then (* a[j'] compromised *) return(prf(exp'(ma1, a), xa1)) else
@@ -4980,13 +4954,13 @@ equiv(prf_odh(prf))
 (* One-way trapdoor permutation 
    seed: type of random seeds to generate keys, must be "bounded", typically "fixed"
    pkey: type of public keys, must be "bounded"
-   skey: type of secret keys, must be "bounded"
+   skey: type of private keys, must be "bounded"
    D: type of the input and output of the permutation, must be "bounded", typically "fixed"
 
    pkgen: public-key generation function
-   skgen: secret-key generation function
+   skgen: private-key generation function
    f: the permutation (taking as argument the public key)
-   invf: the inverse permutation of f (taking as argument the secret key,
+   invf: the inverse permutation of f (taking as argument the private key,
          i.e. the trapdoor)
    pkgen', f': symbols that replace pkgen and f respectively after game transformation
 
@@ -5158,7 +5132,7 @@ expand OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, 
 (* Set partial-domain one-way trapdoor permutation 
    seed: type of random seeds to generate keys, must be "bounded", typically "fixed"
    pkey: type of public keys, must be "bounded"
-   skey: type of secret keys, must be "bounded"
+   skey: type of private keys, must be "bounded"
    D: type of the input and output of the permutation, must be "bounded", typically "fixed"
    The domain D consists of the concatenation of bitstrings in Dow and Dr.
    Dow is the set of sub-bitstrings of D on which one-wayness holds (it is difficult to compute the
@@ -5166,9 +5140,9 @@ expand OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, 
    Dow and Dr must be "bounded", typically "fixed".
 
    pkgen: public-key generation function
-   skgen: secret-key generation function
+   skgen: private-key generation function
    f: the permutation (taking as argument the public key)
-   invf: the inverse permutation of f (taking as argument the secret key,
+   invf: the inverse permutation of f (taking as argument the private key,
          i.e. the trapdoor)
    concat(Dow, Dr):D is bitstring concatenation
    pkgen', f': symbols that replace pkgen and f respectively after game transformation

@@ -1,15 +1,457 @@
 (* Model of WireGuard written by Benjamin Lipp and Bruno Blanchet, Inria Paris.
+   Version with DH_subgroup, DH_exclude_weak_keys, and DH_proba_collision, which supports 
+   curve25519, curve448, and prime order groups. *)
 
-  In this model, the static keys are compromised from the beginning, the
-  ephemeral keys are not compromised, and the adversary can dynamically
-  compromise the psk.
+(******************************* Hash functions (ROM) ****************************)
 
-  This proof includes forward secrecy with respect to the psk.
+(* Hash function in the random oracle model
+   key: type of the key of the hash function, which models the choice of the hash function, must be "bounded", typically "fixed"
+   hashinput%: type of the %-th input of the hash function
+   hashoutput: type of the output of the hash function, must be "bounded" or "nonuniform" (typically "fixed"), and "large".
 
-  This file is simplified to models generated from WG.25519.psk_dyn.m4.cv
-  by considering that the honest principals only talk to honest principals.
-  This is ok because the adversary can simulate the other sessions:
-  they use a different psk and the static keys are compromised.
+   hash: the hash function.
+   WARNING: hash is a keyed hash function.
+   The key must be generated once and for all at the beginning of the game 
+   and the hash oracle must be made available to the adversary,
+   by including the process hashoracle(k) where k is the key.
+   qH is the number of calls to hashoracle.
+
+   The types key, hashinput%, and hashoutput must be declared before
+   this macro. The function hash, the process hashoracle, and
+   the parameter qH are defined by this macro. They must not
+   be declared elsewhere, and they can be used only after expanding the
+   macro.
+
+   ADDED ARGUMENTS:
+   r: variable containing the random result of the hash function
+   x%: variables containing the arguments of the hash function
+   ch1, ch2: channels for input/output in the hash oracle.
+
+ *)
+
+def ROM_hash_refactored_1(key, hashinput1, hashoutput, hash, hashoracle, r, x1, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1));
+        out(ch2, hash(k, x1)).
+
+}
+
+def ROM_hash_refactored_2(key, hashinput1, hashinput2, hashoutput, hash, hashoracle, r, x1, x2, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2));
+        out(ch2, hash(k, x1, x2)).
+
+}
+
+def ROM_hash_refactored_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash, hashoracle, r, x1, x2, x3, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3));
+        out(ch2, hash(k, x1, x2, x3)).
+
+}
+
+def ROM_hash_refactored_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4));
+        out(ch2, hash(k, x1, x2, x3, x4)).
+
+}
+
+def ROM_hash_refactored_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5));
+        out(ch2, hash(k, x1, x2, x3, x4, x5)).
+
+}
+
+def ROM_hash_refactored_6(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, x6, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5, x6: hashinput6));
+        out(ch2, hash(k, x1, x2, x3, x4, x5, x6)).
+
+}
+
+def ROM_hash_refactored_7(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, x6, x7, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5, x6: hashinput6, x7: hashinput7));
+        out(ch2, hash(k, x1, x2, x3, x4, x5, x6, x7)).
+
+}
+
+def ROM_hash_refactored_8(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, x6, x7, x8, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5, x6: hashinput6, x7: hashinput7, x8: hashinput8));
+        out(ch2, hash(k, x1, x2, x3, x4, x5, x6, x7, x8)).
+
+}
+
+def ROM_hash_refactored_9(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8, hashinput9, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, x6, x7, x8, x9, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8, hashinput9):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5, x6: hashinput6, x7: hashinput7, x8: hashinput8, x9: hashinput9));
+        out(ch2, hash(k, x1, x2, x3, x4, x5, x6, x7, x8, x9)).
+
+}
+
+def ROM_hash_refactored_10(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8, hashinput9, hashinput10, hashoutput, hash, hashoracle, r, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, ch1, ch2, qH) {
+
+param Nh, N, Neq, Ncoll.
+
+fun hash(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashinput6, hashinput7, hashinput8, hashinput9, hashinput10):hashoutput.
+
+equiv(rom(hash)) special rom("key_first", hash, (hk, r, x, y, z, u), ("large")).
+
+param qH [noninteractive].
+
+channel ch1, ch2.
+let hashoracle(k: key) = 
+        foreach iH <= qH do
+	in(ch1, (x1: hashinput1, x2: hashinput2, x3: hashinput3, x4: hashinput4, x5: hashinput5, x6: hashinput6, x7: hashinput7, x8: hashinput8, x9: hashinput9, x10: hashinput10));
+        out(ch2, hash(k, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10)).
+
+}
+
+def ROM_hash_refactored(key, hashinput, hashoutput, hash, hashoracle, r, x1, ch1, ch2, qH) {
+expand ROM_hash_refactored_1(key, hashinput, hashoutput, hash, hashoracle, r, x1, ch1, ch2, qH).
+}
+
+(* split_N defines functions to split a value into N values.
+
+  input_t: type of the input value
+  part%_t: types of the output parts
+  concat(part1_t, ..., partN_t): input_t: function that takes N parts as input and returns the corresponding value.
+  part%: variable that contains a part 
+
+  input_t and part%_t must be defined before.
+  concat is defined by this macro. *)
+
+def split_1(input_t, part1_t, concat, part1) {
+
+  fun concat(part1_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t;
+       Or() := return(concat(part1)).
+
+}
+
+def split_2(input_t, part1_t, part2_t, concat, part1, part2) {
+
+  fun concat(part1_t, part2_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t;
+       Or() := return(concat(part1, part2)).
+
+}
+
+def split_3(input_t, part1_t, part2_t, part3_t, concat, part1, part2, part3) {
+
+  fun concat(part1_t, part2_t, part3_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t;
+       Or() := return(concat(part1, part2, part3)).
+
+}
+
+def split_4(input_t, part1_t, part2_t, part3_t, part4_t, concat, part1, part2, part3, part4) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t;
+       Or() := return(concat(part1, part2, part3, part4)).
+
+}
+
+def split_5(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, concat, part1, part2, part3, part4, part5) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t;
+       Or() := return(concat(part1, part2, part3, part4, part5)).
+
+}
+
+def split_6(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, concat, part1, part2, part3, part4, part5, part6) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t, part6_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t; part6 <-R part6_t;
+       Or() := return(concat(part1, part2, part3, part4, part5, part6)).
+
+}
+
+def split_7(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, concat, part1, part2, part3, part4, part5, part6, part7) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t; part6 <-R part6_t; part7 <-R part7_t;
+       Or() := return(concat(part1, part2, part3, part4, part5, part6, part7)).
+
+}
+
+def split_8(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t, concat, part1, part2, part3, part4, part5, part6, part7, part8) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t; part6 <-R part6_t; part7 <-R part7_t; part8 <-R part8_t;
+       Or() := return(concat(part1, part2, part3, part4, part5, part6, part7, part8)).
+
+}
+
+def split_9(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t, part9_t, concat, part1, part2, part3, part4, part5, part6, part7, part8, part9) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t, part9_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t; part6 <-R part6_t; part7 <-R part7_t; part8 <-R part8_t; part9 <-R part9_t;
+       Or() := return(concat(part1, part2, part3, part4, part5, part6, part7, part8, part9)).
+
+}
+
+def split_10(input_t, part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t, part9_t, part10_t, concat, part1, part2, part3, part4, part5, part6, part7, part8, part9, part10) {
+
+  fun concat(part1_t, part2_t, part3_t, part4_t, part5_t, part6_t, part7_t, part8_t, part9_t, part10_t): input_t [data].
+
+  param N.
+  equiv(splitter(concat))
+     foreach i <= N do r <-R input_t; 
+       Or() := return(r)
+    <=(0)=>
+     foreach i <= N do part1 <-R part1_t; part2 <-R part2_t; part3 <-R part3_t; part4 <-R part4_t; part5 <-R part5_t; part6 <-R part6_t; part7 <-R part7_t; part8 <-R part8_t; part9 <-R part9_t; part10 <-R part10_t;
+       Or() := return(concat(part1, part2, part3, part4, part5, part6, part7, part8, part9, part10)).
+
+}
+
+(***********************************************************************
+  The following is part of boolean_choice.cvl
+  inspired by some CryptoVerif examples and Bruno Blanchet
+***********************************************************************)
+
+def boolean_choice(value_t, test) {
+
+fun test(bool, value_t, value_t) : value_t.
+
+equation forall x:value_t, y:value_t; test(true, x, y) = x.
+equation forall x:value_t, y:value_t; test(false, x, y) = y.
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, b:bool; test(b,x,x) = x.
+
+}
+
+(* Zero needs to be defined already, typically by the AEAD scheme that's
+ * expanded somewhere before.
+ *)
+def boolean_choice_for_encryption(value_t, Zero, test) {
+
+expand boolean_choice(value_t, test).
+
+(* Knowing the equations defined above, this can be deduced, but
+   CryptoVerif can't do this on its own. *)
+equation forall x:value_t, y:value_t, b:bool; Zero(test(b,x,y)) = test (b,Zero(x),Zero(y)).
+
+}
+(*************** End of library includes **************)
+
+(* This file generates several CryptoVerif scripts using the m4 preprocessor.
+   It uses the following settings:
+
+   - Compromise settings:
+    When this macro is defined, the long-term secret key 
+   		S_i_priv of the initiator can be dynamically compromised.
+    When this macro is defined, the long-term secret key 
+   		S_r_priv of the responder can be dynamically compromised.
+   m4_E_i_compr When this macro is defined, the ephemeral E_i_priv
+   		of the initiator is compromised.
+   m4_E_r_compr When this macro is defined, the ephemeral E_r_priv
+   		of the responder is compromised.
+
+   - Other settings:
+                When this macro is defined, the script models sessions
+   		     in which A is the initiator and B is the responder.
+		     When it is not defined, the script also models sessions 
+		     in which B is the initiator and A is the responder
+		     (the ephemerals are always compromised for these sessions;
+		     it does not prove security for these sessions;
+		     security holds by symmetry).
+   m4_replay_prot    When this macro is defined, the first message is protected
+   		     against replays using the timestamp.
+         When this macro is defined, the process fails in case
+   		     a Diffie-Hellman shared secret is zero.
+   m4_only_psk	     When this macro is defined, the proof relies on the pre-shared
+   		     key psk between A and B. The long-term keys secret keys
+		     are compromised from the beginning.
+		     When this macro is not defined, the proof does not rely
+		     on the pre-shared key psk: psk is received from the adversary. 
+   m4_uniquesession_chbinding_weakUKS
+                     When this macro is defined, the long-term keys secret keys
+		     are compromised from the beginning and the psk is received 
+		     from the adversary. CryptoVerif proves session uniqueness,
+		     channel binding for the hash, and a weak version of resistance 
+		     to unknown key share attacks (long-term keys equal modulo pow8).
+   m4_first_msg_auth When this macro is defined, the script proves authentication
+   		     of the first message. For this to hold, the long-term
+		     secret keys must not be compromised at the moment
+		     the first message is received. For simplicity, we assume that
+		     the long-term secret keys are never compromised; compromising
+		     them after event rcvd1 is executed clearly does not affect
+		     the truth of the correspondence.
+		     When this macro is not defined, it proves all other security
+		     properties.
+
+The proof indications need to be adapted to the various settings.
+We use the following 7 combinations
+-Dm4_uniquesession_chbinding_weakUKS -Dm4_E_i_compr -Dm4_E_r_compr
+-Dm4_only_psk -Dm4_E_i_compr -Dm4_E_r_compr
+-Dm4_first_msg_auth -Dm4_E_i_compr -Dm4_E_r_compr
+-Dm4_S_i_compr -Dm4_S_r_compr
+-Dm4_E_i_compr -Dm4_S_r_compr
+-Dm4_S_i_compr -Dm4_E_r_compr
+-Dm4_E_i_compr -Dm4_E_r_compr
+with in addition  defined or not, m4_replay_prot defined or not,
+and  defined.
+The other combinations may not work.
 *)
 
 
@@ -20,94 +462,27 @@ set autoMergeBranches = false.
 (* To save memory *)
 set forgetOldGames = true.
 
+(* m4_E_ir_compr is defined when both ephemerals E_i_priv and E_r_priv are compromised *)
+
+
+(* The macro m4_out_game outputs the current game to a file.
+   The file name contains a number that is increased at each output. *)
+
+
 
 (* Proof indications *)
 
 proof {
-  (* put the event init_break_auth in the initiator, when it is supposed to talk to the honest
-     responder, the psk is not corrupted, and still E_r does not match one generated by the
-     honest responder. *)
-  insert before_nth 2 "rcvd2" "find j5 <= N_resp_parties suchthat defined(E_r_pub[j5]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j5]) then else event_abort init_break_auth";
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.1.out.cv";
-  (* put the event resp_break_auth in the responder, when it is supposed to talk to the honest
-     initiator, the psk is not corrupted, and still E_i does not match one generated by the 
-     honest initiator. *)
-  insert before_nth 5 "injbot(plaintext" "find j7 <= N_init_parties suchthat defined(E_i_pub_2[j7]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_2[j7]) then";
-  insert_event resp_break_auth after_nth 7 "injbot(plaintext";
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.2.out.cv";
-  simplify;
-
-
-  (* We first prove that init_break_auth and resp_break_auth happen
-     with negligible probability *)
-  focus "query event(init_break_auth)", "query event(resp_break_auth)";
-  success simplify;
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.3.out.cv";
-  (* Distinguish whether the responder received an E_i that comes from the honest initiator *)
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_2[i]) && E_i_pub_rcvd_2 = E_i_pub_2[i] then";
-  simplify;
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.4.out.cv";
-
-  (* We apply the ROM assumptions in the order rom3, rom2, rom1
-     the reduce the number of case distinctions made by CryptoVerif.
-     Since rom2 and rom3 are called after rom1, if we applied
-     rom1 first, that would copy the calls to rom2 and rom3
-     for each case distinguished by rom1, and thus creates many
-     more calls and case distinctions to make in rom2 and rom3.
-     Appliying them in the reverse order avoids that.
-
-     In the random oracle rom3 provided to the adversary,
-     distinguish whether the argument of rom3 is a 7-tuple in which the
-     components 2, 3, 5, 6 are elements of the subgroup of curve25519
-     generated by the base point.
-     In all calls to rom3 made in the protocol, this property is
-     satisfied because these components are Diffie-Hellman shared
-     secrets computed as X_pub^Y_priv where Y_priv is a multiple of 8.
-     Hence, calls made by the adversary that do not satisfy this condition
-     cannot collide with calls made in the protocol. *)
-  insert after "in(ch1_rom3" "let rom3_input(x1_rom3, G8_to_G(x2_rom3), G8_to_G(x3_rom3), x4_rom3, G8_to_G(x5_rom3), G8_to_G(x6_rom3), v_psk) = x_rom3 in";
-  (* Apply the ROM assumption to rom3 *)
-  crypto rom(rom3_intermediate);
-  (* Similar case distinction to the above, adapted to the calls to
-     rom2 made in the protocol *)
-  insert after "in(ch1_rom2" "let rom2_input(x1_rom2, G8_to_G(x2_rom2), G8_to_G(x3_rom2)) = x_rom2 in";
-  (* Apply the ROM assumption to rom2 *)
-  crypto rom(rom2_intermediate);
-  (* Similar case distinction to the above, adapted to the calls to
-     rom1 made in the protocol *)
-  insert after "in(ch1_rom1" "let rom1_input(x1_rom1, G8_to_G(x2_rom1)) = x_rom1 in";
-  (* Apply the ROM assumption to rom1 *)
-  crypto rom(rom1_intermediate);
-
-  (* Unset useKnownEqualitiesWithFunctionsInMatching and
-     elsefindFactsInSimplify for speed. They are not necessary
-     in this part of the proof. *)
-  set useKnownEqualitiesWithFunctionsInMatching = false;
-  set elsefindFactsInSimplify = false;
-  (* Split the 4 random keys returned by rom3.
-     The indication ** means that we apply splitter(concat_four_keys)
-     as many times as we can, without performing a full simplification
-     between each application. Avoiding that simplification
-     here and for the ind_cpa transformation saves about 12% of the runtime. *)
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.5.out.cv";
-  crypto splitter(concat_four_keys) **;
-  (* avoid trying SA renaming variables in case the next int_ctxt does not work
-     immediately. The proof also works without that indication, but it is slower. *)
-  set noAdviceCrypto = true;
-  (* Apply ciphertext integrity for the AEAD scheme *)
-  crypto int_ctxt(enc) *;
-  success; (* no nonce reuse, init_break_auth and resp_break_auth *)
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.6.out.cv";
-
-  (* back to before focus *)
-
-
   (* Useful when using Curve25519 because we need to apply equalities
-     pow8(..) = pow8(..) when testing whether a term matches
+     pow8(..) = pow8(..) when testing whether a term matches 
      another term, and CryptoVerif would not apply them by default.
      However, that is costly. *)
   set useKnownEqualitiesWithFunctionsInMatching = true;
+  (* This is in fact the default; mentioned here just as a reminder.
+     We unset it later for speed. *)
   set elsefindFactsInSimplify = true;
+  crypto exclude_weak_keys(Z_t) **;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.1.out.cv";
 (* Case distinctions *)
 
 (* Case sessions A initiator - B responder only *)
@@ -115,32 +490,48 @@ proof {
   (* We say that two public keys are X_pub and Y_pub are "equivalent"
      when X_pub^8 = Y_pub^8, written in CryptoVerif pow8(X_pub) = pow8(Y_pub).
      Such equivalent public keys yield the same Diffie-Hellman shared
-     secrets because all secret keys are multiple of 8. *)
+     secrets because all secret keys are multiple of 8.
+  
+     Distinguish whether the initiator talks to a responder with a public
+     key S_X_pub equivalent to the one of honest responder (S_B_pub). *)
+  insert after "in(c_config_initiator\\[" "if pow8(S_X_pub) = pow8(S_B_pub) then";
+  (* Use different names for the ephemeral E_i_pub of the initiator,
+     depending on the cases distinguished above *) 
+  SArename E_i_pub_2;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.2.out.cv";
+  (* Distinguish whether the responder talks to an initiator with a public
+     key S_i_pub_rcvd_2 equivalent to the one of the honest initiator (S_A_pub) *)
+  insert after "let injbot(G_to_bitstring(S_i_pub_rcvd_2: G_t))" "if pow8(S_i_pub_rcvd_2) = pow8(S_A_pub) then";
 
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.3.out.cv";
   (* Distinguish whether the ephemeral E_i_pub_rcvd_2 received by the
-     responder is equivalent to an ephemeral generated by the honest initiator.
+     responder is equivalent to an ephemeral (E_i_pub_4 or E_i_pub_3)
+     generated by the honest initiator.
      This case distinction is useful when E_i_priv is not compromised,
      and also when E_r_priv is not compromised (in this case, we use
      it to show that we decrypt static_i_enc with the same key as the
      encryption key) *)
-  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_2[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_2[i]) then";
+  insert after "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_4[i]) then orfind i <= N_init_parties suchthat defined(E_i_pub_3[i]) && pow8(E_i_pub_rcvd_2) = pow8(E_i_pub_3[i]) then";
 
 
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.7.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.4.out.cv";
   (* Distinguish whether the ephemeral E_r_pub_rcvd_1 received by the
      initiator is equivalent to an ephemeral E_r_pub generated by
      the honest responder.
      This case distinction is useful only when E_r_priv is not compromised. *)
+  insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j]) then";
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.5.out.cv";
   insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd_1) = pow8(E_r_pub[j]) then";
 
 
 
 (* End of case distinctions *)
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.6.out.cv";
   simplify;
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.8.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.7.out.cv";
   (* We apply the ROM assumptions in the order rom3, rom2, rom1
      the reduce the number of case distinctions made by CryptoVerif.
-     Since rom2 and rom3 are called after rom1, if we applied
+     Since rom2 and rom3 are called after rom1, if we applied 
      rom1 first, that would copy the calls to rom2 and rom3
      for each case distinguished by rom1, and thus creates many
      more calls and case distinctions to make in rom2 and rom3.
@@ -158,54 +549,93 @@ proof {
   insert after "in(ch1_rom3" "let rom3_input(x1_rom3, G8_to_G(x2_rom3), G8_to_G(x3_rom3), x4_rom3, G8_to_G(x5_rom3), G8_to_G(x6_rom3), v_psk) = x_rom3 in";
   (* Apply the ROM assumption to rom3 *)
   crypto rom(rom3_intermediate);
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.9.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.8.out.cv";
   (* Similar case distinction to the above, adapted to the calls to
      rom2 made in the protocol *)
   insert after "in(ch1_rom2" "let rom2_input(x1_rom2, G8_to_G(x2_rom2), G8_to_G(x3_rom2)) = x_rom2 in";
   (* Apply the ROM assumption to rom2 *)
   crypto rom(rom2_intermediate);
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.10.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.9.out.cv";
   (* Similar case distinction to the above, adapted to the calls to
      rom1 made in the protocol *)
   insert after "in(ch1_rom1" "let rom1_input(x1_rom1, G8_to_G(x2_rom1)) = x_rom1 in";
   (* Apply the ROM assumption to rom1 *)
   crypto rom(rom1_intermediate);
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.11.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.10.out.cv";
 
-  (* Apply the gap Diffie-Hellman assumption.
+  (* Apply the gap Diffie-Hellman assumption. 
      The previous case distinctions allow us to isolate Diffie-Hellman
      shared secrets that the adversary cannot compute because he does not
      have the two secret shares.
      The ROM assumptions applied before make comparisons with these
      Diffie-Hellman shared secrets appear. *)
 
-  crypto gdh(exp_div8) S_B_priv E_i_priv_2 S_A_priv E_r_priv_2;
+  crypto gdh(exp_div8) x x_2 x_3 x_5;
 
-  (* Unset useKnownEqualitiesWithFunctionsInMatching and
+
+  (* Unset useKnownEqualitiesWithFunctionsInMatching and 
      elsefindFactsInSimplify for speed. They are not necessary
      in the rest of the proof. *)
   set useKnownEqualitiesWithFunctionsInMatching = false;
   set elsefindFactsInSimplify = false;
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.12.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.11.out.cv";
   (* Split the 4 random keys returned by rom3.
      The indication ** means that we apply splitter(concat_four_keys)
      as many times as we can, without performing a full simplification
      between each application. Avoiding that simplification
      here and for the ind_cpa transformation saves about 12% of the runtime. *)
   crypto splitter(concat_four_keys) **;
-  success; (* identity mis-binding *)
+  success; (* unknown key-share *)
   simplify;
-  out_game "WG.25519.psk_dyn_simp.AB.S_i_compr.S_r_compr.no_replay_prot.13.out.cv" occ;
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.12.out.cv";
   (* avoid trying SA renaming variables in case the next int_ctxt does not work
      immediately. The proof also works without that indication, but it is about
      15% slower. *)
   set noAdviceCrypto = true;
   (* Apply ciphertext integrity for the AEAD scheme *)
   crypto int_ctxt(enc) *;
-  success; (* some nonce reuse, and all but secrecy. *)
+  success; (* some nonce reuse *)
   simplify;
 
-  out_game "WG.25519.psk_dyn_symp.AB.S_i_compr.S_r_compr.no_replay_prot.14.out.cv" occ;
+
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.13.out.cv";
+  (* This covers, on the initiator"s side, the case of honest S_r_pub
+     but dishonest E_r_pub in the case of possible corruption of
+     S_r_priv: The attacker can"t produce a valid ciphertext in protocol
+     message 2 (empty plaintext) if the key wasn"t compromised, thus
+     the decryption will fail on the initiator"s side and the protocol
+     won"t continue.
+     The else case, not the huge find. *)
+  crypto int_ctxt_corrupt(enc) k_43;
+  success; (* - initiator can authenticate the second protocol message
+                sent by the responder,
+              - initiator can authenticate a transport data message sent
+                by the responder. *)
+  simplify;
+
+
+
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.14.out.cv";
+  (* This covers, on the responder"s side, the case of honest S_i_pub
+     but dishonest E_i_pub in the case of possible corruption of
+     S_i_priv: The attacker can"t produce a valid ciphertext for
+     protocol message 3 (key confirmation) if the key wasn"t
+     compromised, thus the decryption will fail on the responder"s side
+     and the protocol won"t continue. Especially the rcvd3 event will
+     not be triggered. 
+     We need to apply int_ctxt_corrupt(enc) for many variables
+     T_i_send_* to cover this case. We include all of them
+     using the regular expression T_i_send_[0-9]* as it is easier
+     and the proof still works. *)
+  crypto int_ctxt_corrupt(enc) "T_i_send_[0-9]*";
+  success; (* - responder can authenticate a transport data message sent
+                by the initiator,
+              - responder can authenticate the third protocol message
+                sent by the initiator (key confirmation). *)
+  simplify;
+
+
+  out_game "WG.25519.AB.S_i_compr.S_r_compr.no_replay_prot.15.out.cv";
   (* Apply IND-CPA of the AEAD scheme *)
   crypto ind_cpa(enc) **;
   success (* secrecy of secret_bit (message indistinguishability) *)
@@ -226,6 +656,8 @@ type G8_t [bounded,large]. (* type of { X^k, X \in F_p } *)
 fun G_to_bitstring(G_t): bitstring [data].
 type Z_t [bounded,large,nonuniform].   (* type of exponents (must be "bounded" and
                                "large", is the set of multiples of k prime to qq' modulo kqq'.) *)
+type Znw_t [bounded,large,nonuniform].   (* type of exponents without weak keys (must be "bounded" and
+                               "large", is the set of multiples of k prime to qq' modulo kqq'.) *)
 const dummy_z: Z_t.      (* placeholder when we do not compromise the ephemerals *)
 proba P_GDH.            (* probability of breaking the GDH assumption *)
 proba P_DistRerandom.
@@ -234,28 +666,33 @@ proba P_DistRerandom.
    (which may have multiple equivalent encodings), or is an invalid
    value. *)
 
-expand DH_X25519(
+expand DH_subgroup(
   (* types *)
   G_t,  (* Public keys *)
-  Z_t,  (* Exponents *)
+  Znw_t,  (* Exponents *)
   (* variables *)
   g,    (* base point *)
-  exp,  (* exponentiation function *)
+  expnw,  (* exponentiation function *)
   mult, (* multiplication function for exponents *)
   G8_t,
   g8,
   exp_div8,
   exp_div8', (* a symbol that replaces exp_div8 after game transformation *)
   pow8,
-  G8_to_G,
-  is_zero,
-  is_zero8
-).
+  G8_to_G).
+
+proba Pweak_key.
+expand DH_exclude_weak_keys(G_t, Z_t, Znw_t, ZnwtoZ, exp, expnw, Pweak_key).
+
+proba PCollKey1.
+proba PCollKey2.
+proba PCollKey3.
+expand (*square_*)DH_proba_collision(G8_t, Znw_t, g8, exp_div8, exp_div8', mult, PCollKey1, PCollKey2(*, PCollKey3*)).
 
 expand GDH_RSR(
   (* types *)
   G8_t,  (* Group elements *)
-  Z_t,  (* Exponents *)
+  Znw_t,  (* Exponents *)
   (* variables *)
   g8,    (* a generator of the group *)
   exp_div8,  (* exponentiation function *)
@@ -427,7 +864,7 @@ expand split_4(
   T_i_recv
 ).
 
-
+  
 
 
 (* A collision resistant hash function is used for chaining hashes
@@ -729,10 +1166,9 @@ event rcvd_msg_initiator(G_t, G_t, bitstring, G_t, bitstring, timestamp_t,
 (* Secrecy *)
 query secret secret_bit.
 
-(* Resistance against Unknown Key-Share attacks. *)
 
-(* After the psk is compromised, this query is interesting to prove.
-   Before the psk is compromised, the adversary could not succeed anyway. *)
+
+(* Resistance against Unknown Key-Share attacks. *)
 query
   (* We prove resistance againts an unknown key-share attack even in
      the dishonest case (keys compromised, talking to the attacker. *)
@@ -749,10 +1185,10 @@ query
   S_i_pub_rcvd: G_t,
   S_r_pub: G_t,
   S_r_pub_rcvd: G_t;
-  event(responder_imb(T_i_send, T_i_recv,
+  event(responder_imb(T_i_send, T_i_recv, 
             E_i_pub_rcvd, E_r_pub, S_i_pub_rcvd, S_r_pub))
   &&
-  event(initiator_imb(T_i_send, T_i_recv,
+  event(initiator_imb(T_i_send, T_i_recv, 
             E_i_pub, E_r_pub_rcvd, S_i_pub, S_r_pub_rcvd))
   ==> E_i_pub = E_i_pub_rcvd && E_r_pub = E_r_pub_rcvd && S_i_pub = S_i_pub_rcvd && S_r_pub = S_r_pub_rcvd.
 
@@ -822,12 +1258,12 @@ query
 
 
 (* Type definitions for return values of functions that
-   prepare or process messages
-
+   prepare or process messages 
+   
    prepare1res_t is an "option" type:
    prepare1succ(...) is the success case
    prepare1fail is the failure case
-   The disequation prepare1succ(x1,x2,x3,x4,x5,x6,x7,x8) <> prepare1fail
+   The disequation prepare1succ(x1,x2,x3,x4,x5,x6,x7,x8) <> prepare1fail 
    guarantees that there is no confusion between these two cases. *)
 type prepare1res_t.
 fun prepare1succ(session_index_t, Z_t, G_t, bitstring, bitstring, G_t, G_t, hashoutput_t): prepare1res_t [data].
@@ -846,7 +1282,7 @@ fun prepare2succ(session_index_t, Z_t, G_t, key_t, key_t, hashoutput_t, bitstrin
 const prepare2fail: prepare2res_t.
 equation forall x1: session_index_t, x2: Z_t, x3: G_t, x4: key_t, x5: key_t, x6: hashoutput_t, x7: bitstring;
    prepare2succ(x1,x2,x3,x4,x5,x6,x7) <> prepare2fail.
-
+   
 type process2res_t.
 fun process2succ(key_t, key_t, hashoutput_t):process2res_t [data].
 const process2fail: process2res_t.
@@ -886,16 +1322,12 @@ letfun prepare1(
 
   let es_i: G_t = DH(S_X_pub_rcvd, E_i_priv) in
   
-  if is_zero(es_i) then prepare1fail else
-  
   let k_i2: key_t = rom1(key_rom1, E_i_pub, es_i) in
 
   let static_i_enc: bitstring = enc_G(S_i_pub, H_i2, k_i2, nonce_0) in
   let H_i3: hashoutput_t = mix_hash_bitstring(key_hash, H_i2, static_i_enc) in
 
   let ss_i: G_t = DH(S_X_pub_rcvd, S_i_priv) in
-  
-  if is_zero(ss_i) then prepare1fail else
   
   let k_i3: key_t = rom2(key_rom2, E_i_pub, es_i, ss_i) in
 
@@ -925,8 +1357,6 @@ letfun process1(
 
     let es_r: G_t = DH(E_i_pub_rcvd, S_r_priv) in
     
-    if is_zero(es_r) then process1fail else
-    
     let k_r2: key_t = rom1(key_rom1, E_i_pub_rcvd, es_r) in
 
     let injbot(G_to_bitstring(S_i_pub_rcvd: G_t)) = dec_ad_hash(static_i_enc_rcvd, H_r2, k_r2, nonce_0) in
@@ -936,8 +1366,6 @@ letfun process1(
         let H_r3: hashoutput_t = mix_hash_bitstring(key_hash, H_r2, static_i_enc_rcvd) in
 
         let ss_r: G_t = DH(S_i_pub_rcvd, S_r_priv) in
-        
-        if is_zero(ss_r) then process1fail else
         
         let k_r3: key_t = rom2(key_rom2, E_i_pub_rcvd, es_r, ss_r) in
 
@@ -952,7 +1380,7 @@ letfun process1(
       ) else (
         (* peer not allowed *)
         process1fail
-      )
+      )      
     ) else (
       (* static did not decrypt *)
       process1fail
@@ -972,11 +1400,7 @@ letfun prepare2(
 
   let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
   
-  if is_zero(ee_r) then prepare2fail else
-  
   let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
-  
-  if is_zero(se_r) then prepare2fail else
   
 
   let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub) in
@@ -999,18 +1423,13 @@ letfun process2(
           key_hash: hashkey_t,
           key_rom3: hashkey_t,
           E_i_priv: Z_t, E_i_pub: G_t, S_i_priv: Z_t, S_i_pub: G_t,
-          E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring,
+          E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring, 
           H_i4: hashoutput_t,
           es_i: G_t, ss_i: G_t, Q: psk_t) =
   let ee_i: G_t = DH(E_r_pub_rcvd, E_i_priv) in
   
-  if is_zero(ee_i) then process2fail else
-  
   let se_i: G_t = DH(E_r_pub_rcvd, S_i_priv) in
   
-  if is_zero(se_i) then process2fail else
-  
-
   let H_i5: hashoutput_t = mix_hash_G(key_hash, H_i4, E_r_pub_rcvd) in
 
   let concat_four_keys(tau_i4: key_t, k_i4: key_t, T_i_send: key_t, T_i_recv: key_t) = rom3(key_rom3, E_i_pub, es_i, ss_i, E_r_pub_rcvd, ee_i, se_i, Q) in
@@ -1071,17 +1490,17 @@ letfun process_msg(
 let initiator(key_hash: hashkey_t,
               key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
               S_i_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t,
-              secret_bit_I: bool, Q: psk_t) =
+              secret_bit_I: bool ) =
 
   ! i_N_init_parties <= N_init_parties
   (* Receive the public key of the responder we should communicate *)
   (* with, and the timestamp the initiator should use. *)
-  in(c_config_initiator, (S_X_pub: G_t, timestamp_i: timestamp_t ));
-  if S_X_pub = S_r_pub then (* the initiator can and will only use the psk when talking to S_r_pub *)
+  in(c_config_initiator, (S_X_pub: G_t, timestamp_i: timestamp_t , Q: psk_t));
+  
 
     let prepare1succ(I_i: session_index_t,
          E_i_priv: Z_t, E_i_pub_sent: G_t, static_i_enc: bitstring,
-         timestamp_i_enc: bitstring,
+         timestamp_i_enc: bitstring, 
          es_i: G_t, ss_i: G_t, H_i4: hashoutput_t) =
       prepare1(key_hash, key_rom1, key_rom2, S_X_pub, S_i_priv, S_i_pub, timestamp_i) in
 
@@ -1100,17 +1519,7 @@ let initiator(key_hash: hashkey_t,
     event initiator_imb(T_i_send, T_i_recv, E_i_pub_sent, E_r_pub_rcvd, S_i_pub, S_X_pub);
     event initiator_H7(S_i_pub, S_X_pub, E_i_pub_sent, E_r_pub_rcvd, timestamp_i, Q, T_i_send, T_i_recv, H_i7);
 
-    let honest_session = (
-      if defined(psk_is_corrupted) then (
-        find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd) = pow8(E_r_pub[j]) then
-          (* This means we have an honest E_r. *)
-          true
-        else
-          false
-      ) else (
-        (*pow8(S_X_pub) = pow8(S_r_pub)*)
-        true)
-      ) in
+    let honest_session = (if defined(S_r_is_corrupted) then (find j <= N_resp_parties suchthat defined(E_r_pub[j]) && pow8(E_r_pub_rcvd) = pow8(E_r_pub[j]) then (* This means we have an honest E_r. *) true else false) else (pow8(S_X_pub) = pow8(S_r_pub))) in
     if not(honest_session) then
       out(c_keyconfirm_send, (T_i_send, T_i_recv))
       (* The adversary can run the rest of the session by himself *)
@@ -1138,17 +1547,17 @@ let initiator(key_hash: hashkey_t,
 
 (* The responder *)
 
-let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool, Q: psk_t) =
+let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool ) =
 
   ! i_N_resp_parties <= N_resp_parties
 
-  in(c_init2resp_recv, (allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
+  in(c_init2resp_recv, (Q: psk_t, allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
 
     let process1succ(es_r: G_t, ss_r: G_t, S_i_pub_rcvd: G_t, H_r4: hashoutput_t, timestamp_i_rcvd: timestamp_t) =
       process1(
         key_hash, key_rom1, key_rom2, allowed_peers, S_r_priv, S_r_pub,
         E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd) in
-    if S_i_pub_rcvd = S_i_pub then (* the responder can and will only use the psk when talking to S_i_pub *)
+    
 
 
 
@@ -1170,8 +1579,7 @@ let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key
     in(c_keyconfirm_recv, (=msg_type_data, =reserved, =I_r, counter_keyconfirmation: counter_t, ciphertext_keyconfirmation_rcvd: bitstring));
       (* This means we have an honest E_i. In this case it cannot be corrupted, because we never corrupt
          S_i and E_i at the same time. Thus, the attacker cannot get the secret key, because E_i_priv is secret. *)
-    let honest_session = (
-if defined(psk_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i_pub_sent[j]) && pow8(E_i_pub_rcvd) = pow8(E_i_pub_sent[j]) then true else false) else ((*pow8(S_i_pub_rcvd) = pow8(S_i_pub)*)true)) in
+    let honest_session = (if defined(S_i_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i_pub_sent[j]) && pow8(E_i_pub_rcvd) = pow8(E_i_pub_sent[j]) then true else false) else (pow8(S_i_pub_rcvd) = pow8(S_i_pub))) in
     if not(honest_session) then
         out(c_wait_before_2nd_part, (T_r_recv, T_r_send))
         (* The adversary can run the rest of the session by himself *)
@@ -1197,15 +1605,108 @@ if defined(psk_is_corrupted) then (find j <= N_init_parties suchthat defined(E_i
     )).
 
 
-let corrupt_psk(psk: psk_t) =
-  in(c_corrupt_psk, ());
-  let psk_is_corrupted: bool = true in
-  out(c_corrupt_psk, psk).
+(* Swapped initiator and responder - we prove no security properties for these sessions *)
+
+(* Copy of prepare2 because we need to change the name of the variable
+   E_r_pub to avoid a confusion with that variable in I->R case. *)
+
+letfun prepare2_sw(
+    key_hash: hashkey_t,
+    key_rom3: hashkey_t,
+    S_i_pub_rcvd: G_t, E_i_pub_rcvd: G_t,
+    H_r4: hashoutput_t, es_r: G_t, ss_r: G_t, Q: psk_t) =
+
+  new I_r: session_index_t;
+  new E_r_priv: Z_t;
+  let E_r_pub_sw: G_t = exp(g, E_r_priv) in
+
+  let ee_r: G_t = DH(E_i_pub_rcvd, E_r_priv) in
+  
+  let se_r: G_t = DH(S_i_pub_rcvd, E_r_priv) in
+  
+  let H_r5: hashoutput_t = mix_hash_G(key_hash, H_r4, E_r_pub_sw) in
+
+  let concat_four_keys(tau_r4: key_t, k_r4: key_t, T_r_recv: key_t, T_r_send: key_t) = rom3(key_rom3, E_i_pub_rcvd, es_r, ss_r, E_r_pub_sw, ee_r, se_r, Q) in
+  (
+    let H_r6: hashoutput_t = mix_hash_key(key_hash, H_r5, tau_r4) in
+
+    let empty_bitstring_r_enc: bitstring = enc_bitstring(empty_bitstring, H_r6, k_r4, nonce_0) in
+    let H_r7: hashoutput_t = mix_hash_bitstring(key_hash, H_r6, empty_bitstring_r_enc) in
+
+    prepare2succ(I_r, E_r_priv, E_r_pub_sw, T_r_recv, T_r_send, H_r7, empty_bitstring_r_enc)
+  ) else (
+    prepare2fail
+  ).
+
+
+let initiator_swapped(key_hash: hashkey_t,
+              key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
+              S_i_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t,
+              secret_bit_I: bool ) =
+
+  ! i_N_init_parties <= N_init_parties_sw
+  (* Receive the public key of the responder we should communicate *)
+  (* with, and the timestamp the initiator should use. *)
+  in(c_config_initiator_sw, (S_X_pub_sw: G_t, timestamp_i: timestamp_t , Q: psk_t));
+  
+
+    let prepare1succ(I_i: session_index_t,
+         E_i_priv: Z_t, E_i_pub_sent_sw: G_t, static_i_enc: bitstring,
+         timestamp_i_enc: bitstring, 
+         es_i: G_t, ss_i: G_t, H_i4: hashoutput_t) =
+      prepare1(key_hash, key_rom1, key_rom2, S_X_pub_sw, S_i_priv, S_i_pub, timestamp_i) in
+
+    out(c_init2resp_send_sw, (E_i_priv (* Always compromise ephemeral *), (msg_type_init2resp, reserved, I_i, E_i_pub_sent_sw, static_i_enc, timestamp_i_enc)));
+
+    (* Receive two plaintexts for the indistinguishability game of the
+       third protocol message aka key confirmation message. *)
+    in(c_resp2init_recv_sw, (plaintext_0: bitstring, plaintext_1: bitstring, (=msg_type_resp2init, =reserved, I_r_rcvd: session_index_t, =I_i, E_r_pub_rcvd: G_t, empty_bitstring_r_enc_rcvd: bitstring)));
+
+    let process2succ(T_i_send: key_t, T_i_recv: key_t, H_i7: hashoutput_t) =
+      process2(key_hash, key_rom3, E_i_priv, E_i_pub_sent_sw, S_i_priv, S_i_pub, E_r_pub_rcvd, empty_bitstring_r_enc_rcvd, H_i4, es_i, ss_i, Q) in
+
+    out(c_keyconfirm_send_sw, (T_i_send, T_i_recv)).
+    (* The adversary can run the rest of the session by himself *)
+
+
+let responder_swapped(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_i_pub: G_t, S_r_pub: G_t, secret_bit_R: bool ) =
+
+  ! i_N_resp_parties <= N_resp_parties_sw
+
+  in(c_init2resp_recv_sw, (Q: psk_t, allowed_peers: G_set_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
+
+    let process1succ(es_r: G_t, ss_r: G_t, S_i_pub_rcvd: G_t, H_r4: hashoutput_t, timestamp_i_rcvd: timestamp_t) =
+      process1(
+        key_hash, key_rom1, key_rom2, allowed_peers, S_r_priv, S_r_pub,
+        E_i_pub_rcvd, static_i_enc_rcvd, timestamp_i_enc_rcvd) in
+    
+
+
+
+    let prepare2succ(I_r: session_index_t, E_r_priv: Z_t, E_r_pub_sent: G_t, T_r_recv: key_t, T_r_send: key_t, H_r7: hashoutput_t, empty_bitstring_enc: bitstring) =
+      prepare2_sw(key_hash, key_rom3,
+        S_i_pub_rcvd, E_i_pub_rcvd, H_r4, es_r, ss_r, Q) in
+    out(c_resp2init_send_sw, (E_r_priv (* Always compromise ephemeral *), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
+    (* The adversary can run the rest of the session by himself *)
+
+(* Corruption processes: the adversary uses them to corrupt
+   the long-term keys dynamically *)
+
+let corrupt_S_i(S_i_priv: Z_t) =
+  in(c_corrupt_S_i, ());
+  let S_i_is_corrupted: bool = true in
+  out(c_corrupt_S_i, S_i_priv).
+
+let corrupt_S_r(S_r_priv: Z_t) =
+  in(c_corrupt_S_r, ());
+  let S_r_is_corrupted: bool = true in
+  out(c_corrupt_S_r, S_r_priv).
+
 
 process
   in(c_start, ());
 
-  new psk: psk_t;
+  
 
   new key_hash: hashkey_t;
   new key_rom1: hashkey_t;
@@ -1221,19 +1722,30 @@ process
   new secret_bit : bool;
 
   (* hand over control to the attacker *)
-  out(c_publickeys, (S_A_priv, S_B_priv, S_A_pub, S_B_pub));
+  out(c_publickeys, (S_A_pub, S_B_pub));
 
-  (initiator(key_hash, key_rom1, key_rom2, key_rom3, S_A_priv, S_A_pub, S_B_pub, secret_bit, psk) |
-   responder(key_hash, key_rom1, key_rom2, key_rom3, S_B_priv, S_A_pub, S_B_pub, secret_bit, psk) |
+  (initiator(key_hash, key_rom1, key_rom2, key_rom3, S_A_priv, S_A_pub, S_B_pub, secret_bit ) |
+   responder(key_hash, key_rom1, key_rom2, key_rom3, S_B_priv, S_A_pub, S_B_pub, secret_bit ) |
 
    rom1_oracle(key_rom1) | rom2_oracle(key_rom2) | rom3_oracle(key_rom3) |
    hash_oracle(key_hash)
  |
-   corrupt_psk(psk)
+   corrupt_S_i(S_A_priv)
+ |
+   corrupt_S_r(S_B_priv)
   )
+
 
 
 (* EXPECTED
 All queries proved.
-88.564s (user 88.440s + system 0.124s), max rss 265576K
+329.312s (user 328.496s + system 0.816s), max rss 305316K
 END *)
+
+
+
+
+
+
+
+
