@@ -14,3 +14,8 @@ process
 	new b: bool;
 	out(ch,LR(m0,m1,b))
 
+
+(* EXPECTED
+RESULT Could not prove secrecy of b.
+0.076s (user 0.072s + system 0.004s), max rss 15740K
+END *)
