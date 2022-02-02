@@ -1,0 +1,15 @@
+(* (false >>= b) reduced into (false >>= b)
+Internal error: LetEqual terms should have a variable in the left-hand side *)
+set debugSimplifAddFacts = true.
+channel ch,start.
+
+letfun LR(m0:bitstring,m1: bitstring, b0:bool) =
+    if b0 then m1 else m0.
+
+query secret b.
+
+process
+	in(start, (m0:bitstring,m1:bitstring));
+	new b: bool;
+	out(ch,LR(m0,m1,b))
+

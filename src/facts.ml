@@ -1359,11 +1359,12 @@ and subst_simplify2 depth dep_info (subst2, facts, elsefind) link =
 		 given in the input file, possibly using the new [link] to enable
 		 these reductions *)	      
 	      let (reduced_root_or_lhs, fact') =
-		if reduced_root_or_lhs
+		if reduced_root_or_lhs then
+		  (reduced_root_or_lhs, Terms.make_equal t1 t')
 		(* To avoid a stupid loop tranforming t into t = true or not(t) into t = false
                    back and forth *) 
-	        || (Terms.is_true t) || (Terms.is_false t)
-	        || (Terms.is_true t') || (Terms.is_false t') then
+	        else if (Terms.is_true t) || (Terms.is_false t)
+	             || (Terms.is_true t') || (Terms.is_false t') then
 		  (reduced_root_or_lhs, Terms.app f [t1; t'])
 		else
 		  apply_root_st_coll1 depth dep_info simp_facts_tmp2 t0
