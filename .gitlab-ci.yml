@@ -1,5 +1,8 @@
 pages:
   stage: deploy
+  tags:
+    - ci.inria.fr
+    - small  
   script:
     - mkdir public
     - cp -r website/copy/* public
