@@ -107,6 +107,8 @@ def Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Auth
 
   param N, Qeperuser, Qdperuser.
 
+  table E(pkey, pkey, ciphertext, key).
+
   (* In this security notion, the sender keypair is honest, which means the
      private key is not known to the adversary. *)
   equiv(outsider_cca(AuthEncap))
@@ -127,6 +129,7 @@ def Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Auth
           find i2 <= N suchthat defined(s[i2]) && pk_R = pkgen(s[i2]) then (
             let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
               k' <-R key;
+	      insert E(pkgen(s), pk_R, ce, k');
               return(AuthEncap_tuple(k', ce))
             ) else (
               (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
@@ -137,15 +140,8 @@ def Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Auth
           )) |
       foreach id <= Qdperuser do (
         OADecap(pk_S: pkey, cd: ciphertext) :=
-	  (* This "find" implements a lookup in the set E of the paper.
-             The set is not built explicitly; we look for values in
-             encryption queries using arrays -- all variables are implicitly
-             stored in arrays indexed by replication indices above their
-             definition. *)
-          find ie1 <= Qeperuser, i1 <= N suchthat
-            defined(s[i1], pk_R[ie1, i1], k'[ie1, i1], ce[ie1, i1]) &&
-              pkgen(s) = pk_R[ie1, i1] && pkgen(s[i1]) = pk_S && ce[ie1, i1] = cd then (
-            return(AuthDecap_Some(k'[ie1, i1]))
+	  get E(=pk_S, =pkgen(s), =cd, k'') in (
+            return(AuthDecap_Some(k''))
           ) else (
             return(AuthDecap(cd, skgen(s), pk_S))
           )) |
@@ -164,6 +160,8 @@ def Outsider_Auth_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Aut
 
   param N, Qeperuser, Qdperuser.
 
+  table E(pkey, pkey, ciphertext, key).
+
   equiv(outsider_auth(AuthEncap))
     foreach i <= N do s <-R keypairseed; (
       foreach ie <= Qeperuser do ks <-R kemseed; (
@@ -180,6 +178,7 @@ def Outsider_Auth_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Aut
       foreach ie <= Qeperuser do ks <-R kemseed [unchanged]; (
         OAEncap(pk_R: pkey) :=
           let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
+	    insert E(pkgen(s), pk_R, ce, k);
             return(AuthEncap_tuple(k, ce))
           ) else (
 	   (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
@@ -187,27 +186,14 @@ def Outsider_Auth_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Aut
           )) |
       foreach id <= Qdperuser do (
         OADecap(pk_S: pkey, cd: ciphertext) :=
-	  (* This "find" implements a lookup in the set E of the paper.
-             The set is not built explicitly; we look for values in
-             Oencap and previous Odecap queries using arrays.
-	     The first branch looks into Oencap queries, and in case of
-	     success, the oracle returns the key k computed there.
-	     The second branch (after "orfind") looks into previous
-	     Odecap queries, and in case of success, the oracle returns 
-	     the previously computed key k'. *)
-          find ie1 <= Qeperuser, i1 <= N suchthat
-              defined(s[i1], pk_R[ie1, i1], k[ie1, i1], ce[ie1, i1]) &&
-              pkgen(s) = pk_R[ie1, i1] && pkgen(s[i1]) = pk_S && ce[ie1, i1] = cd then (
-            return(AuthDecap_Some(k[ie1, i1]))
-          ) orfind id1 <= Qdperuser, i1 <= N suchthat
-              defined(s[i1], pk_S[id1, i1], k'[id1, i1], cd[id1, i1]) &&
-              pkgen(s) = pkgen(s[i1]) && pk_S[id1, i1] = pk_S && cd[id1, i1] = cd then (
-            return(AuthDecap_Some(k'[id1, i1]))
+	  get E(=pk_S, =pkgen(s), =cd, k'') in (
+            return(AuthDecap_Some(k''))
           ) else (
 	      (* This "find" checks whether pk_S is among the honest public keys pk_i *)
               find i1 <= N suchthat defined(s[i1]) && pk_S = pkgen(s[i1]) then (
                 let AuthDecap_Some(k0) = AuthDecap(cd, skgen(s), pk_S) in (
                   k' <-R key;
+		  insert E(pk_S, pkgen(s), cd, k');
                   return(AuthDecap_Some(k'))
                 ) else (
                   return(AuthDecap_None)
@@ -231,6 +217,8 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
 
   param N, Qeperuser, Qdperuser, Qcperuser.
 
+  table E(pkey, pkey, ciphertext, key).
+
   equiv(insider_cca(AuthEncap))
     foreach i <= N do s <-R keypairseed; (
       foreach ic <= Qcperuser do ks' <-R kemseed; (
@@ -251,6 +239,7 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
         Ochall(s': keypairseed) :=
           let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks', pkgen(s), skgen(s')) in (
             k' <-R key;
+	    insert E(pkgen(s'), pkgen(s), ce, k');
             return(AuthEncap_tuple(k', ce))
           ) else (
 	    (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
@@ -261,17 +250,8 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
           return(AuthEncap_r(ks, pk_R, skgen(s)))) |
       foreach id <= Qdperuser do (
         OADecap(pk_S: pkey, cd: ciphertext) :=
-	  (* This "find" implements a lookup in the set E of the paper.
-             The set is not built explicitly; we look for values in
-             Ochall queries using arrays -- all variables are implicitly
-             stored in arrays indexed by replication indices above their
-             definition. *)	  
-          find ic1 <= Qcperuser, i1 <= N suchthat
-              defined(ce[ic1, i1], k'[ic1, i1], s[i1], s'[ic1, i1])
-              && ce[ic1, i1] = cd
-              && pkgen(s'[ic1, i1]) = pk_S
-              && pkgen(s[i1]) = pkgen(s) then (
-            return(AuthDecap_Some(k'[ic1, i1]))
+	  get E(=pk_S, =pkgen(s), =cd, k'') in (
+            return(AuthDecap_Some(k''))
           ) else (
             return(AuthDecap(cd, skgen(s), pk_S))
           )

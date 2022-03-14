@@ -51,7 +51,7 @@ proof {
      at the 3rd term/occurrence number within the match (zz_3). *)
   replace
     at_nth 1 3 "return{[0-9]*}({[0-9]*}AuthDecap_Some({[0-9]*}zz_3))"
-    "zz_10[ie1_2, i1_8]";
+    "zz_10[ie1, i1_4]";
   all_simplify;
   remove_assign binder dh1_3;
   remove_assign binder dh2_3;
@@ -82,6 +82,7 @@ proof {
   crypto prf_convert(prf) **;
   crypto prf(prf2) **;
   all_simplify;  
+  remove_assign binder E_1;
   out_game "r4.out.cv";
   success
 }
@@ -89,6 +90,8 @@ proof {
 include(`common.dhkem.ocvl')
 
 param N, Qeperuser, Qdperuser.
+
+table E(G_t, G_t, bitstring, eae_output_t).
 
 equivalence
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
@@ -109,6 +112,7 @@ equivalence
             find i1 <= N suchthat defined(sk[i1]) && pk_R = pkgen(sk[i1]) then (
               let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(pk_R, skgen(sk)) in (
                 k' <-R eae_output_t;
+	        insert E(pkgen(sk), pk_R, ce, k');
                 return(AuthEncap_tuple(k', ce))
 	      )
 	      else (
@@ -120,15 +124,8 @@ equivalence
             )) |
         foreach id <= Qdperuser do (
 	  OADecap(pk_S: G_t, cd: bitstring) :=
-	    (* This "find" implements a lookup in the set E of the paper.
-               The set is not built explicitly; we look for values in
-               encryption queries using arrays -- all variables are implicitly
-               stored in arrays indexed by replication indices above their
-               definition. *)
-            find ie1 <= Qeperuser, i1 <= N suchthat
-              defined(sk[i1], pk_R[ie1, i1], k'[ie1, i1], ce[ie1, i1]) &&
-                pkgen(sk) = pk_R[ie1, i1] && pkgen(sk[i1]) = pk_S && ce[ie1, i1] = cd then (
-              return(AuthDecap_Some(k'[ie1, i1]))
+	    get E(=pk_S, =pkgen(sk), =cd, k'') in (
+              return(AuthDecap_Some(k''))
             ) else (
               return(AuthDecap(cd, skgen(sk), pk_S))
             )) |

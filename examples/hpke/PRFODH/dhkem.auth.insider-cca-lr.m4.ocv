@@ -91,6 +91,7 @@ proof {
   crypto prf_convert(prf) **;
   crypto prf(prf2) **;
   all_simplify;  
+  remove_assign binder E_1;
   out_game "r5.out.cv";
   success
 }
@@ -105,6 +106,8 @@ collision z <-R eae_output_t; forall x: G_t, y: bitstring;
 
 
 param N, Qeperuser, Qcperuser, Qdperuser.
+
+table E(G_t, G_t, bitstring, eae_output_t).
 
 equivalence
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
@@ -126,6 +129,7 @@ equivalence
 	  Ochall(sk': Z_t) :=
             let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(pkgen(sk), skgen(sk')) in (
               k' <-R eae_output_t;
+	      insert E(pkgen(sk'), pkgen(sk), ce, k');
               return(AuthEncap_tuple(k', ce))
             ) else (
               (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
@@ -136,17 +140,8 @@ equivalence
             return(AuthEncap(pk_R, skgen(sk)))) |
         foreach id <= Qdperuser do (
 	  OADecap(pk_S: G_t, cd: bitstring) :=
-	    (* This "find" implements a lookup in the set E of the paper.
-               The set is not built explicitly; we look for values in
-               Ochall queries using arrays -- all variables are implicitly
-               stored in arrays indexed by replication indices above their
-               definition. *)	  
-            find ic1 <= Qcperuser, i1 <= N suchthat
-                defined(ce[ic1, i1], k'[ic1, i1], sk'[ic1, i1], sk[i1])
-                && ce[ic1, i1] = cd
-                && pkgen(sk'[ic1, i1]) = pk_S
-                && pkgen(sk[i1]) = pkgen(sk) then (
-              return(AuthDecap_Some(k'[ic1, i1]))
+	    get E(=pk_S, =pkgen(sk), =cd, k'') in (
+              return(AuthDecap_Some(k''))
             ) else (
               return(AuthDecap(cd, skgen(sk), pk_S))
             )) |
