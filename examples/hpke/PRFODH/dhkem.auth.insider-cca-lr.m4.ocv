@@ -16,6 +16,7 @@ proof {
       N, Qeperuser, Qdperuser, Qcperuser times PCollKey, to allow q^2 * PCollKey,
       where q = N * (Qeperuser + Qdperuser + Qcperuser) *)
   (* on the left side *)
+  crypto exclude_weak_keys(Z_t) **;
   out_game "l0.out.cv";
   (* Let appear this case distinction in the Decap oracle,
      that is present on the right side *)
@@ -43,114 +44,87 @@ proof {
      when applying GDH. *)
   insert after "OAEncap(pk_R"
     "find i1 <= N suchthat
-      defined(sk[i1])
-      && pk_R = exp(g, sk[i1]) then";
+      defined(x_2[i1])
+      && pk_R = expnw(g, x_2[i1]) then";
   out_game "l3.out.cv";
   (* Use unique names for the assignments of the following variables
      that are currently not unique *)
-  SArename z_2;
+  SArename x;
   SArename enc_3;
-  SArename dh_4;
+  remove_assign binder dh1_4;
+  remove_assign binder dh2_4;
   SArename zz_4;
   SArename pkE_4;
   SArename kemContext_4;
-  SArename key_1;
-  SArename info_1;
   out_game "l4.out.cv";
-
-  (* Make it possible to reason about the composition of the
-     random oracle inputs, specifically the group elements,
-     which is needed for the usage of the GDH assumption. *)
-  insert after "OH(x1"
-    "let eae_input(
-      salt: extract_salt_t,
-      concatExtract(
-        protocol1: label_protocol_t,
-        suite1: suite_id_t,
-        label1: label_extract_t,
-        concatDH(dh1: G_t, dh2: G_t)),
-      concatExpand(
-        l: two_byte_t,
-        protocol2: label_protocol_t,
-        suite2: suite_id_t,
-        label2: label_expand_t,
-        concatContext(pkE': G_t, pkR': G_t, pkS': G_t))) = x1 in";
-  crypto rom(ExtractAndExpand_inner);
+  crypto prf_odh(prf) [variables: x_2 -> a, x_1 -> b .];
+  all_simplify;
   out_game "l5.out.cv";
-  crypto gdh(exp) [variables: sk -> a, z_1 -> b .];
+  crypto prf_convert(prf) **;
+  crypto prf(prf2) **;
+  all_simplify;  
   out_game "l.out.cv" occ;
 
   (* go to right side *)
   start_from_other_end;
+  crypto exclude_weak_keys(Z_t) **;
   out_game "r0.out.cv";
   (* Let appear this case distinction in the Encap oracle.
      Treating messages between honest keys separately helps
      when applying GDH. *)
   insert after "OAEncap(pk_R_1"
     "find i2 <= N suchthat
-      defined(sk_1[i2])
-      && pk_R_1 = exp(g, sk_1[i2]) then";
-  (* Make it possible to reason about the composition of the
-     random oracle inputs, specifically the group elements,
-     which is needed for the usage of the GDH assumption. *)
-  insert after "OH(x1"
-    "let eae_input(
-      salt: extract_salt_t,
-      concatExtract(
-        protocol1: label_protocol_t,
-        suite1: suite_id_t,
-        label1: label_extract_t,
-        concatDH(dh1: G_t, dh2: G_t)),
-      concatExpand(l: two_byte_t,
-        protocol2: label_protocol_t,
-        suite2: suite_id_t,
-        label2: label_expand_t,
-        concatContext(pkE'': G_t, pkR'': G_t, pkS'': G_t))) = x1_1 in";
-  crypto rom(ExtractAndExpand_inner);
-  out_game "r2.out.cv";
+      defined(x_11[i2])
+      && pk_R_1 = expnw(g, x_11[i2]) then";
+  out_game "r1.out.cv";
   (* Use unique names for the assignments of the following variables
      that are currently not unique *)
-  SArename z_5;
+  SArename x_9;
+  remove_assign binder dh1_10;
+  remove_assign binder dh2_10;
   SArename enc_8;
   SArename pkE_10;
   out_game "r3.out.cv";
+  crypto prf_odh(prf) [variables: x_11 -> a, x_10 -> b .];
+  all_simplify;
+  out_game "r4.out.cv";
+  crypto prf_convert(prf) **;
+  crypto prf(prf2) **;
+  all_simplify;  
+  out_game "r5.out.cv";
   success
 }
 
 include(`common.dhkem.ocvl')
 
+(* TO DO seems to be a non-standard collision-resistance/preimage resistance
+   property *)
+proba Coll2prf.
+collision z <-R eae_output_t; forall x: G_t, y: bitstring;
+	  return(z = prf(x,y)) <=(Coll2prf(time))=> return(false).
+
+
 param N, Qeperuser, Qcperuser, Qdperuser.
 
 equivalence
-  Ostart() :=
-    key_extr <-R hash_key_t;
-    return();
-    ((
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
         foreach ic <= Qcperuser do (
 	  Ochall(sk': Z_t) :=
-            return(AuthEncap(key_extr, pkgen(sk), skgen(sk')))) |
+            return(AuthEncap(pkgen(sk), skgen(sk')))) |
         foreach ie <= Qeperuser do (
 	  OAEncap(pk_R: G_t) :=
-            return(AuthEncap(key_extr, pk_R, skgen(sk)))) |
+            return(AuthEncap(pk_R, skgen(sk)))) |
         foreach id <= Qdperuser do (
 	  OADecap(pk_S: G_t, cd: bitstring) :=
-            return(AuthDecap(key_extr, cd, skgen(sk), pk_S))) |
+            return(AuthDecap(cd, skgen(sk), pk_S))) |
 	(* The next oracle gives the public key to the adversary *)
         Opk() := return(pkgen(sk))
-      )) |
-      (* The random oracle ExtractAndExpand_inner *)
-      run ExtractAndExpand_inner_orcl(key_extr)
-    )
+      )
 
-  Ostart() :=
-    key_extr <-R hash_key_t;
-    return();
-    ((
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
         foreach ic <= Qcperuser do (
 	  Ochall(sk': Z_t) :=
-            let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(key_extr, pkgen(sk), skgen(sk')) in (
+            let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(pkgen(sk), skgen(sk')) in (
               k' <-R eae_output_t;
               return(AuthEncap_tuple(k', ce))
             ) else (
@@ -159,7 +133,7 @@ equivalence
             )) |
         foreach ie <= Qeperuser do (
 	  OAEncap(pk_R: G_t) :=
-            return(AuthEncap(key_extr, pk_R, skgen(sk)))) |
+            return(AuthEncap(pk_R, skgen(sk)))) |
         foreach id <= Qdperuser do (
 	  OADecap(pk_S: G_t, cd: bitstring) :=
 	    (* This "find" implements a lookup in the set E of the paper.
@@ -174,14 +148,12 @@ equivalence
                 && pkgen(sk[i1]) = pkgen(sk) then (
               return(AuthDecap_Some(k'[ic1, i1]))
             ) else (
-              return(AuthDecap(key_extr, cd, skgen(sk), pk_S))
+              return(AuthDecap(cd, skgen(sk), pk_S))
             )) |
         Opk() := return(pkgen(sk))
-      )) |
-      run ExtractAndExpand_inner_orcl(key_extr)
-    )
+      )
 
-(* EXPECTED FILENAME: examples/hpke/dhkem.auth.insider-cca-lr.m4.ocv TAG: 1
+(* EXPECTED FILENAME: examples/hpke/PRFODH/dhkem.auth.insider-cca-lr.m4.ocv TAG: 1
 All queries proved.
 0.988s (user 0.980s + system 0.008s), max rss 30224K
 END *)

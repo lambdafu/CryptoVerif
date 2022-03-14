@@ -27,14 +27,14 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-update HPKE paper, with fix to make the DDH oracle unambiguous.
-DONE 13/4/2021, still to be checked by coauthors of HPKE paper.
-
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
 
-After release, update probabilities in HPKE eprint.
-Add sentence to reference the EuroCrypt paper.
+Allow guessing of a value in a polynomial type, not only of a replication index (see point 4 in HIGH PRIORITY)
+
+Prove forward secrecy for the DHKEM of HPKE, from Insider-CCA and Outsider-Auth,
+from GDH and ROM, from PRF-ODH.
+see file examplesnd/notest/dhkem.auth.forward-secrecy.ocv
 
 MAYBE:
 
@@ -1313,6 +1313,7 @@ Or be simpler:
 Display a lighter runtime, of the form (polynom in parameters) *
 O(1) where O(1) is a time that does not depend on parameters
 (constant or may depend on length of bitstrings).
+See what EasyCrypt does for that, now that it evaluates the time.
 
 I could also check that probabilities are negligible assuming parameters
 and lengths are polynomial, cardinals of large types are exponential,
@@ -1536,6 +1537,27 @@ with notations like:
          f: D -> D'      f maps distribution D to D' (generalizes [uniform])
 That requires more complicated changes in the code.
 Would require changes in ProVerif to make that compatible with ProVerif.
+The implementation of several distributions has been started in branch 2022.02.distrib, not finished yet.
+Already done:
+- ResE, Restr take the distribution as additional argument.
+- PColl1rand takes one distribution as argument,
+  PColl2rand takes *2* distributions as argument
+- is_large, is_large_term must rely on the distributions
+Not done yet:
+- f(T): T' [uniform] for functions should mean that the function maps the
+uniform distribution of its input to the uniform distribution of its output
+(not the default distributions). Then for all distributions of X,
+the probability that f(X) = c (c independent of X) is at most |T|/|T'| times
+the probability that X = c' (c' independent of X). Indeed, 
+there are |T|/|T'| values c' such that f(c') = c, so
+Pr[f(X) = c] = sum_{c | f(c') = c} Pr[X = c'] <= |T|/|T'| max{c'} Pr[X = c'].
+  the Decompos values should contain the probability of collision,
+updated as outlined above when we apply a [uniform] function.
+
+It would be more general to allow subtyping (type that is a subset of another type): one could define all the distributions for a type as default distributions for subtypes of that type. That would further avoid having to declare 2 symbols exp and expnw for exponentiation: Znw would be a subtype of Z, so exp would naturally be defined on Znw since it is defined on Z.
+
+Requires more thoughts.
+
 
 32)   In dependency_collision_rec* (in simplify.ml and simplify1.ml),
   - should I always apply remove_dep_array_index to t1?

@@ -89,7 +89,7 @@ proba PCollKey2.
 expand DH_proba_collision(elt, Znw, G, expnw, expnw', mult, PCollKey1, PCollKey2).
 
 proba pPRF_ODH.
-expand PRF_ODH2(elt, Znw, extracted, extracted, G, expnw, expnw', mult, HKDF_extract_ES, pPRF_ODH).
+expand PRF_ODH2(elt, Znw, extracted, extracted, G, expnw, expnw', mult, HKDF_extract_ES, pPRF_ODH, PCollKey1).
 
 letfun dh_keygen() =
    new x:Z;

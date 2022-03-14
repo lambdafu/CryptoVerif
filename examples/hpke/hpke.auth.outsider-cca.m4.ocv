@@ -43,7 +43,8 @@ proba P_pk_coll.
 proba Adv_Outsider_CCA.
 fun kemkey2bitstr(kemkey_t): bitstring [data].
 fun kemciph2bitstr(kemciph_t): bitstring [data].
-expand Outsider_CCA_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key, AuthEncap_enc, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll, Adv_Outsider_CCA).
+expand Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key, AuthEncap_enc, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll).
+expand Outsider_CCA_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key, AuthEncap_enc, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, Adv_Outsider_CCA).
 
 include(`common.hpke.ocvl')
 

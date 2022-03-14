@@ -32,3 +32,8 @@ for NOTION in outsider-cca outsider-auth insider-cca; do
   generate "dhkem.auth.${NOTION}-lr"
   generate "hpke.auth.${NOTION}"
 done
+
+cd PRFODH
+for NOTION in outsider-cca outsider-auth insider-cca; do
+  generate "dhkem.auth.${NOTION}-lr"
+done

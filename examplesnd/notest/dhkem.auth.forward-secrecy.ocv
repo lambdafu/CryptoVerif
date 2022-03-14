@@ -1,0 +1,85 @@
+(* Proof strategy 
+
+- guess the session i = i0 for which k0 is tested.
+- insert an event badAuth when authentication fails
+- focus on the query event(badAuth) => false
+- guess the session id = id0 for which k0 is tested.
+    TODO for better bounds, implement guessing i and id together
+    (yields a multiplication by #ODecap instead of N * Qdperuser)
+- guess the value of j[i0,id0]
+    We need to know from the start which key we want to use in OutsiderAuth,
+    so I think we need to guess it.
+    TODO implement guessing a value!
+- test at the beginning whether i = guessed value of j[i0,id0]
+- success simplify removes the compromise of sk in session i = i0
+  and in case i = j[i0,id0] 
+- use OutsiderAuth to show that event(badAuth) cannot happen.
+    Not really clear how that will work: outsiderAuth does not show 
+    that an event does not happen.
+- then we go back to before the focus command
+- use InsiderCCA to prove secrecy
+
+TODO
+*)
+
+
+(** Key Encapsulation Mechanism **)
+type keypairseed_t [bounded,large].
+type kemseed_t [fixed,large].
+type skey_t [bounded,large].
+type pkey_t [bounded,large].
+type kemkey_t [fixed,large].
+type kemciph_t [fixed,large].
+type AuthEncap_res_t [fixed,large].
+proba P_pk_coll.
+proba Adv_Insider_CCA.
+proba Adv_Outsider_Auth.
+fun kemkey2bitstr(kemkey_t): bitstring [data].
+fun kemciph2bitstr(kemciph_t): bitstring [data].
+expand Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, P_pk_coll).
+expand Insider_CCA_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, Adv_Insider_CCA).
+expand Outsider_Auth_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemseed_t, AuthEncap_res_t, AuthDecap_res_t, kemkey_t, kemciph_t, skgen, pkgen, GenerateKeyPair, AuthEncap, AuthEncap_r, AuthEncap_key_r, AuthEncap_enc_r, AuthEncap_tuple, AuthEncap_None, AuthDecap, AuthDecap_Some, AuthDecap_None, Adv_Outsider_Auth).
+
+
+query secret k0 [cv_onesession].
+const dummy_k: kemkey_t.
+
+param N, Qcperuser, Qeperuser, Qdperuser.
+
+process
+      foreach i <= N do Osetup() := sk <-R keypairseed_t; return(); (
+        foreach ic <= Qcperuser do (
+	  Ochall(sk': keypairseed_t) :=
+            return(AuthEncap(pkgen(sk), skgen(sk')))) |
+        foreach ie <= Qeperuser do (
+	  OAEncap(pk_R: pkey_t) :=
+            return(AuthEncap(pk_R, skgen(sk)))) |
+        foreach id <= Qdperuser do (
+	  OADecap(pk_S: pkey_t, cd: kemciph_t) :=
+            let AuthDecap_Some(k) = AuthDecap(cd, skgen(sk), pk_S) in
+	    if defined(comp) && comp = false then 
+	    (
+	    (* The receiving key [sk] will never be compromised *)
+	       find j <= N suchthat defined(comp[j],sk[j]) && pk_S = pkgen(sk[j]) && comp = true then
+	         (* The sender key [sk[j]] is honest and compromised; authentication is not assured *)
+                 return(dummy_k)
+	       else find j <= N suchthat defined(sk[j]) && pk_S = pkgen(sk[j]) then
+	         (* The sender key [sk[i]] is honest and not compromised yet; authentication is assured; we have forward secrecy *)
+		 (let k0: kemkey_t = k)
+	       else
+	         (* The sender key is dishonest *)
+		 return(k)
+	    )
+	    else
+	    (
+	    (* The receiving key [sk] may be compromised *)
+	       return(k)
+	    )
+	) |
+	(* The next oracle gives the public key to the adversary *)
+	(Opk() := return(pkgen(sk))) |
+	(* The next oracle compromises the secret key when its
+	   argument [comp] is true *)
+	(Osk(comp: bool) :=
+	   if comp then return(sk))
+      )

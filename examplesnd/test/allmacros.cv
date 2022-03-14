@@ -241,8 +241,8 @@ type prf_in.
 type prf_out [bounded].
 expand PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8, pPRF_ODH).
 expand PRF_ODH1_single(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf8s, pPRF_ODH).
-expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH2).
-expand PRF_ODH2_single(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9s, pPRF_ODH2).
+expand PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9, pPRF_ODH2, PCollKey1).
+expand PRF_ODH2_single(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf9s, pPRF_ODH2, PCollKey1).
 expand square_PRF_ODH1(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf10, pPRF_ODH, pSQPRF_ODH).
 expand square_PRF_ODH2(G, tZ, prf_in, prf_out, g, exp, exp', mult, prf11, pPRF_ODH2, pSQPRF_ODH2).
 

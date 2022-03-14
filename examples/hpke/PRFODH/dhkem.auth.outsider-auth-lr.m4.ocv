@@ -16,10 +16,12 @@ proof {
       N, Qeperuser, Qdperuser, Qcperuser times PCollKey, to allow q^2 * PCollKey,
       where q = N * (Qeperuser + Qdperuser + Qcperuser) *)
   (* start on the left side *)
+  crypto exclude_weak_keys(Z_t) **;
   out_game "l.out.cv";
 
   (* Preliminary work on the right-hand side. *)
   start_from_other_end;
+  crypto exclude_weak_keys(Z_t) **;
   out_game "r.out.cv";
   simplify;
   (* We move the deserialization of the ciphertext earlier, so that the
@@ -33,9 +35,9 @@ proof {
   (* We introduce in OADecap the structure we have on the right-hand side. *)
   insert after "let Serialize(pkE_3"
     "find ie1_1 = ie1 <= Qeperuser, i1_3 = i1_2 <= N suchthat
-      defined(zz_2[ie1, i1_2], enc_1[ie1, i1_2], sk[i1_2], pk_R[ie1, i1_2])
-      && (exp(g, sk) = pk_R[ie1, i1_2])
-      && (exp(g, sk[i1_2]) = pk_S)
+      defined(zz_2[ie1, i1_2], enc_1[ie1, i1_2], x_1[i1_2], pk_R[ie1, i1_2])
+      && (expnw(g, x_1) = pk_R[ie1, i1_2])
+      && (expnw(g, x_1[i1_2]) = pk_S)
       && (enc_1[ie1, i1_2] = enc_2) then
     orfind id1_1 = id1 <= Qdperuser suchthat
       defined(random_br[id1], zz_3[id1], enc_2[id1], pk_S[id1])
@@ -43,8 +45,8 @@ proof {
       && (enc_2[id1] = enc_2) then
     else
       find i1_1 = i1 <= N suchthat
-          defined(sk[i1])
-          && (pk_S = exp(g, sk[i1])) then
+          defined(x_1[i1])
+          && (pk_S = expnw(g, x_1[i1])) then
         random_br <- true";
   simplify;
   out_game "l1occ.out.cv" occ;
@@ -64,81 +66,64 @@ proof {
   (* Use unique names for the assignments of the following variables
      that are currently not unique *)
   SArename zz_3;
-  SArename dh_3;
   SArename kemContext_3;
-  SArename key_1;
-  SArename info_1;
+  remove_assign binder dh1_3;
+  remove_assign binder dh2_3;
   remove_assign useless;
   (* In OAEncap, distinguish whether pk_R is an honest key or not *)
   insert after "OAEncap(pk_R"
     "find i1 <= N suchthat
-      defined(sk[i1])
-      && pk_R = exp(g, sk[i1]) then";
+      defined(x_1[i1])
+      && pk_R = expnw(g, x_1[i1]) then";
   out_game "l3.out.cv";
   (* Use unique names for the assignments of the following variables
      that are currently not unique *)
-  SArename z;
+  SArename x;
   SArename enc_1;
-  SArename dh_2;
   SArename zz_2;
   SArename kemContext_2;
-  SArename key;
-  SArename info;
-  SArename pkR_1;
-  (* In OH, distinguish whether the argument is of the form used in the rest of the protocol *)
-  insert after "OH(x1"
-    "let eae_input(
-      salt: extract_salt_t,
-      concatExtract(
-        protocol1: label_protocol_t,
-        suite1: suite_id_t,
-        label1: label_extract_t,
-        concatDH(dh1: G_t, dh2: G_t)),
-      concatExpand(
-        l: two_byte_t,
-        protocol2: label_protocol_t,
-        suite2: suite_id_t,
-        label2: label_expand_t,
-        concatContext(pkE': G_t, pkR': G_t, pkS': G_t))) = x1 in";
-  crypto rom(ExtractAndExpand_inner);
-  crypto gdh(exp) sk z_2 . (*If we want to be more precise: sk z_2 . *);
+  remove_assign binder dh1_2;
+  remove_assign binder dh2_2;
+  out_game "l4.out.cv";
+  crypto prf_odh(prf) x_1 x_4 .;
   all_simplify;
-  out_game "l4.out.cv" occ;
+  crypto prf_convert(prf) **;
+  crypto prf(prf2) **;
+  all_simplify;
+  SArename encoded_j'_2;
+  SArename encoded_j'_1;
+  all_simplify;
+  out_game "l5.out.cv" occ;
+  
 
   start_from_other_end;
   (* Now we work on the right-hand side *)
   (* In OAEncap, distinguish whether pk_R is an honest key or not *)
   insert after "OAEncap(pk_R_1"
     "find i1 <= N suchthat
-      defined(sk_1[i1])
-      && pk_R_1 = exp(g, sk_1[i1]) then";
+      defined(x_3[i1])
+      && pk_R_1 = expnw(g, x_3[i1]) then";
   out_game "r1.out.cv";
   (* Use unique names for the assignments of the following variables
      that are currently not unique *)
-  SArename z_1;
-  SArename dh_7;
+  SArename x_2;
   SArename enc_6;
   SArename kemContext_7;
-  SArename key_2;
-  SArename info_2;
   SArename zz_7;
-  (* In OH, distinguish whether the argument is of the form used in the rest of the protocol *)
-  insert after "OH(x1"
-    "let eae_input(
-      salt: extract_salt_t,
-      concatExtract(
-        protocol1: label_protocol_t,
-        suite1: suite_id_t,
-        label1: label_extract_t,
-        concatDH(dh1: G_t, dh2: G_t)),
-      concatExpand(l: two_byte_t,
-        protocol2: label_protocol_t,
-        suite2: suite_id_t,
-        label2: label_expand_t,
-        concatContext(pkE'': G_t, pkR'': G_t, pkS'': G_t))) = x1_1 in";
-  crypto rom(ExtractAndExpand_inner);
-  crypto gdh(exp) (* If we want to be more precise: sk_1 z_4 . *);
-  out_game "r2.out.cv" occ;
+  remove_assign binder dh1_7;
+  remove_assign binder dh2_7;
+  remove_assign binder dh1_8;
+  remove_assign binder dh2_8;
+  out_game "r2.out.cv";
+  crypto prf_odh(prf) x_3 x_11 .;
+  all_simplify;
+  crypto prf_convert(prf) **;
+  crypto prf(prf2) **;
+  all_simplify;
+  SArename encoded_j'_18;
+  SArename encoded_j'_17;
+  all_simplify;
+  out_game "r3.out.cv" occ;
   success
 }
 
@@ -150,32 +135,21 @@ event AuthEncap_does_not_fail.
 param N, Qeperuser, Qdperuser.
 
 equivalence
-  Ostart() :=
-    key_extr <-R hash_key_t;
-    return();
-    ((
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
         foreach ie <= Qeperuser do (
 	  OAEncap(pk_R: G_t) :=
-            return(AuthEncap(key_extr, pk_R, skgen(sk)))) |
+            return(AuthEncap(pk_R, skgen(sk)))) |
         foreach id <= Qdperuser do (
 	  OADecap(pk_S: G_t, enc: bitstring) :=
-            return(AuthDecap(key_extr, enc, skgen(sk), pk_S))) |
+            return(AuthDecap(enc, skgen(sk), pk_S))) |
 	(* The next oracle gives the public key to the adversary *)
         Opk() := return(pkgen(sk))
-      )) |
-      (* The random oracle ExtractAndExpand_inner *)
-      run ExtractAndExpand_inner_orcl(key_extr)
-    )
+	)
 
-  Ostart() :=
-    key_extr <-R hash_key_t;
-    return();
-    ((
       foreach i <= N do Osetup() := sk <-R Z_t; return(); (
         foreach ie <= Qeperuser do (
 	  OAEncap(pk_R: G_t) :=
-            let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(key_extr, pk_R, skgen(sk)) in (
+            let AuthEncap_tuple(k: eae_output_t, ce: bitstring) = AuthEncap(pk_R, skgen(sk)) in (
               return(AuthEncap_tuple(k, ce))
             ) else (
               (* Never happens because AuthEncap always returns AuthEncap_tuple(...) *)
@@ -202,22 +176,20 @@ equivalence
             ) else (
 	        (* This "find" checks whether pk_S is among the honest public keys pk_i *)
                 find i1 <= N suchthat defined(sk[i1]) && pk_S = pkgen(sk[i1]) then (
-                  let AuthDecap_Some(k0) = AuthDecap(key_extr, cd, skgen(sk), pk_S) in ( 
+                  let AuthDecap_Some(k0) = AuthDecap(cd, skgen(sk), pk_S) in ( 
                     k' <-R eae_output_t;
                     return(AuthDecap_Some(k'))
                   ) else (
                     return(AuthDecap_None)
                   )
                 ) else (
-                  return(AuthDecap(key_extr, cd, skgen(sk), pk_S))
+                  return(AuthDecap(cd, skgen(sk), pk_S))
                 )
           )) |
         Opk() := return(pkgen(sk))
-      )) |
-      run ExtractAndExpand_inner_orcl(key_extr)
-    )
+        )
 
-(* EXPECTED FILENAME: examples/hpke/dhkem.auth.outsider-auth-lr.m4.ocv TAG: 1
+(* EXPECTED FILENAME: examples/hpke/PRFODH/dhkem.auth.outsider-auth-lr.m4.ocv TAG: 1
 All queries proved.
 0.924s (user 0.916s + system 0.008s), max rss 30176K
 END *)

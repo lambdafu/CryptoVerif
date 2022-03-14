@@ -1,0 +1,195 @@
+(* Analysing the HPKE Standard - Supplementary Material
+   Joël Alwen; Bruno Blanchet; Eduard Hauck; Eike Kiltz; Benjamin Lipp; 
+   Doreen Riepel
+
+This is supplementary material accompanying the paper:
+
+Joël Alwen, Bruno Blanchet, Eduard Hauck, Eike Kiltz, Benjamin Lipp,
+and Doreen Riepel. Analysing the HPKE Standard. In Anne Canteaut and
+Francois-Xavier Standaert, editors, Eurocrypt 2021, Lecture Notes in
+Computer Science, Zagreb, Croatia, October 2021. Springer. To appear.
+Long version: https://eprint.iacr.org/2020/1499 *)
+
+type G_t [bounded].
+fun Serialize(G_t): bitstring [data].
+type Z_t [bounded,nonuniform].
+type Znw_t [bounded,nonuniform].
+proba PCollKey.
+proba PWeakKey.
+
+expand DH_proba_collision_minimal(
+  G_t,
+  Znw_t,
+  g,
+  expnw,
+  mult,
+  PCollKey
+).
+
+expand DH_exclude_weak_keys(
+  G_t,
+  Z_t,
+  Znw_t,
+  ZnwtoZ,
+  exp,
+  expnw,
+  PWeakKey
+).
+
+type eae_output_t [fixed,large].
+type GGG_t [fixed].
+
+ifdef(`square', `
+
+proba pPRF_ODH.
+proba pSQPRF_ODH.
+expand square_PRF_ODH2(
+  (* types *)
+  G_t,  (* Group elements *)
+  Znw_t,  (* Exponents *)
+  bitstring, (* PRF argument *)
+  eae_output_t, (* PRF output *)
+  (* variables *)
+  g,    (* a generator of the group *)
+  expnw,  (* exponentiation function *)
+  expnw,  (* exponentiation function (same function after game transformation) *)
+  mult, (* multiplication function for exponents *)
+  prf, (* prf *)
+  (* probabilities *)
+  pPRF_ODH, (* probability of breaking the PRF-ODH assumption *)
+  pSQPRF_ODH (* probability of breaking the square PRF-ODH assumption *)
+).
+
+',`
+
+proba pPRF_ODH.
+expand PRF_ODH2(
+  (* types *)
+  G_t,  (* Group elements *)
+  Znw_t,  (* Exponents *)
+  bitstring, (* PRF argument *)
+  eae_output_t, (* PRF output *)
+  (* variables *)
+  g,    (* a generator of the group *)
+  expnw,  (* exponentiation function *)
+  expnw,  (* exponentiation function (same function after game transformation) *)
+  mult, (* multiplication function for exponents *)
+  prf, (* prf *)
+  (* probabilities *)
+  pPRF_ODH, (* probability of breaking the PRF-ODH assumption *)
+  PCollKey
+).
+
+')
+
+(* For a group of prime order q:
+   PColl1Rand(Z_t) = PColl2Rand(Z_t) = 1/(q-1)
+   PCollKey1 = PCollKey2 = 1/(q-1)
+   PDistRerandom = 0
+
+   For Curve25519:
+   PColl1Rand(Z_t) = PColl2Rand(Z_t) = 2^{-251}
+   PCollKey1 = PCollKey2 = 2 PColl1Rand(Z_t) = 2^{-250}
+   PDistRerandom = 2^{-125}
+
+   For Curve448:
+   PColl1Rand(Z_t) = PColl2Rand(Z_t) = 2^{-445}
+   PCollKey1 = PCollKey2 = 2 PColl1Rand(Z_t) = 2^{-444}
+   PDistRerandom = 2^{-220}
+*)
+
+letfun DH(exponent: Z_t, group_element: G_t) =
+  exp(group_element, exponent).
+letfun pkgen(exponent: Z_t) =
+  exp(g, exponent).
+letfun skgen(exponent: Z_t) =
+  exponent.
+letfun GenerateKeyPair() =
+  z <-R Z_t;
+  (skgen(z), pkgen(z)).
+
+
+(* KDF *)
+
+fun concatContext(G_t, G_t, G_t): GGG_t [data].
+fun eae2b(eae_output_t): bitstring [data].
+fun ctx2b(GGG_t): bitstring [data].
+
+equation forall x: eae_output_t, y: GGG_t; eae2b(x) <> ctx2b(y).
+
+(* prf(x,eae2b(k)) is a PRF with key k
+   Specified by converting it to prf2(k,x). *)
+
+proba Pprf.
+expand PRF(eae_output_t, G_t, eae_output_t, prf2, Pprf).
+
+param Nprf.
+equiv(prf_convert(prf))
+   k <-R eae_output_t; foreach i <= Nprf do Oprf(x: G_t) := return(prf(x, eae2b(k)))
+   <=(0)=>
+   k <-R eae_output_t; foreach i <= Nprf do Oprf(x: G_t) := return(prf2(k,x)).
+
+(* prf is collision-resistant *)
+
+equation forall x, x': G_t, y, y': bitstring;
+         (prf(x,y) = prf(x',y')) = ((x = x') && (y = y')).
+
+(* prf(G_t, bitstring): eae_output_t satisfies (square) PRF-ODH2 *)
+
+letfun ExtractAndExpand(dh1: G_t, dh2: G_t, ctx: GGG_t) =
+   let prf1 = prf(dh2, ctx2b(ctx)) in
+   prf(dh1, eae2b(prf1)).
+   
+(* Detailed justification that the following usage of ExtractAndExpand
+   satisfies the assumptions of above-mentioned Lemma 6, given it is
+   implemented by HKDF:
+
+- keyspace and info||i_0 do not collide, because info has two bytes and
+  then RFCXXXX, and RFCXXXX does not collide with itself when moved by
+  two bytes.
+
+For long Nsecret, we also need to consider this:
+- keyspace and hmac_output_space||info||i_j with j>0
+  Length(keyspace) - Length(hmac_output_space||info||i_j)
+  = -2 +Length(label_eae_prk) -Length(label_shared_secret) +Length(dh) -Length(kem_context) -Nh
+  = -2 +7 -13 +Ndh -Nenc -Npk -Npk -Nh
+  = -8 +Ndh -Nenc -Npk -Npk -Nh
+  Assuming that Ndh is pretty close to Npk, we can argue that
+  keyspace and hmac_output_space||info||i_j with j>0
+  have clearly different lengths, and thus, do not collide.
+
+Therefore the following usage of ExtractAndExpand satisfies the
+assumptions of Lemma 6.
+*)
+
+expand OptionType_2(AuthEncap_res_t, AuthEncap_tuple, AuthEncap_None, eae_output_t, bitstring).
+
+letfun AuthEncap(pkR: G_t, skS: Z_t) =
+  let (skE: Z_t, pkE: G_t) = GenerateKeyPair() in
+  (
+    let dh1 = DH(skE, pkR) in
+    let dh2 = DH(skS, pkR) in
+    let enc: bitstring = Serialize(pkE) in
+    let pkS = pkgen(skS) in
+    let kemContext: GGG_t = concatContext(pkE, pkR, pkS) in
+    let zz: eae_output_t = ExtractAndExpand(dh1, dh2, kemContext) in
+    AuthEncap_tuple(zz, enc)
+  ) else (
+    AuthEncap_None
+  ).
+
+expand OptionType_1(AuthDecap_res_t, AuthDecap_Some, AuthDecap_None, eae_output_t).
+
+letfun AuthDecap(enc: bitstring, skR: Z_t, pkS: G_t) =
+  let Serialize(pkE: G_t) = enc in
+  (
+    let dh1 = DH(skR, pkE) in
+    let dh2 = DH(skR, pkS) in
+    let pkR = pkgen(skR) in
+    let kemContext: GGG_t = concatContext(pkE, pkR, pkS) in
+    let zz: eae_output_t = ExtractAndExpand(dh1, dh2, kemContext) in
+    AuthDecap_Some(zz)
+  ) else (
+    AuthDecap_None
+  ).
+

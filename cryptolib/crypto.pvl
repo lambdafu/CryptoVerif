@@ -725,10 +725,10 @@ fun prf(G, prf_in): prf_out.
 def PRF_ODH1_single(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
 fun prf(G, prf_in): prf_out.
 }
-def PRF_ODH2(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
+def PRF_ODH2(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH, PCollKey1) {
 fun prf(G, prf_in): prf_out.
 }
-def PRF_ODH2_single(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH) {
+def PRF_ODH2_single(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH, PCollKey1) {
 fun prf(G, prf_in): prf_out.
 }
 def square_PRF_ODH1(G, Z, prf_in, prf_out, g, exp, exp', mult, prf, pPRF_ODH, pSQPRF_ODH) {

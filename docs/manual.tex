@@ -2165,7 +2165,7 @@ must be applied to the subgroup, which can be done as follows:
   &\texttt{equation\ forall}\ x:\vn{subG}, y:\vn{prf\_in}; \vn{prf}(\vn{subGtoG}(x),y) = \vn{prf\_subG}(x,y).
 \end{align*}
 
-       \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
+       \item $\texttt{expand\ PRF\_ODH2(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{PCollKey1}\texttt{).}$ says that the group $G$ satisfies the PRF-ODH2 assumption, which corresponds to PRF-ODHmm in~\cite{eprint2017:517}.
        %
        The types $\vn{prf\_in}$ and $\vn{prf\_out}$ and the pseudo-random function $\vn{prf}$ are defined as for \texttt{PRF\_ODH1}.
        %
@@ -2183,6 +2183,15 @@ must be applied to the subgroup, which can be done as for \texttt{PRF\_ODH1}.
 If $G$ is Curve448, the weak private key $kp$ must be excluded,
 which can be done using \texttt{DH\_exclude\_weak\_keys}, \texttt{DH\_X448},
 or \texttt{DH\_single\_coord\_ladder}.
+
+Additionally, this assumption requires that it is possible to test
+efficiently whether $\exp(Y,a) = \exp(g, ab)$ knowing just $Y$ and
+$B = \exp(g,b)$ (so the result does not depend on $a$). This is possible
+for prime-order groups as well as Curve25519 and Curve448 when
+the weak private key is excluded. When this is true,
+we say that the keys $Y$ and $B$ are equivalent.
+The probability that two honestly generated random keys are equivalent
+is bounded by $\vn{PCollKey1}$.
 
      \item $\texttt{expand\ square\_PRF\_ODH1(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{sqp}\texttt{).}$ says that the group $G$ satisfies the square PRF-ODH1 assumption and the PRF-ODH1 assumption.
        %
@@ -2225,6 +2234,13 @@ Section~\ref{sec:interact}).
        which can be done using \texttt{DH\_exclude\_weak\_keys}, \texttt{DH\_X448},
        or \texttt{DH\_single\_coord\_ladder}.
 
+Additionally, this assumption requires that it is possible to test
+efficiently whether $\exp(Y,a) = \exp(g, ab)$ knowing just $Y$ and
+$B = \exp(g,b)$ (so the result does not depend on $a$). This is possible
+for prime-order groups as well as Curve25519 and Curve448 when
+the weak private key is excluded.
+
+
      \end{itemize}
      The argument $\vn{prf}$ of the PRF-ODH macros is defined by these
      macros.  It must not be declared elsewhere, and it can be used
@@ -2237,7 +2253,7 @@ Section~\ref{sec:interact}).
        $\texttt{expand\ GDH\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
        $\texttt{expand\ GDH\_RSR\_single(}G, Z, g, \vn{exp}, \vn{exp}', \vn{mult}, p, p_d\texttt{).}$\\
        $\texttt{expand\ PRF\_ODH1\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\
-       $\texttt{expand\ PRF\_ODH2\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p\texttt{).}$\\
+       $\texttt{expand\ PRF\_ODH2\_single(}G, Z, \vn{prf\_in}, \vn{prf\_out}, g, \vn{exp}, \vn{exp}', \vn{mult}, \vn{prf}, p, \vn{PCollKey1}\texttt{).}$\\
        are similar to macros with the same name without \texttt{\_single}, except that they use a single family of exponents, $a_i$, instead of two, $a_i$ and $b_j$. Obviously, they make no security claims on Diffie-Hellman between $a_i$ and itself (because that is the square Diffie-Hellman property), but they guarantee security for Diffie-Hellman between $a_i$ and $a_j$ for any $i \neq j$. That is more powerful than the properties without \texttt{\_single}, because it allows proving protocols that rely on Diffie-Hellman computations between exponents in a single family, but may lead to larger probability bounds.
        
    \end{itemize}
