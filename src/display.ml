@@ -822,7 +822,7 @@ let rec display_fungroup indent = function
 	| Some repl -> display_repl repl; print_string " "
 	| None -> ()
       end;
-      List.iter (fun (b,opt) ->
+      List.iter (fun (b,ext,opt) ->
 	display_restr b;
 	if opt == Unchanged then
 	  print_string " [unchanged]";

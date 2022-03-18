@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+file_exists_or_abort()
+{
+    filename=$1
+    if [ ! -f $filename ]
+    then
+	echo "File '$filename' not found. Did you execute this script in the directory in which it's stored?"
+	exit 2
+    fi
+}
+
+file_exists_or_abort mylib.cvl
+
+sourcefile=WG.25519.m4.cv
+file_exists_or_abort $sourcefile
+for sessions in AB AB-BA
+do
+    pattern=WG.25519.$sessions
+    for replay_status in no_replay_prot replay_prot
+    do
+
+	# The following is for correspondences on the second, third, and
+	# the transport data messages, message secrecy, and absence of unknown
+	# key share attacks.
+	modname=$pattern.S_i_compr.S_r_compr.$replay_status
+	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_S_i_compr -Dm4_S_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+	
+    done
+done

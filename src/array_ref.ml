@@ -163,7 +163,7 @@ and array_ref_oprocess in_scope p =
 
 let rec array_ref_fungroup in_scope = function
     ReplRestr(repl, restr, funlist) ->
-      List.iter (array_ref_fungroup ((List.map fst restr) @ in_scope)) funlist
+      List.iter (array_ref_fungroup ((List.map (fun (b,ext,opt) -> b) restr) @ in_scope)) funlist
   | Fun(ch, args, res, priority) ->
       array_ref_term (args @ in_scope) res
       

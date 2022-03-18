@@ -27,14 +27,45 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
+Improve counting for CDH/GDH/DDH without RSR: count the number of used
+DH pairs (i,j) instead of taking the maximum na*nb.
+The number of DH pairs is often linear in the number of sessions
+(because each session uses a constant number of DH pairs),
+while na.nb will be quadratic if there are ephemerals on both sides.
+
+
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
+
+Use tables instead of find in HPKE.
+DONE update tech report
 
 Allow guessing of a value in a polynomial type, not only of a replication index (see point 4 in HIGH PRIORITY)
 
 Prove forward secrecy for the DHKEM of HPKE, from Insider-CCA and Outsider-Auth,
 from GDH and ROM, from PRF-ODH.
 see file examplesnd/notest/dhkem.auth.forward-secrecy.ocv
+
+Plan of paper:
+Treatment of key compromise in CryptoVerif and related ideas
+- Basic treatment of compromise: key oracle in computational assumptions
+  Limitations
+  - Does not work for decisional assumptions
+  - Cannot be proved in CV from assumptions without that oracle
+  - Does not work in complex cases (e.g. compromise of PSK in TLS and WG)
+- How to lift these limitations
+  Transformations success simplify, guess; instruction focus
+- Applications
+  - proof of assumption with key oracle from assumption without key oracle
+  - compromise of PSK in TLS and WG
+  - proof of forward secrecy for (variant of) HPKE in several ways,
+    including from PRF-ODH
+  - other application of PRF-ODH: TLS
+  - examples/basic/pkauth-guess.cv
+
+Next papers:
+Simplification (after having extended it to non-expanded games)
+Crypto transformation
 
 MAYBE:
 
@@ -6282,3 +6313,8 @@ DONE
 Update licence of Kerberos files? (they say they are under Cecill,
 while the rest of cryptoverif is under Cecill-B)
 DONE 7/9/2021
+
+Fix bug examplesnd/test/bug_transf_crypto_random_gen?.cv
+DONE 17/3/2022
+pb in examplesnd/otest/hpke.internalerror.ocv
+FIXED 18/3/2022

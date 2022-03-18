@@ -20,6 +20,8 @@ Version
   CryptoVerif will raise an error otherwise.
 - Fixed internal error due to a forgotten game before focus command.
 - Fixed internal error LetEqual terms should have a variable in the left-hand side
+- Fixed bugs in crypto transformation (in particular, check that variables are
+  defined when needed).
 
 Version 2.05
 

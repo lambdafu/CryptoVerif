@@ -1,0 +1,50 @@
+(* In the equivalence, when b[j] is defined, c[j] should always be defined.
+   This is not true in the game at the call to g(b1,a1). *)
+
+type Z[fixed].
+
+
+fun f(Z,Z): bool.
+fun g(Z,Z): bool.
+fun f1(Z,Z): bool.
+fun g1(Z,Z): bool.
+
+param na, naDDH, nb, nbDDH.
+
+equiv(cdh)
+    foreach ia <= na do a <-R Z;  (
+      foreach iaDDH <= naDDH do ODDHa(j<=nb) [useful_change] := return(g(b[j], a))
+    ) |
+    foreach ib <= nb do b <-R Z; c <-R Z; (
+      OB() := return(f(b,c))
+    )
+<=(0)=> [computational]
+    foreach ia <= na do a <-R Z [unchanged]; (
+      foreach iaDDH <= naDDH do ODDHa(j<=nb) :=
+              if defined(c[j]) then return(g1(b[j],a)) else return(false)
+    ) |
+    foreach ib <= nb do b <-R Z [unchanged]; c <-R Z [unchanged];(
+      OB() := return(f1(b,c))
+    ).
+
+
+
+channel cstart.
+
+event bad.
+query event(bad) ==> false.
+
+   
+process
+     in(cstart, ());
+     a1 <-R Z; b1 <-R Z;
+     if g(b1,a1) then event bad else
+     out(cstart, ());
+     in(cstart, ());
+     c1 <-R Z;
+     out(cstart, f(b1,c1))
+
+(* EXPECTED
+Error: In this equivalence, the definition of variables b in the right-hand side, resp. b in the left-hand side, and c in the right-hand side, resp. c in the left-hand side are tested. This is forbidden because it is difficult to make sure that they are always simultaneously defined
+xtime: error in child process (status : 2)
+END *)

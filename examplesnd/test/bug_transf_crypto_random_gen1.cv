@@ -1,0 +1,44 @@
+(* CryptoVerif should not apply the transformation eq when x is not defined
+   before the call to O1. *)
+
+param N, N1, N2.
+
+type key[fixed].
+type nonce[fixed].
+
+
+fun f(bitstring, nonce): bool.
+fun g(bitstring, key, nonce): bool.
+fun f1(bitstring, nonce): bool.
+fun g1(bitstring, key, nonce): bool.
+
+equiv(eq)
+   !N x <-R key; y <-R nonce;(
+        !N1 O1(z: bitstring) := return(f(z,y))
+      | !N2 O2(t: bitstring) := return(g(t,x,y))
+      )
+  <=(0)=>
+   !N x <-R key; y <-R nonce;(
+        !N1 O1(z: bitstring) := if defined(x) then return(f1(z,y)) else return(false)
+      | !N2 O2(t: bitstring) := return(g1(t,x,y))
+      ).
+
+
+channel cstart.
+
+event bad.
+query event(bad) ==> false.
+
+process
+     in(cstart, z1:bitstring);
+     y1 <-R nonce;
+     if f(z1,y1) then event bad else
+     out(cstart, ());
+     in(cstart, t1:bitstring);
+     x1 <-R key;
+     out(cstart, g(t1,x1,y1))
+
+(* EXPECTED
+RESULT Could not prove event(bad) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

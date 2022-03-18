@@ -1,0 +1,56 @@
+(* When y[j,k] is defined, x[k] should always be defined,
+   so the RHS of O1 always returns f1(x).
+   However, in the game, this is not true: when we apply f(x2),
+   y1 is defined but x1 is not. *)
+
+set debugCryptotransf = 5.
+
+param N, N1, N2.
+
+type key[fixed].
+type nonce[fixed].
+
+
+fun f(key): bool.
+fun g(bitstring, key, nonce): bool.
+fun f1(key): bool.
+fun g1(bitstring, key, nonce): bool.
+
+equiv(eq)
+   !N x <-R key; (
+        O1() := return(f(x))
+      | !N2 y <-R nonce; O2(t: bitstring) := return(g(t,x,y))
+      )
+  <=(0)=>
+   !N x <-R key; (
+        O1() := find j <= N2, k <= N suchthat defined(y[j,k]) then
+	       (if defined(x[k]) then return(f1(x)) else return(false))
+	    else return(f1(x))
+      | !N2 y <-R nonce; O2(t: bitstring) := return(g1(t,x,y))
+      ).
+
+
+channel cstart.
+
+event bad.
+query event(bad) ==> false.
+
+proof {
+   undo;
+   crypto eq x1 x2 y1;
+   success
+   }
+   
+process
+     in(cstart, ());
+     y1 <-R nonce; x2 <-R key;
+     if f(x2) then event bad else
+     out(cstart, ());
+     in(cstart, t1:bitstring);
+     x1 <-R key;
+     out(cstart, g(t1,x1,y1))
+
+(* EXPECTED
+Error: Cryptographic transformation failed
+xtime: error in child process (status : 2)
+END *)

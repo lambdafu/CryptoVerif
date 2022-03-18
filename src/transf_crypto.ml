@@ -1273,9 +1273,9 @@ let rec collect_expressions accu accu_names_lm accu_names_rm accu_repl_rm mode l
 let rec collect_all_names accu lm rm = 
   match lm, rm with
     ReplRestr(_, restr, funlist), ReplRestr(_, restr', funlist') ->
-      accu := (List.map (fun (b, _) -> 
+      accu := (List.map (fun (b, ext, _) -> 
 	(b, 
-	 if List.exists (fun (b',bopt') ->
+	 if List.exists (fun (b',_,bopt') ->
 	   (Terms.equiv_same_vars b b') &&
 	   (bopt' == Unchanged)) restr' 
 	 then Unchanged else NoOpt
@@ -1660,7 +1660,17 @@ let rec has_repl_index t =
   | ReplIndex _ -> true
   | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.has_repl_index)"
+	
+(* [get_group_head b before_transfo_name_table] returns the first "new" of the
+   group that contains [b]. *)
 
+let rec get_group_head b = function
+  | [] -> raise Not_found
+  | l1::rest ->
+      if List.exists (fun (b',_) -> b' == b) l1 then
+	fst(List.hd l1)
+      else
+	get_group_head b rest
   
 
 let rec try_list f = function
@@ -1697,7 +1707,7 @@ let add_gameeq_name_mapping before_transfo_restr exp =
 	
 let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl', args', res_term'), mode, priority) 
     product_rest where_info cur_array defined_refs t state =
-  let restr = List.map (List.map fst) restr_opt in
+  let restr = List.map (List.map (fun (b,ext,opt) -> b)) restr_opt in
   let rec separate_env restr_env input_env array_ref_env = function
       [] -> (restr_env, input_env, array_ref_env)
     | (((b,l),t) as a)::r ->
@@ -1942,9 +1952,9 @@ let rec checks all_names_lhs (ch, (restr_opt, args, res_term), (restr_opt', repl
     
     let after_transfo_table_builder nt r = 
       match nt with
-	[] -> List.map (fun (b,_) -> (b, new_binder2 b cur_array)) r
+	[] -> List.map (fun (b,_,_) -> (b, new_binder2 b cur_array)) r
       | ((_,one_name)::_) ->
-	  List.map (fun (b,bopt) -> 
+	  List.map (fun (b,_,bopt) -> 
 	    try 
 	      (* Try to reuse old binder when possible:
 		 marked unchanged and same string name, same number, and same type 
@@ -2186,12 +2196,17 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 
 	          (* verify that all restrictions will be correctly defined after the transformation *)
 		  List.iter (fun (_,b,def_check) ->
-		    List.iter (fun res_def_check ->
+		    List.iter (function
+		      | EPOracle res_def_check ->
+		          (* I need to check that [b] is defined everytime 
+			     oracle [res_def_check] is called. *)
+			  begin
 		      if res_term == res_def_check then
 			try
 			  match List.assq b restr_env with
-			    { t_desc = Var(b_check,_) } -> 
-			      let l_check = assq_binder_binderref b name_indexes in
+			    { t_desc = Var(b_check,_) } ->
+			      let b_head = get_group_head b before_transfo_name_table in
+			      let l_check = assq_binder_binderref b_head name_indexes in
 		              (*print_string "Checking that ";
 			      Display.display_term (Terms.term_from_binderref (b_check, l_check));
 			      print_string " is defined... "; *)
@@ -2209,6 +2224,57 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 			  | _ -> Parsing_helper.internal_error "unexpected link in check_term 3"
 			with Not_found ->
 			  Parsing_helper.internal_error "binder not found when verifying that all restrictions will be defined after crypto transform"
+			  end
+			| EPVar b' ->
+			    (* I need to check that [b] is defined everytime 
+			       [b'] is defined. [b'] is defined under [b]
+			       in the LHS of the equivalence. *)
+			    try
+			      let b'_check =
+				match List.assq b' restr_env with
+				| { t_desc = Var(b'_check,_) } -> b'_check
+				| _ -> Parsing_helper.internal_error "unexpected link in check_term 3.2"
+			      in
+			      try
+				let b'_head = get_group_head b' before_transfo_name_table in
+				let l'_check = assq_binder_binderref b'_head name_indexes in
+				let b_check =
+				  match List.assq b restr_env with
+				  | { t_desc = Var(b_check,_) } -> b_check
+				  | _ -> Parsing_helper.internal_error "unexpected link in check_term 3.1"
+				in
+				let b_head = get_group_head b before_transfo_name_table in
+				let l_check = assq_binder_binderref b_head name_indexes in
+				(* print_string " b: ";  Display.display_var b_check l_check;
+				print_string " b': ";  Display.display_var b'_check l'_check;
+				print_newline(); *)
+				
+				let actual_l_check =
+				  try
+				    reverse_subst_index l'_check (List.map Terms.term_from_repl_index b'_check.args_at_creation) l_check
+				  with NoMatch ->
+				    Parsing_helper.internal_error "reverse_subst failed and it should not"
+				in
+				let defined_refs = Facts.def_vars_from_defined None
+				    [Terms.binderref_from_binder b'_check]
+				in
+				if not (List.exists (Terms.equal_binderref (b_check,actual_l_check)) defined_refs) then
+				  begin
+				    if (!Settings.debug_cryptotransf) > 4 then
+				      begin
+					print_string "Variable ";
+					Display.display_term (Terms.term_from_binderref (b_check, actual_l_check));
+					print_string " may not be defined before ";
+					Display.display_term (Terms.term_from_binder b'_check);
+					print_string ".\n"
+				      end;
+				    raise NoMatch
+				  end
+			      with Not_found ->
+				  Parsing_helper.internal_error "binder not found when verifying that all restrictions will be defined after crypto transform (2)"
+			    with Not_found ->
+			      (* The oracle does not define [b'], nothing to check *)
+			      ()
 			    ) def_check;
 		    ) name_mapping;
 

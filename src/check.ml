@@ -274,17 +274,37 @@ and get_arg_array_ref_pat index_args accu = function
   | PatEqual t -> get_arg_array_ref index_args accu t
     
 
-let rec check_def_fungroup def_refs = function
+type side =
+  | LHS
+  | RHS
+	
+let equal_sb (s,b) (s',b') =
+  (s == s') &&
+  (b == b')
+
+let add_sb tested_var_defs sb =
+  if not (List.exists (equal_sb sb) (!tested_var_defs)) then
+    tested_var_defs := sb :: (!tested_var_defs)  
+	
+let rec check_def_fungroup tested_var_defs_opt def_refs = function
     ReplRestr(repl, restr, funlist) ->
-      List.iter (check_def_fungroup ((List.map (fun (b,_) -> Terms.binderref_from_binder b) restr) @ def_refs)) funlist
+      List.iter (check_def_fungroup tested_var_defs_opt ((List.map (fun (b,_,_) -> Terms.binderref_from_binder b) restr) @ def_refs)) funlist
   | Fun(ch, args, res, priority) ->
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
       get_arg_array_ref index_args array_ref_args res;
+      begin
+	match tested_var_defs_opt with
+	| None -> ()
+	| Some tested_var_defs ->
+	    List.iter (fun (b,l) -> 
+	      add_sb tested_var_defs (LHS, b)
+		) (!array_ref_args)
+      end;
       check_def_term ((List.map Terms.binderref_from_binder args) @ (!array_ref_args) @ def_refs) res
 
-let check_def_member l =
-  List.iter (fun (fg, mode) -> check_def_fungroup [] fg) l
+let check_def_member tested_var_defs_opt l =
+  List.iter (fun (fg, mode) -> check_def_fungroup tested_var_defs_opt [] fg) l
 
 
 (* Build types and functions for encoding indices *)
@@ -430,38 +450,59 @@ let replace_suffix old_suffix new_suffix l =
     Parsing_helper.internal_error "replace_suffix: old suffix not found";
   prefix @ new_suffix
 
-let rec check_rm_term cur_array t =
+let rec check_rm_term tested_var_defs defined_restr cur_array t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term t (Var(b, List.map (check_rm_term cur_array) l))
+      Terms.build_term t (Var(b, List.map (check_rm_term tested_var_defs defined_restr cur_array) l))
   | ReplIndex b ->
       Terms.build_term t (ReplIndex b)
   | FunApp(f,l) ->
-      Terms.build_term t (FunApp(f, List.map (check_rm_term cur_array) l))
+      Terms.build_term t (FunApp(f, List.map (check_rm_term tested_var_defs defined_restr cur_array) l))
   | LetE(pat,t1,t2,topt) ->
       let topt' =
 	match topt with
 	| None -> None
-	| Some t3 -> Some (check_rm_term cur_array t3)
+	| Some t3 -> Some (check_rm_term tested_var_defs defined_restr cur_array t3)
       in
       Terms.build_term t
-	(LetE(check_rm_pat cur_array pat,
-	      check_rm_term cur_array t1,
-	      check_rm_term cur_array t2, topt'))
+	(LetE(check_rm_pat tested_var_defs defined_restr cur_array pat,
+	      check_rm_term tested_var_defs defined_restr cur_array t1,
+	      check_rm_term tested_var_defs defined_restr cur_array t2, topt'))
   | ResE(b,t') ->
-      Terms.build_term t (ResE(b, check_rm_term cur_array t'))
+      Terms.build_term t (ResE(b, check_rm_term tested_var_defs defined_restr cur_array t'))
   | TestE(t1,t2,t3) ->
       Terms.build_term t
-	(TestE(check_rm_term cur_array t1,
-	       check_rm_term cur_array t2,
-	       check_rm_term cur_array t3))
+	(TestE(check_rm_term tested_var_defs defined_restr cur_array t1,
+	       check_rm_term tested_var_defs defined_restr cur_array t2,
+	       check_rm_term tested_var_defs defined_restr cur_array t3))
   | FindE(l0, t3, find_info) ->
-      let t3' = check_rm_term cur_array t3 in
+      let t3' = check_rm_term tested_var_defs defined_restr cur_array t3 in
       let l0' = 
-	List.map (function
+	List.map (fun branch ->
+	  let branch' =
+	    (* Remove useless defined conditions that test variables defined
+               above the oracle. This is needed to avoid a bug that reveals
+               that some variables at not defined in the game at the same
+               time as they are defined in the equivalence. 
+	       See examplesnd/test/bug_transf_crypto_random_gen1.cv *)
+	    match branch with
+	    | ([], def_list, t1, t2) ->
+		([], List.filter (fun (b,l) ->
+		  if Terms.is_args_at_creation b l && List.memq b defined_restr then
+		    begin
+		      (* This defined condition is useless *)
+		      Parsing_helper.input_warning ("Removing useless defined condition of "^(Display.binder_to_string b)) t.t_loc;
+		      false
+		    end
+		  else
+		    true
+		  ) def_list, t1, t2)
+	    | _ -> branch
+	  in
+	  match branch' with
 	  | ([], [], t1, t2) ->
-	      let t1' = check_rm_term cur_array t1 in
-	      let t2' = check_rm_term cur_array t2 in
+	      let t1' = check_rm_term tested_var_defs defined_restr cur_array t1 in
+	      let t2' = check_rm_term tested_var_defs defined_restr cur_array t2 in
 	      ([], [], t1', t2')
 	      
 	  | (lindex, def_list, t1, t2) ->
@@ -483,14 +524,25 @@ let rec check_rm_term cur_array t =
 	  List.iter (fun ((_,l) as def) ->
 	    let def_closure = close_def def in
 	    if List.for_all (fun def' -> List.exists (Terms.equal_binderref def') def_closure) def_list then
-	      max_sequence := Some l
+	      max_sequence := Some def
 		   ) def_list;
 	  
 	  let max_seq =
 	    match !max_sequence with
 	    | None ->
 		Parsing_helper.input_error "In equivalences, in find, one \"defined\" variable reference should imply all others" t.t_loc;
-	    | Some max_seq -> max_seq
+	    | Some (b,max_seq) ->
+		(* when there is a find in the RHS with innermost variable b,
+		   find where b is defined, and add b to tested_var_defs
+		   when it is defined in a new outside oracles *)
+		List.iter (fun n ->
+		  match n.definition with
+		  | DFunRestr ->
+		      add_sb tested_var_defs (RHS, b)
+		  | DFunArgs _ | DTerm _ -> ()
+		  | _ -> assert false
+		  ) b.def;
+		max_seq
 	  in
 	  let l_index = List.length lindex in
 	  let l_max_seq_suffix = List.length max_seq - l_index in
@@ -574,8 +626,8 @@ let rec check_rm_term cur_array t =
 	      (* if not (List.for_all2 (==) suffix max_seq_suffix) then
 		 Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find" t.t_loc; *)
           let (lindex, t2) = remove_array_access_find_idx t.t_loc (cur_array_suffix_terms != []) lindex t2 in
-	  let t1' = check_rm_term cur_array t1 in
-	  let t2' = check_rm_term cur_array t2 in
+	  let t1' = check_rm_term tested_var_defs defined_restr cur_array t1 in
+	  let t2' = check_rm_term tested_var_defs defined_restr cur_array t2 in
 	  (lindex, def_list, t1', t2')
 	    ) l0
       in
@@ -584,21 +636,22 @@ let rec check_rm_term cur_array t =
   | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.input_error "insert, get, and event are not allowed in equivalences" t.t_loc
 
-and check_rm_pat cur_array = function
+and check_rm_pat tested_var_defs defined_restr cur_array = function
     PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat cur_array) l)
-  | PatEqual t -> PatEqual (check_rm_term cur_array t)
+  | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat tested_var_defs defined_restr cur_array) l)
+  | PatEqual t -> PatEqual (check_rm_term tested_var_defs defined_restr cur_array t)
 
-let rec check_rm_fungroup cur_array = function
+let rec check_rm_fungroup tested_var_defs defined_restr cur_array = function
     ReplRestr(repl_opt, restr, funlist) ->
       let cur_array' = Terms.add_cur_array repl_opt cur_array in
-      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup cur_array') funlist)
+      let defined_restr' = (List.map (fun (b,ext,opt) -> b) restr) @ defined_restr in
+      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup tested_var_defs defined_restr' cur_array') funlist)
   | Fun(ch, args, res, priority) ->
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
       get_arg_array_ref index_args array_ref_args res;
       let allowed_index_seq_args = List.map (fun (b,l) -> l) (!array_ref_args) in
-      let res = check_rm_term cur_array res in
+      let res = check_rm_term tested_var_defs defined_restr cur_array res in
       let rec make_lets body = function
 	  [] -> ([], body)
 	| (b::l) -> 
@@ -1002,7 +1055,7 @@ let rec move_names corresp_list lm_name_above lm_fungroup rm_fungroup =
   match (lm_fungroup, rm_fungroup) with
     (ReplRestr(_, restr, funlist), ReplRestr(repl', restr', funlist')) ->
       let (add_names, funlist'') = move_names_list corresp_list (restr != []) funlist funlist' in
-      ([], ReplRestr(repl', (List.map (fun b -> (b, NoOpt)) add_names) @ restr', funlist''))
+      ([], ReplRestr(repl', (List.map (fun b -> (b, Parsing_helper.dummy_ext,NoOpt)) add_names) @ restr', funlist''))
   | (Fun(_,_,_,_), Fun(ch',args', res', priority')) ->
       if lm_name_above then
 	let add_names = ref [] in
@@ -1168,10 +1221,18 @@ let rec check_corresp_uses b b' accu funlist funlist' =
 
   | _ -> Parsing_helper.internal_error "Structures of left- and right-hand sides of an equivalence must be the same"
 
-let find_assoc restr funlist b' bopt' funlist' =
+      
+let find_assoc restr funlist b' ext' bopt' funlist' =
+  let get_assoc (b, ext,_) =
+    try
+      let def_check = List.fold_left2 (check_corresp_uses b b') [] funlist funlist' in
+      Some (b, ext, def_check)
+    with NotCorresp ->
+      None
+  in
   try
     if bopt' != Unchanged then raise Not_found;
-    let (b,_) = List.find (fun (b,_) -> Terms.equiv_same_vars b b') restr in
+    let ((b,ext,_) as b_entry) = List.find (fun (b,_,_) -> Terms.equiv_same_vars b b') restr in
     (* b' is marked "unchanged"; a restriction with the same name 
        exists in the left-hand side.
        Try to associate it with b'; check that all functions that
@@ -1179,59 +1240,181 @@ let find_assoc restr funlist b' bopt' funlist' =
        If this is not the case, we add some elements in "def_check"
        (the second element of the pair, result of find_assoc,
        which will end up as third element of the name mapping) *)
-    try
-      let def_check = List.fold_left2 (check_corresp_uses b b') [] funlist funlist' in
-      (b, def_check)
-    with NotCorresp ->
-      Parsing_helper.user_error (b.sname ^ " in the left-hand side does not correspond to " ^ b'.sname ^ " in the right-hand side, because there is an array access in the right-hand side that does not match the one in the left-hand side.\n")
+    match get_assoc b_entry with
+    | None -> Parsing_helper.input_error (b.sname ^ " in the left-hand side does not correspond to " ^ b'.sname ^ " in the right-hand side, because there is an array access in the right-hand side that does not match the one in the left-hand side.\n") ext
+    | Some result -> result
   with Not_found -> 
     let rec find_min_def_check = function
 	[] -> Parsing_helper.internal_error "should have at least one restriction in Check.find_assoc"
-      |	[(b,_)] ->
-	  begin
-	    try 
-	      (b, List.fold_left2 (check_corresp_uses b b') [] funlist funlist')
-	    with NotCorresp ->
-	      Parsing_helper.user_error (b'.sname ^ " in the right-hand side corresponds to no variable in the left-hand side, because there is an array access in the right-hand side that does not match one in the left-hand side.\n")
-	  end
-      |	((b,_)::l) ->
-	  try
-	    let defcheck_cur = List.fold_left2 (check_corresp_uses b b') [] funlist funlist' in
-	    if defcheck_cur == [] then (b, defcheck_cur) else
-	    let (btmp, defchecktmp) = find_min_def_check l in
-	    if List.length defcheck_cur <= List.length defchecktmp then
-	      (b, defcheck_cur)
-	    else
-	      (btmp, defchecktmp)
-	  with NotCorresp -> 
-	    find_min_def_check l
+      |	[b_entry] -> get_assoc b_entry
+      |	(b_entry::l) ->
+	  match get_assoc b_entry with
+	  | None -> find_min_def_check l
+	  | (Some (_,_,[])) as result_b -> result_b
+	  | (Some (_,_,defcheck_b)) as result_b ->
+	      match find_min_def_check l with
+	      | None -> result_b
+	      | (Some (_,_,defcheck_l)) as result_l ->
+		  if List.length defcheck_b <= List.length defcheck_l then
+		    result_b
+		  else
+		    result_l
     in
-    find_min_def_check restr
+    match find_min_def_check restr with
+    | None -> 
+	Parsing_helper.input_error (b'.sname ^ " in the right-hand side corresponds to no variable in the left-hand side, because there is an array access in the right-hand side that does not match one in the left-hand side.\n") ext'
+    | Some result -> result
+
       
 
-let rec build_restr_mapping_fungroup restr_mapping lm rm =
+(* We make sure that the game correctly simulates the definitions of
+   random variables in the LHS of the equivalence. We do this by adding 
+   the necessary elements to [def_check] in the name mapping.
+   An entry [(b',b,def_check)] means that [b'] in the RHS corresponds
+   to [b] in the LHS and furthermore, 
+   - when [EPOracle res] is in [def_check], [b] must be defined at every 
+   call to oracle [res]
+   - when [EPVar b''] is in [def_check], [b] must be defined when [b'']
+   is defined.
+
+   We say that a variable definition b is strongly tested when
+   b is defined by a "new" outside oracles, and either
+   there is an array access with indices as arguments
+   on b or there is a find in the RHS with innermost variable b' in the
+   defined condition, and b' corresponds to b in the LHS.
+
+   Strongly tested variable definitions are collected in [tested_var_defs].
+
+   We say that a variable definition of b is tested when
+   - there is a find in the RHS with variable b' in the
+   defined condition (not necessarily the innermost one), 
+   and b' corresponds to b in the LHS.
+   - or there is an array access with indices as arguments
+   on b.
+
+   We require that:
+   - when an oracle is called, all tested variables above it are defined
+   - when a strongly tested variable is defined, all tested variables
+   above it are defined
+   - when a variable is strongly tested, it is the only tested variable
+   in its group of "new". (If there were several tested variables, 
+   we should require that they are defined simultaneously. This is difficult
+   to check.)
+
+   In the proof, we reorganise variable definitions such that:
+   - the definition of strongly tested variables remains where it is.
+   - when we define a stronly tested variable, we define all variables in 
+   its group of "new" as well as the variables above if they are not defined
+   yet.
+   - when we call an oracle, we define all variables above if they are
+   not defined yet.
+
+   This reorganisation may
+   - delay the definition of tested variables, but not after the definition
+   of the next strongly tested variable, so that the result of "defined"
+   tests remains unchanged. (It cannot move the definition of tested variables
+   earlier because "when a strongly tested variable is defined, all tested 
+   variables above it are defined" and "when an oracle is called, all tested 
+   variables above it are defined".)
+   - move the definition of non-tested variables arbitrarily (provided they
+   remain defined before the oracles that use them).
+
+*)
+      
+let equal_ep ep ep' =
+  match ep, ep' with
+  | EPVar b, EPVar b' -> b == b'
+  | EPOracle t, EPOracle t' -> t == t'
+  | _ -> false
+
+let display_ep = function
+  | EPVar b -> print_string "definitions of "; Display.display_binder b
+  | EPOracle res -> print_string "occurrences of "; Display.display_term res
+	
+let rec build_restr_mapping_fungroup tested_var_defs restr_mapping lm rm =
   match lm, rm with
     (ReplRestr(_, restr, funlist), ReplRestr(_, restr', funlist')) ->
-      List.iter2 (build_restr_mapping_fungroup restr_mapping) funlist funlist';
+      let l_tested_var_defs_below,l_res_below =
+	List.split
+	  (List.map2 (build_restr_mapping_fungroup tested_var_defs restr_mapping) funlist funlist')
+      in
+      let tested_var_defs_below = List.concat l_tested_var_defs_below in
+      let res_below = List.concat l_res_below in
       if restr = [] then
-	()
+	tested_var_defs_below, res_below
       else
-	List.iter (fun (b',bopt') ->
-	  let (b, def_check) = find_assoc restr funlist b' bopt' funlist' in
+	let tested_var_defs_here = ref tested_var_defs_below in
+	let new_restr_mapping =
+	  List.map (fun (b',ext',bopt') ->
+	    let (b, ext, def_check) = find_assoc restr funlist b' ext' bopt' funlist' in
+	    (b', b, ext, def_check)
+	      ) restr'
+	in
+	let add_ep ep_orig ep =
+	  if List.exists (equal_ep ep) ep_orig then ep_orig else
+	  begin
+	    (* print_string "check also at "; display_ep ep; print_newline(); *)
+	    ep::ep_orig
+	  end
+	in
+	List.iter (fun (b',b,ext,def_check) ->
+	  let def_check = List.map (fun res -> EPOracle res) def_check in
 	  (* print_string ("Mapping " ^ b'.sname ^ " to " ^ b.sname ^ "\n");
-	  List.iter (fun (l,res) ->
+	  List.iter (fun ep ->
 	      print_string "check that ";
-	      Display.display_var b l;
-              print_string " is defined at occurrences of ";
-              Display.display_term res;
+	      Display.display_binder b;
+              print_string " is defined at ";
+              display_ep ep;
               print_newline()) def_check; *)
-	  restr_mapping := (b', b, def_check):: (!restr_mapping)) restr'
-  | (Fun _, Fun _) -> ()
+	  if List.exists (equal_sb (RHS, b')) tested_var_defs ||
+	     List.exists (equal_sb (LHS, b)) tested_var_defs then
+	    begin
+	      (* when a variable is strongly tested, it is the only tested 
+		 variable in its group of "new". *)
+	      List.iter (fun (b1',b1,_,_) ->
+		if (b1'.root_def_array_ref || b1'.root_def_std_ref ||
+		    b1.array_ref) && (b1 != b) then
+		  Parsing_helper.input_error ("In this equivalence, the definition of variables "^(Display.binder_to_string b')^" in the right-hand side, resp. "^(Display.binder_to_string b)^" in the left-hand side, and "^(Display.binder_to_string b1')^" in the right-hand side, resp. "^(Display.binder_to_string b1)^" in the left-hand side are tested. This is forbidden because it is difficult to make sure that they are always simultaneously defined") ext
+		    ) new_restr_mapping;
+	      tested_var_defs_here := b :: (!tested_var_defs_here)
+	    end;
+	  let def_check = 
+	    if b'.root_def_array_ref || b'.root_def_std_ref || b.array_ref then
+	      begin
+		(* when an oracle is called, all tested variables [b] above 
+		   it are defined *)
+		let def_check =
+		  List.fold_left (fun def_check res ->
+		      (* When the oracle [res] uses [b], I do not need
+                         to check that [b] is defined at occurrences of [res]:
+			 it will necessarily be. *)
+		    if not (uses b res) then
+		      add_ep def_check (EPOracle res)
+		    else
+		      def_check
+			) def_check res_below
+		in
+		(* when a strongly tested variable is defined, all tested 
+		   variables [b] above it are defined *)
+		List.fold_left (fun def_check b ->
+		  add_ep def_check (EPVar b)
+		    ) def_check tested_var_defs_below
+	      end
+	    else
+	      def_check
+	  in
+	  restr_mapping := (b', b, def_check):: (!restr_mapping);
+	  ) new_restr_mapping;
+	!tested_var_defs_here, res_below
+
+  | (Fun(_,_,res,_), Fun(_,_,res',_)) ->
+      [], [res]
   | _ -> Parsing_helper.internal_error "Structures of left- and right-hand sides of an equivalence must be the same"
 
-let build_restr_mapping restr_mapping lmg rmg =
+let build_restr_mapping tested_execution_points restr_mapping lmg rmg =
   List.iter2 (fun (lm,_) (rm,_) -> 
-    build_restr_mapping_fungroup restr_mapping lm rm) lmg rmg
+    ignore (build_restr_mapping_fungroup tested_execution_points restr_mapping lm rm)
+      ) lmg rmg
 
 (* Apply the lemma that infers !N G1 ~ !N G2 from G1 ~ G2 *)
 
@@ -1302,7 +1485,7 @@ and add_index_pat idx = function
       PatEqual (add_index idx t)
       
 let add_index_restr_list idx =
-  List.map (fun (b, opt) -> (add_index_binder idx b, opt))
+  List.map (fun (b, ext, opt) -> (add_index_binder idx b, ext, opt))
 
 let rec add_index_fungroup idx = function
   | ReplRestr(repl_opt, restr_list, fun_list) ->
@@ -1407,7 +1590,7 @@ let check_equiv normalize equiv =
     | Some(lm,rm,p,opt2) ->
         (* 1. Check that all variables are correctly defined *)
 	Def.build_def_member rm;
-	check_def_member rm;
+	check_def_member None rm;
 	Def.empty_def_member rm;
 
 	(* 2. Convert insert/get into find in the RHS *)
@@ -1428,11 +1611,13 @@ let check_equiv normalize equiv =
   match equiv'.eq_fixed_equiv with
   | None -> equiv'
   | Some(lm,rm,p,opt2) ->
+      let tested_execution_points = ref [] in
+      
       (* we must call [check_def_member] before using [close_def] *)
       Def.build_def_member lm;
-      check_def_member lm;
+      check_def_member (Some tested_execution_points) lm;
       Def.build_def_member rm;
-      check_def_member rm;
+      check_def_member None rm;
       (* Require that each function has a different number of repetitions.
 	 Then the typing guarantees that when several variables are referenced
 	 with the same array indexes, then these variables come from the same function. *)
@@ -1441,7 +1626,7 @@ let check_equiv normalize equiv =
          Avoid array accesses on variables defined by "find" and on
 	 indices received as arguments. *) 
       let rm1 = List.map (fun (fg, mode) ->
-	(check_rm_fungroup [] fg, mode)) rm
+	(check_rm_fungroup tested_execution_points [] [] fg, mode)) rm
       in
       Def.empty_def_member rm;
 
@@ -1459,8 +1644,11 @@ let check_equiv normalize equiv =
       Array_ref.cleanup_array_ref();
       Def.empty_def_member rm1;
       
+      Array_ref.array_ref_eqside lm;
+      Array_ref.array_ref_eqside rm3;
       let restr_mapping = ref [] in
-      build_restr_mapping restr_mapping lm rm3;
+      build_restr_mapping (!tested_execution_points) restr_mapping lm rm3;
+      Array_ref.cleanup_array_ref();
       renamed_vars := [];
       let equiv'' =
 	{ equiv' with

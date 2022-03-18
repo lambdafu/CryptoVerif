@@ -525,8 +525,8 @@ let check_rm_restr1 cur_array restrlist0 binder_env ((s1,ext1),(s2,ext2),opt) =
   in
   try
     (* When there is variable in the left-hand side with the same name, try to reuse that name *)
-    let (_,(b0,_)) =
-      List.find (fun (((s1',_),_,_), (b0,_)) ->
+    let (_,(b0,_,_)) =
+      List.find (fun (((s1',_),_,_), (b0,_,_)) ->
 	s1' = s1 && b0.btype == t) restrlist0
     in
     add_in_env1reusename binder_env s1 b0 t cur_array
@@ -2270,7 +2270,7 @@ let rec check_lm_restrlist cur_array env = function
       end;
       let (env',b) = add_in_env env s1 ext1 t cur_array in
       let (env'',bl) = check_lm_restrlist cur_array env' l in
-      (env'', (b, NoOpt)::bl)
+      (env'', (b, ext1, NoOpt)::bl)
 
 let rec get_fungroup_ext = function
   | PReplRestr(Some(_, _, (rep,ext)), _, _) -> ext
@@ -2354,13 +2354,13 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       let (env',restrlist') = check_lm_restrlist cur_array' env restrlist in
       let (lrestr, funlist') = List.split (List.map (check_lm_fungroup2 cur_array' (restrlist'::cur_restr) env' seen_ch seen_repl) funlist) in
       (* Check that all new from [restrlist'] are used *)
-      List.iter2 (fun ((bname, ext),_,_) (b,_) ->
+      List.iter2 (fun ((bname, ext),_,_) (b,_,_) ->
 	if not (List.exists (Terms.refers_to_fungroup b) funlist') then
 	  raise_error ("Random variable "^bname^" is not used") ext
 	    ) restrlist restrlist';
       (* It is important that the "new" originally present in PReplRestr [restrlist']
 	 are put first, so that they are used by combine_first later in the code *)
-      let restrlist'' = restrlist' @ (List.map (fun (b,_) -> (b, NoOpt)) (List.concat lrestr)) in
+      let restrlist'' = restrlist' @ (List.map (fun (b,ext) -> (b, ext, NoOpt)) (List.concat lrestr)) in
       if restrlist'' == [] then
 	begin
 	  match funlist' with
@@ -2428,13 +2428,13 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
 	    try 
 	      match get_global_binder_if_possible s1 with
 	      | Some b ->
-		  if not (List.exists (fun (_,(b',_)) -> Terms.equiv_same_vars b b') restrlist0) then
+		  if not (List.exists (fun (_,(b',_,_)) -> Terms.equiv_same_vars b b') restrlist0) then
 		    raise Not_found;
 		  b
 	      | None ->
                   (* Look for a variable in the left-hand side with the same name and type *)
-		  let (_,(b0,_)) =
-		    List.find (fun (((s1',_),_,_), (b0,_)) ->
+		  let (_,(b0,_,_)) =
+		    List.find (fun (((s1',_),_,_), (b0,_,_)) ->
 		      s1' = s1 && b0.btype == t) restrlist0
 		  in
 		  Terms.create_binder_internal b0.sname b0.vname t cur_array 
@@ -2448,7 +2448,7 @@ let rec check_rm_restrlist options2 cur_array env restrlist0 = function
 	  add_in_env env s1 ext1 t cur_array
       in
       let (env'',bl) = check_rm_restrlist options2 cur_array env' restrlist0 l in
-      (env'', (b, opt'')::bl)
+      (env'', (b, ext1, opt'')::bl)
 
 let rec check_rm_fungroup2 options2 cur_array env pfg0 fg0 fg = 
   match (pfg0, fg0, fg) with

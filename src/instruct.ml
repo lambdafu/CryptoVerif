@@ -1241,7 +1241,7 @@ let rec find_restr_fg s = function
     Fun _ -> raise Not_found
   | ReplRestr(_,restr,l) ->
       try
-	find_list (fun (b,_) ->
+	find_list (fun (b,_,_) ->
 	  if Display.binder_to_string b = s then b else raise Not_found) restr
       with Not_found ->
 	find_list (find_restr_fg s) l

@@ -116,7 +116,7 @@ and empty_def_oprocess p =
 
 let rec empty_def_fungroup = function
     ReplRestr(repl_opt, restr, funlist) ->
-      List.iter (fun (b,_) -> b.def <- []) restr;
+      List.iter (fun (b,ext,_) -> b.def <- []) restr;
       List.iter empty_def_fungroup funlist
   | Fun(ch, args, res, priority) ->
       List.iter (fun b -> b.def <- []) args;
@@ -667,13 +667,13 @@ let build_def_process event_accu p =
 let rec build_def_fungroup cur_array above_node = function
   | ReplRestr(repl_opt, restr, funlist) ->
       let above_node2 =
-	Terms.set_def (List.map fst restr) DFunRestr DNone (Some above_node)
+	Terms.set_def (List.map (fun (b,ext,opt) -> b) restr) DFunRestr DNone (Some above_node)
       in
       let cur_array' = Terms.add_cur_array repl_opt cur_array in
       List.iter (build_def_fungroup cur_array' above_node2) funlist
   | Fun(ch, args, res, priority) ->
       let above_node1 =
-	Terms.set_def args DFunArgs DNone (Some above_node)
+	Terms.set_def args (DFunArgs res) DNone (Some above_node)
       in
       ignore(def_term None cur_array above_node1 [] [] [] res)
 

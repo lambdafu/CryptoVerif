@@ -528,7 +528,7 @@ let add_restr restr_list t =
     t
   else
     Polynom.sum t
-      (time_list (fun (b,_) ->
+      (time_list (fun (b,ext,_) ->
 	Polynom.probaf_to_polynom 
 	  (Add(ActTime(AArrayAccess (List.length b.args_at_creation), []),
 	       ActTime(ANew b.btype, [])))) restr_list)

@@ -9,7 +9,7 @@ let rec make_par = function
 
 let rec put_restr p = function
   | [] -> p
-  | (b,_opt)::l ->
+  | (b,_ext,_opt)::l ->
       Terms.oproc_from_desc (Restr(b,put_restr p l))
 
 (* Record the channels used in the equivalence to avoid a clash
@@ -126,10 +126,10 @@ let rec build_mapping_fungroup lm rm =
       if restr = [] then
 	()
       else
-	List.iter (fun (b',bopt') ->
+	List.iter (fun (b',_,bopt') ->
 	  if bopt' == Unchanged then
 	    try 
-	      let (b,_) = List.find (fun (b,_) -> Terms.equiv_same_vars b b') restr in
+	      let (b,_,_) = List.find (fun (b,_,_) -> Terms.equiv_same_vars b b') restr in
 	      Terms.link b (TLink (Terms.term_from_binder b'))
 	    with Not_found -> ()
 		) restr'
@@ -177,7 +177,7 @@ let rec rename_vars_fungroup = function
 	| None -> None
 	| Some i -> Some (rename_idx i)
       in
-      ReplRestr(idx_opt', List.map (fun (b, opt) -> (rename_var b, opt)) restr,
+      ReplRestr(idx_opt', List.map (fun (b, ext, opt) -> (rename_var b, ext, opt)) restr,
 		List.map rename_vars_fungroup funlist)
   | Fun(c, bl, t, opt) ->
       Fun(c, List.map rename_var bl, rename_vars t, opt)
@@ -200,7 +200,7 @@ let rec eqfungroup_to_process bad_event cur_array lhs rhs =
 	List.map2 (eqfungroup_to_process bad_event cur_array') funlist funlist'
       in      
       put_repl_in_restr_out_par cur_array' idx_opt'
-	(new_channel()) (Terms.union (fun (b,_) (b',_) -> b == b') restr restr') plist
+	(new_channel()) (Terms.union (fun (b,_,_) (b',_,_) -> b == b') restr restr') plist
   | Fun(_, _, t, _), Fun(c', bl', t', _) ->
       let b_lhs = Terms.create_binder "res_lhs" t.t_type cur_array in
       let b_rhs = Terms.create_binder "res_rhs" t'.t_type cur_array in

@@ -189,7 +189,8 @@ and program_point =
   | DInputProcess of inputprocess
   | DTerm of term
   | DFunRestr
-  | DFunArgs
+  | DFunArgs of term (* the term here is the result of the oracle of 
+			which the variable is an argument *)
   | DGenVar
   | DNone
 
@@ -378,7 +379,7 @@ and restropt =
 and name_to_discharge_t = (binder * restropt ref) list
     
 and fungroup =
-    ReplRestr of repl_index(*replication*) option * (binder * restropt) list(*restrictions*) * fungroup list
+    ReplRestr of repl_index(*replication*) option * (binder * Parsing_helper.extent * restropt) list(*restrictions*) * fungroup list
   | Fun of channel * binder list(*inputs*) * term * (int(*priority*) * options)
 
 and eqmember = 
@@ -514,7 +515,11 @@ and equiv_gen =
 	
 and equiv = eqname * eqmember * eqmember * setf list * eqopt * eqopt2
 
-and def_check = term list
+and execution_points_t =
+  | EPVar of binder
+  | EPOracle of term
+
+and def_check = execution_points_t list
 
 and equiv_nm = equiv * (binder * binder * def_check) list 
         (* equivalence with name mapping *)
