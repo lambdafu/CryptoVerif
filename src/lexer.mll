@@ -140,7 +140,8 @@ let keyword_table_proof =
       "tag", TAG;
       "special", SPECIAL;
       "assume", ASSUME;
-      "guess", GUESS
+      "guess", GUESS;
+      "above", ABOVE
     ]
     
 }

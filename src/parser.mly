@@ -170,6 +170,7 @@ let return_channel = (dummy_channel, None)
 %token TAG
 %token ASSUME
 %token GUESS
+%token ABOVE
       
 /* Precedence (from low to high) and associativities */
 %nonassoc OPTIMIF
@@ -232,6 +233,9 @@ let return_channel = (dummy_channel, None)
 
     %start collision_matrix
     %type <(Ptree.ident list * Ptree.ident list) list> collision_matrix
+
+    %start guess_binderref
+    %type <Ptree.ident * Ptree.ident list> guess_binderref
     
 %%
 
@@ -579,10 +583,20 @@ proofcommand:
     { CFocus($2) }
 |   UNDO FOCUS
     { CUndoFocus(parse_extent()) }
-|   GUESS idst
-    { CGuess(CGuessId $2) }
-|   GUESS occ
-    { CGuess(CGuessOcc($2, parse_extent())) }
+|   GUESS idst optabove
+    { CGuess(CGuessId($2, $3)) }
+|   GUESS occ optabove
+    { CGuess(CGuessOcc($2, $3, parse_extent())) }
+
+guess_binderref:
+    IDENT LBRACKET identlist RBRACKET
+    { ($1,$3) }
+    
+optabove:
+
+    { false }
+|   AND ABOVE
+    { true }
     
 special_args_opt:
     SPECIAL LPAREN special_args RPAREN

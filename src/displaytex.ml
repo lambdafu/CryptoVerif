@@ -195,7 +195,7 @@ and display_term t =
   | FunApp(f,l) ->
       begin
 	match f.f_cat with
-	  Std | SepLetFun | Tuple | Event -> 
+	  Std | GuessCst | SepLetFun | Tuple | Event -> 
 	    print_id "\\kwf{" f.f_name "}";
 	    (* Event functions have replication indexes added at first argument
                Do not display it *)
@@ -347,7 +347,7 @@ and display_term_paren infix_paren process_paren t =
   let put_paren =
     match t.t_desc with
       Var _ | ReplIndex _ 
-    | FunApp({ f_cat = Std | SepLetFun | Tuple | Event },_) -> false
+    | FunApp({ f_cat = Std | GuessCst | SepLetFun | Tuple | Event },_) -> false
     | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
 	begin
 	  match infix_paren' with
@@ -1416,14 +1416,19 @@ let display_instruct = function
       print_string "focus on queries";
       List.iter (fun q -> print_string "\\\\\n\\qquad -- "; display_query3 q) ql
   | Guess arg ->
-      print_string "guess the tested session ";
+      print_string "guess ";
       match arg with
-      | GuessRepl(repl_index,_) ->
-	  print_string "for replication index ";
-	  display_repl_index repl_index
-      | GuessOcc(occ,_) ->
-	  print_string "for the replication at ";
-	  print_int occ
+      | GuessVar((b,l),_) ->
+	  print_string "the value of the variable ";
+	  display_var b l
+      | GuessRepl(repl_index,and_above,_) ->
+	  print_string "the tested session for replication index ";
+	  display_repl_index repl_index;
+	  if and_above then print_string " and above"
+      | GuessOcc(occ,and_above,_) ->
+	  print_string "the tested session for the replication at ";
+	  print_int occ;
+	  if and_above then print_string " and above"
 
 (* Explain probability formulas *)
 
@@ -1470,11 +1475,11 @@ let display_proba_bound = function
 	print_string " + ";
 	display_adv ql_i g') ql_list;
       print_string "$\\\\\n"
-  | Display.MulBound(q,g,n,q',g') ->
+  | Display.MulBound(q,g,proba,q',g') ->
       print_string "$";
       display_adv [q,g] g;
       print_string " \\leq ";
-      print_string n.pname;
+      display_proba 0 proba;
       print_string " \\times ";
       display_adv [q',g'] g';
       print_string "$\\\\\n"

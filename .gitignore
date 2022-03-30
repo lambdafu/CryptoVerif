@@ -88,8 +88,10 @@ examples/kerberos/PublicKeyKerberos_keyuse.key_AK.loc3.cv
 examples/kerberos/PublicKeyKerberos_keyuse.key_SK.loc1.cv
 examples/kerberos/PublicKeyKerberos_keyuse.key_SK.loc2.cv
 examples/kerberos/PublicKeyKerberos_keyuse.key_SK.loc3.cv
-examples/hpke/dhkem.auth.*.ocv
-examples/hpke/hpke.auth.*.ocv
+examples/hpke/dhkem.auth.*lr.ocv
+examples/hpke/PRFODH/dhkem.auth.*lr.ocv
+examples/hpke/hpke.auth.*cca.ocv
+examples/hpke/hpke.auth.*auth.ocv
 examples/hpke/mylib.ocvl
 examples/textsecure/TextSecure.NO_REPLAY_PROT.cv
 examples/textsecure/TextSecure.REPLAY_PROT.cv

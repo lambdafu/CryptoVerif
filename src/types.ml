@@ -211,6 +211,7 @@ and funcats =
   | SepLetFun (* Function symbols defined by letfun, and that can 
 		 be implemented as a separate functon (no find, array access,
 		 out of scope access) *)
+  | GuessCst
 
 and impl_name =
     Func of string
@@ -435,7 +436,7 @@ and cur_queries_t = ((query * game) * proof_t ref) list
 
 and proba_info =
   | CstProba of setf list
-  | MulQueryProba of param * (query * game) * proof_t ref
+  | MulQueryProba of probaf * (query * game) * proof_t ref
       
 and proof_t =
   | Proved of proba_info * state
@@ -599,8 +600,9 @@ and crypto_transf_user_info =
   | Detailed of var_mapping option * term_mapping option
 
 and guess_arg_t =
-  | GuessRepl of repl_index * Parsing_helper.extent
-  | GuessOcc of int * Parsing_helper.extent
+  | GuessVar of binderref * Parsing_helper.extent
+  | GuessRepl of repl_index * bool(*true when "and above"*) * Parsing_helper.extent
+  | GuessOcc of int * bool(*true when "and above"*) * Parsing_helper.extent
 	
 and instruct =
   | ExpandGetInsert_ProveUnique

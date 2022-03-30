@@ -118,6 +118,8 @@ val tysize_MIN_Coll_Elim : int ref
    (parameter of size <= psizek)^nk / (type of size >= tsize) *) 
 val allowed_collisions : ((int * int) list * int) list ref
 
+val tysize_MAX_Guess : int ref
+    
 val parse_type_size_pcoll : string * Parsing_helper.extent -> (int * int) option * (int * int) option
 val parse_pest : string * Parsing_helper.extent -> int
 val parse_psize : string * Parsing_helper.extent -> int

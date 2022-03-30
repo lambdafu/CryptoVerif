@@ -327,7 +327,7 @@ proof {
 }
 
 (** Key Encapsulation Mechanism **)
-type keypairseed_t [bounded,large].
+type keypairseed_t [bounded,small].
 type kemseed_t [fixed,large].
 type skey_t [bounded,large].
 type pkey_t [bounded,large].
@@ -386,3 +386,8 @@ process
 	(Osk(comp: bool) :=
 	   if comp then return(sk))
       )
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of k0.
+0.076s (user 0.076s + system 0.000s), max rss 16900K
+END *)

@@ -249,7 +249,7 @@ and display_term t =
   | FunApp(f,l) ->
       begin
 	match f.f_cat with
-	  Std | SepLetFun | Tuple | Event -> 
+	  Std | GuessCst | SepLetFun | Tuple | Event -> 
 	    print_string f.f_name;
 	    (* Event functions have replication indexes added at first argument
                Do not display it *)
@@ -382,7 +382,7 @@ and display_term_paren infix_paren process_paren t =
   let put_paren =
     match t.t_desc with
       Var _ | ReplIndex _ 
-    | FunApp({ f_cat = Std | SepLetFun | Tuple | Event },_) -> false
+    | FunApp({ f_cat = Std | GuessCst | SepLetFun | Tuple | Event },_) -> false
     | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
 	begin
 	  match infix_paren' with
@@ -1552,14 +1552,19 @@ let display_instruct = function
       print_string "focus on queries";
       List.iter (fun q -> print_string "\n  - "; display_query3 q) ql
   | Guess arg ->
-      print_string "guess the tested session ";
+      print_string "guess ";
       match arg with
-      | GuessRepl(repl_index,_) ->
-	  print_string "for replication index ";
-	  display_repl_index repl_index
-      | GuessOcc(occ,_) ->
-	  print_string "for the replication at ";
-	  print_int occ
+      | GuessVar((b,l),_) ->
+	  print_string "the value of the variable ";
+	  display_var b l
+      | GuessRepl(repl_index,and_above,_) ->
+	  print_string "the tested session for replication index ";
+	  display_repl_index repl_index;
+	  if and_above then print_string " and above"
+      | GuessOcc(occ,and_above,_) ->
+	  print_string "the tested session for the replication at ";
+	  print_int occ;
+	  if and_above then print_string " and above"
 
 type query_specif =
     InitQuery of query
@@ -1653,7 +1658,7 @@ let display_proba_set_may_double q s =
 
 type proba_bound =
   | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
-  | MulBound of query_specif * game * param * query_specif * game
+  | MulBound of query_specif * game * probaf * query_specif * game
 
 
 let display_proba_bound = function
@@ -1665,10 +1670,10 @@ let display_proba_bound = function
 	print_string " + ";
 	display_adv ql_i g') ql_list;
       print_newline()
-  | MulBound(q,g,n,q',g') ->
+  | MulBound(q,g,proba,q',g') ->
       display_adv [q,g] g;
       print_string " <= ";
-      print_string n.pname;
+      display_proba 0 proba;
       print_string " * ";
       display_adv [q',g'] g';
       print_newline()
@@ -1922,7 +1927,7 @@ and proba_from_proba_info (q0,g0) bounds = function
       bounds := (SumBound([InitQuery q,g],g,fullp,[],g)) :: (!bounds);
       bounds := (MulBound(InitQuery q0,g0,n,InitQuery q,g)) ::(!bounds);
       List.map (function
-	| SetProba p -> SetProba(Mul(Count n, p))
+	| SetProba p -> SetProba(Mul(n, p))
 	| SetEvent _ -> Parsing_helper.internal_error "Probability of event should have been computed by compute_proba_internal"
 	| SetAssume -> SetAssume) fullp
 
@@ -2312,8 +2317,8 @@ let mark_occs1 f_p f_t = function
       end
   | DGuess(arg) ->
       match arg with 
-      | GuessOcc(occ,_) -> useful_occs := occ :: (!useful_occs)
-      | GuessRepl _ -> ()
+      | GuessOcc(occ,_,_) -> useful_occs := occ :: (!useful_occs)
+      | GuessRepl _ | GuessVar _ -> ()
 	  
 let mark_occs ins = 
   useful_occs := [];

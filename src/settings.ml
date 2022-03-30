@@ -113,11 +113,13 @@ let psize_SMALL = 2 (* For active sessions, when the number of failed
 let tysize_LARGE = 160
 let tysize_PASSWORD_min = 20
 let tysize_PASSWORD_max = 40
+let tysize_SMALL = 2
 
 let trust_size_estimates = ref false
 let tysize_MIN_Coll_Elim = ref tysize_PASSWORD_min
 let tysize_MIN_Auto_Coll_Elim = ref 80
-
+let tysize_MAX_Guess = ref 40
+    
 let max_exp = 1000000000
 (* min_exp = -max_exp is needed for the code in proba.ml
    to evaluate orders of magnitude to be correct *)
@@ -151,6 +153,7 @@ let parse_type_size_pcoll (s, ext) =
   match s with
   | "large" -> Some (tysize_LARGE, max_exp), Some (tysize_LARGE, max_exp)
   | "password" -> Some (tysize_PASSWORD_min, tysize_PASSWORD_max), Some (tysize_PASSWORD_min, tysize_PASSWORD_max)
+  | "small" -> Some (0, tysize_SMALL), None
   | s -> (* option size<n>, size<min>_<max>, or pcoll<n> *)
       try
 	if (String.sub s 0 4) = "size" then
@@ -208,7 +211,7 @@ let parse_psize (s, ext) =
 	v	  
       with
       | (Parsing_helper.Error _) as x -> raise x
-      | _ -> raise (Parsing_helper.Error("Unknown parameter option " ^ s^" (allowed options are noninteractive, passive, default, small, and size<n>)", ext))
+      | _ -> raise (Parsing_helper.Error("Unknown size option " ^ s^" (allowed options are noninteractive, passive, default, small, and size<n>)", ext))
 	  
 	  
 let parse_bool v var =
@@ -254,6 +257,9 @@ let do_set p v =
       let r = parse_pest s_ext in
       if r <= 0 then raise Not_found;
       tysize_MIN_Auto_Coll_Elim := r
+  | "maxGuess", S s_ext ->
+      let r = parse_psize s_ext in
+      tysize_MAX_Guess := r
   | "trustSizeEstimates", _ -> parse_bool v trust_size_estimates
   | "elsefindFactsInReplace", _ -> parse_bool v elsefind_facts_in_replace
   | "elsefindFactsInSuccess", _ -> parse_bool v elsefind_facts_in_success

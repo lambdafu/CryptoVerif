@@ -1082,7 +1082,27 @@ let rec replace_tt count env facts cur_array t =
       else
       Terms.build_term t 
 	(match t.t_desc with
-	  Var(b,l) -> Var(b, List.map (replace_tt count env facts cur_array) l)
+	  Var(b,l) ->
+	    (* Do not allow rewriting implicit replication indices.
+	       That would cause bugs with missing or misplaced defined
+               conditions, because we do not expect to require a defined
+               condition for a variable that is in scope. *)
+	    let rec avoid_common_prefix lt li =
+	      match (lt,li) with
+	      |	({t_desc = ReplIndex ri1; t_occ = occ'}::lt',ri2::li')
+		  when ri1 == ri2 ->
+		    begin
+		      match !count with
+		      |	RepToDo (occ, ext_o, ins, ext_s,check_opt)
+			  when occ == occ' ->
+			    raise (Error("Cannot replace an implicit replication index at " ^ (string_of_int occ), ext_s))
+		      | _ -> ()
+		    end;
+		    avoid_common_prefix lt' li'
+	      | _ -> ()
+	    in
+	    avoid_common_prefix (List.rev l) (List.rev b.args_at_creation);
+	    Var(b, List.map (replace_tt count env facts cur_array) l)
 	| (ReplIndex _ | EventAbortE _) as x -> x
 	| FunApp(f,[t1;t2]) when f == Settings.f_and ->
 	    (* This is correct because the replacement is done either in t1 or in t2,

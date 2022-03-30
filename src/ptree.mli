@@ -218,8 +218,8 @@ type allowed_coll_t =
   | Allowed_Coll_Exact of ident
 
 type guess_arg_t =
-  | CGuessId of ident
-  | CGuessOcc of pocc * Parsing_helper.extent
+  | CGuessId of ident * bool(*true when "and above"*)
+  | CGuessOcc of pocc * bool(*true when "and above"*) * Parsing_helper.extent
 	
 type command =
     CInteractive of Parsing_helper.extent

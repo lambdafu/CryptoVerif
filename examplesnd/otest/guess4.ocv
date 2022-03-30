@@ -319,7 +319,7 @@ TODO
 proof {
       guess id && above;
       show_game occ;
-      guess "j_1[id_tested,i_tested]";
+      guess "j_1[i_tested,id_tested]";
       show_game;
       simplify;
       show_game
@@ -331,7 +331,7 @@ type keypairseed_t [bounded,large].
 type kemseed_t [fixed,large].
 type skey_t [bounded,large].
 type pkey_t [bounded,large].
-type kemkey_t [fixed,large].
+type kemkey_t [fixed,small].
 type kemciph_t [fixed,large].
 type AuthEncap_res_t [fixed,large].
 proba P_pk_coll.
@@ -386,3 +386,8 @@ process
 	(Osk(comp: bool) :=
 	   if comp then return(sk))
       )
+
+(* EXPECTED
+Error: Variable j_1 expects an index of type [1,Qdperuser] but is here given an index of type [1,N]
+xtime: error in child process (status : 2)
+END *)

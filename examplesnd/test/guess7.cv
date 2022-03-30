@@ -1,0 +1,41 @@
+(* Good: i don't manage to trigger a replacement ix -> ix_tested
+   in simplification *)
+
+fun f(bitstring): bitstring.
+
+type key [large, fixed].
+fun enc(bitstring, key): bitstring.
+fun dec(bitstring, key): bitstring.
+
+equation forall x: bitstring, y: key;
+   dec(enc(x,y),y) = x.
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+undo 2;
+guess ix;
+simplify
+}
+
+process
+!ix <= Nx
+in(c, ());
+out(c, ());
+in(c, x:bitstring);
+new k: key;
+let ci = enc(x,k) in
+let pl = dec(ci,k) in
+event e;
+out(c, pl)
+
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.036s (user 0.028s + system 0.008s), max rss 16596K
+END *)

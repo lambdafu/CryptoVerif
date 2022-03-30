@@ -1,0 +1,28 @@
+fun f(bitstring): bitstring.
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess ix;
+  replace 19 "ix_tested"
+  (* Creates y[ix_tested], which is not guarded by a defined condition, 
+     although y[ix] is defined and ix = ix_tested *)
+  }
+
+process
+!ix <= Nx
+in(c, x:bitstring);
+let y = f(x) in
+event e;
+out(c, y)
+
+
+(* EXPECTED
+Error: Cannot replace an implicit replication index at 19
+xtime: error in child process (status : 2)
+END *)

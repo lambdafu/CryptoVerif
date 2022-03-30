@@ -40,11 +40,17 @@ transformations before the actual proof.
 Use tables instead of find in HPKE.
 DONE update tech report
 
-Allow guessing of a value in a polynomial type, not only of a replication index (see point 4 in HIGH PRIORITY)
+
 
 Prove forward secrecy for the DHKEM of HPKE, from Insider-CCA and Outsider-Auth,
 from GDH and ROM, from PRF-ODH.
 see file examplesnd/notest/dhkem.auth.forward-secrecy.ocv
+
+Be able to display the used interactive commands, to be able to copy-paste
+them to the input file.
+
+Have a notion of intermediate result: you prove an equivalence, and then
+reuse it with the associated probability to prove some other result.
 
 Plan of paper:
 Treatment of key compromise in CryptoVerif and related ideas
@@ -6318,3 +6324,25 @@ Fix bug examplesnd/test/bug_transf_crypto_random_gen?.cv
 DONE 17/3/2022
 pb in examplesnd/otest/hpke.internalerror.ocv
 FIXED 18/3/2022
+
+Allow guessing of a value in a polynomial type, not only of a replication index (see point 4 in HIGH PRIORITY)
+DONE, but bug, see examplesnd/test/guess6.cv
+One can make a term y[ix_tested] appear when y[ix] is defined and ix = ix_tested, but y[ix_tested] is not guarded by an appropriate defined condition.
+Is the risk higher with
+  | (ReplIndex _, FunApp(_,[])) -> true
+in Facts.orient?
+Bug fixed by forbidding replacement of implicit replication indices in
+"replace". The replacement of variables is protected in "replace" by
+requiring that the definition of all variables in the target term is
+guaranteed by a defined condition.
+We protect simplification by orienting "guessed_constant -> repl_index"
+rather than the other direction. That should avoid rewriting
+y[ix] into y[ix_tested]. (I am not sure if the other orientation would
+really lead to a bug.)
+DONE 29/3/2022
+The probability bound is sometimes a bit worse with the orientation
+"guessed_constant -> repl_index", for the following paradoxical reason:
+CV manages to show that the "guessed" branch is executed once while the
+other branch is executed at most N times. But then it does not take the max
+the two branches in the crypto transformation, it takes the sum, 
+which yields N+1 instead of N.

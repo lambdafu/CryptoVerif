@@ -82,7 +82,7 @@ type query_specif =
 
 type proba_bound =
   | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
-  | MulBound of query_specif * game * param * query_specif * game
+  | MulBound of query_specif * game * probaf * query_specif * game
 
 (* [compute_proba_internal2 bounds (q,g) p s] computes the probability of
    breaking query [q] in game [g], knowing that the probability of breaking [q]

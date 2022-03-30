@@ -1181,12 +1181,26 @@ let find_repl_indices game =
   find_repl_indices_rec accu p;
   accu 
 
+let find_guess_binder binders (id,ext) =
+  try
+    Hashtbl.find binders id
+  with Not_found ->
+    raise (Error("Variable "^id^" not found", ext))
+
+let find_repl_index_or_binder repl_indices binders (id,ext) =
+  try
+    GuessRepl(Hashtbl.find repl_indices id, false, ext)
+  with Not_found ->
+    try
+      GuessVar((Hashtbl.find binders id,[]), ext)
+    with Not_found ->
+      raise (Error("Replication index or variable "^id^" not found", ext))
+    
 let find_repl_index repl_indices (id,ext) =
   try
-    Hashtbl.find repl_indices id
+    GuessRepl(Hashtbl.find repl_indices id, true, ext)
   with Not_found ->
     raise (Error("Replication index "^id^" not found", ext))
-    
 	
 let rec find_funsymb f t =
   match t.t_desc with
@@ -1945,12 +1959,40 @@ let rec interpret_command interactive state = function
   | CGuess(arg) ->
       let interpreted_arg =
 	match arg with
-	| CGuessId(id) ->
+	| CGuessId(id,false) ->
+	    begin
+	      match Syntax.parse_from_string Parser.guess_binderref id with
+	      | (b,l) ->
+		  let binders = find_binders state.game in
+		  let b' = find_guess_binder binders b in
+		  let l_b = List.length b'.args_at_creation in
+		  let l_l = List.length l in
+		  if l_b != l_l then
+		    raise (Error("Variable "^(Display.binder_to_string b')^" expects "^(string_of_int l_b)^
+		       " indices, but is here given "^(string_of_int l_l)^" indices", snd id));
+		  let get_cst ri (s,ext) =
+		    let f = Stringmap.get_function_no_letfun (!Stringmap.env) s ext in
+		    if fst f.f_type <> [] then
+		      raise (Error("Indices of variable should be constants in the guess command", ext));
+		    if snd f.f_type != ri.ri_type then
+		      raise (Error("Variable "^(Display.binder_to_string b')^" expects an index of type "^
+				   ri.ri_type.tname^" but is here given an index of type "^
+				   (snd f.f_type).tname, ext));
+		    Terms.app f []
+		  in
+		  let l' = List.map2 get_cst b'.args_at_creation l in
+		  GuessVar((b',l'),snd id)
+	      | exception (Error _) ->
+		  let repl_indices = find_repl_indices state.game in
+		  let binders = find_binders state.game in
+		  find_repl_index_or_binder repl_indices binders id
+	    end
+	| CGuessId(id,true) ->
 	    let repl_indices = find_repl_indices state.game in
-	    GuessRepl(find_repl_index repl_indices id, snd id)
-	| CGuessOcc(occ_cmd, ext_o) ->
+	    find_repl_index repl_indices id
+	| CGuessOcc(occ_cmd, and_above, ext_o) ->
 	    let occ = interpret_occ state occ_cmd in
-	    GuessOcc(occ, ext_o)
+	    GuessOcc(occ, and_above, ext_o)
       in
       execute_display_advise (Guess interpreted_arg) state
   | CRestart(ext) ->

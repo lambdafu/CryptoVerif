@@ -1466,6 +1466,12 @@ Maximum of facts guaranteed in \texttt{else} branches of \texttt{find} collected
   \texttt{password} (probability $2^{-20}$), or \texttt{pest}$n$
   (probability $2^{-n}$; see also the \texttt{type} declaration).
 
+\item $\texttt{set maxGuess = }\nonterm{s}{\tt .}$ (default \texttt{size40})
+
+  Sets the maximum size for which we can guess the value of a certain type.
+  The argument $\nonterm{s}$ can be \texttt{default} or \texttt{passive}
+  (size $2^{30}$), \texttt{small} (size $2^2$), or \texttt{size$n$} (size $2^n$).
+
 \item \texttt{set forgetOldGames = false.}\\
 \texttt{set forgetOldGames = true.}
 
@@ -1651,6 +1657,10 @@ so the probability of collisions among passwords is larger
 than among data of \texttt{large} types. CryptoVerif
 assumes that passwords are taken in a dictionary of between about one 
 million ($2^{20}$) and about one trillion ($2^{40}$) elements.
+
+\item \texttt{small} is equivalent to \texttt{size0\_2}, that is, $|T| \leq 2^2$.
+By default, such a type is small enough so that its value can be guessed by
+the \texttt{guess} command.
 
 \end{itemize}
 

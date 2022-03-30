@@ -319,7 +319,7 @@ TODO
 proof {
       guess id && above;
       show_game occ;
-      guess "j_1[id_tested,i_tested]";
+      guess "k0_1[id_tested,i_tested]";
       show_game;
       simplify;
       show_game
@@ -386,3 +386,8 @@ process
 	(Osk(comp: bool) :=
 	   if comp then return(sk))
       )
+
+(* EXPECTED
+Error: The type of the guessed value must have size at most 40
+xtime: error in child process (status : 2)
+END *)

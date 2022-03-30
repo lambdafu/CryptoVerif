@@ -319,7 +319,7 @@ TODO
 proof {
       guess id && above;
       show_game occ;
-      guess "j_1[id_tested,i_tested]";
+      guess "sk[i_tested]";
       show_game;
       simplify;
       show_game
@@ -327,7 +327,7 @@ proof {
 }
 
 (** Key Encapsulation Mechanism **)
-type keypairseed_t [bounded,large].
+type keypairseed_t [bounded,small].
 type kemseed_t [fixed,large].
 type skey_t [bounded,large].
 type pkey_t [bounded,large].
@@ -386,3 +386,8 @@ process
 	(Osk(comp: bool) :=
 	   if comp then return(sk))
       )
+
+(* EXPECTED
+Error: Cannot determine whether the guessed variable has the desired indices or not
+xtime: error in child process (status : 2)
+END *)

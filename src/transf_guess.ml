@@ -1,28 +1,97 @@
 open Types
 open Parsing_helper
   
-let selected_repl = ref (GuessOcc(-1, dummy_ext))
+let selected_guess = ref (GuessOcc(-1, false, dummy_ext))
 
 let is_selected_repl p =
-  match !selected_repl, p.i_desc with
-  | GuessOcc(n,_), _ -> p.i_occ == n
-  | GuessRepl(ri,_), Repl(ri',_) -> ri == ri'
+  match !selected_guess, p.i_desc with
+  | GuessOcc(n,_,_), _ -> p.i_occ == n
+  | GuessRepl(ri,_,_), Repl(ri',_) -> ri == ri'
   | _ -> false
 
-let ext_command() =
-  match !selected_repl with
-  | GuessOcc(_,ext) | GuessRepl(_,ext) -> ext
-
+let and_above() =
+  match !selected_guess with
+  | GuessOcc(_,and_above,_) | GuessRepl(_,and_above,_) -> and_above
+  | _ -> false
 	
-let found_repl = ref false
+let is_selected_var b =
+  match !selected_guess with
+  | GuessVar((b',_),_) -> b' == b
+  | _ -> false
+	
+let ext_command() =
+  match !selected_guess with
+  | GuessOcc(_,_,ext) | GuessRepl(_,_,ext) | GuessVar(_,ext) -> ext
 
-let dummy_param = { pname = "?"; psize = 0 }
-let repl_param = ref dummy_param
+
+let check_size ty =
+  match ty.tsize with
+  | Some(_,smax) when smax <= !Settings.tysize_MAX_Guess -> ()
+  | _ ->
+      raise (Error("The type of the guessed value must have size at most "^
+		   (string_of_int (!Settings.tysize_MAX_Guess)), ext_command()))
+
+
+let get_cst s ty =
+  let b_tested = Settings.create_fun (Terms.fresh_id (s ^ "_tested"))
+    ([], ty) GuessCst
+    (* use the category GuessCst so that the "diffConstants"
+       setting does not apply to guessed constants *)
+  in
+  (* Adding b_tested to Stringmap.env so that it can be used in 
+     the "replace" command *)
+  Stringmap.env := Stringmap.StringMap.add b_tested.f_name
+       (Stringmap.EFunc b_tested) (!Stringmap.env);
+  b_tested
+	
+let good_indices cur_array p =
+  match !selected_guess with
+  | GuessVar((_,l),_) ->
+      if l = [] then
+	begin
+	  assert (cur_array == []);
+	  true
+	end
+      else
+	begin
+	  try 
+	    let facts = Facts.get_facts_at (DProcess p) in
+	    let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
+	    let eq = Terms.make_and_list (List.map2 (fun t ri -> Terms.make_equal t (Terms.term_from_repl_index ri)) l cur_array) in
+	    let _ = Facts.simplif_add Facts.no_dependency_anal simp_facts eq in
+	    if List.for_all2 (fun t ri ->
+	      try
+		let diff = Terms.make_diff t (Terms.term_from_repl_index ri) in
+		let _ = Facts.simplif_add Facts.no_dependency_anal simp_facts diff in
+		false
+	      with Contradiction ->
+	        (* We proved that t = ri *)
+		true
+		  ) l cur_array
+	    then
+	      (* We proved that l = cur_array *)
+	      true
+	    else
+	      raise (Error("Cannot determine whether the guessed variable has the desired indices or not", ext_command()))
+	  with Contradiction ->
+            (* The program point [p] is in fact unreachable
+	       or we proved that [eq] is false, so l <> cur_array *)
+	    false
+	end
+  | _ ->
+      (* [good_indices] should not be called when we are guessing a replication index *)
+      assert false
+  
+	
+let found_guess = ref []
+
+let guess_card = ref Zero
+let var_eq_test = ref (Terms.make_true ())
     
 let query_variables = ref []
-let events_under_repl = ref []
+let events_under_guess = ref []
 let events_elsewhere = ref []
-let variables_under_repl = ref []
+let variables_under_guess = ref []
 let variables_elsewhere = ref []
 
 let duplicated_vars = ref ([]: (binder * binder) list) (* list of (initial var, image var) *)
@@ -31,122 +100,170 @@ let duplicated_events = ref ([]: (funsymb * funsymb * bool ref * bool ref) list)
     (* list of (initial event, image event, initial event useful?, image event useful?) *)
 
 let reset() =
-  selected_repl := GuessOcc(-1, dummy_ext);
-  found_repl := false;
-  repl_param := dummy_param;
+  selected_guess := GuessOcc(-1, false, dummy_ext);
+  found_guess := [];
+  guess_card := Zero;
+  var_eq_test := (Terms.make_true ());
   query_variables := [];
-  events_under_repl := [];
+  events_under_guess := [];
   events_elsewhere := [];
-  variables_under_repl := [];
+  variables_under_guess := [];
   variables_elsewhere := [];
   duplicated_vars := [];
   new_pub_vars := [];
   duplicated_events := []
     
-let add_var under_repl b =
+let add_var under_guess b =
   if List.memq b (!query_variables) then
-    let accu = if under_repl then variables_under_repl else variables_elsewhere in
+    let accu = if under_guess then variables_under_guess else variables_elsewhere in
     if not (List.memq b (!accu)) then accu := b :: (!accu)
 
-let add_event under_repl e =
-  let accu = if under_repl then events_under_repl else events_elsewhere in
+let add_event under_guess e =
+  let accu = if under_guess then events_under_guess else events_elsewhere in
   if not (List.memq e (!accu)) then accu := e :: (!accu)
 
-let rec find_var_event_t under_repl t =
+let rec find_var_event_t under_guess t =
   match t.t_desc with
     Var(_,l) | FunApp(_,l) ->
-      List.iter (find_var_event_t under_repl) l
+      List.iter (find_var_event_t under_guess) l
   | ReplIndex _ -> ()
   | TestE(t1,t2,t3) ->
-      find_var_event_t under_repl t1;
-      find_var_event_t under_repl t2;
-      find_var_event_t under_repl t3
+      find_var_event_t under_guess t1;
+      find_var_event_t under_guess t2;
+      find_var_event_t under_guess t3
   | FindE(l0,t3,_) ->
       List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (b,_) -> add_var under_repl b) bl;
-	find_var_event_t under_repl t1;
-	find_var_event_t under_repl t2) l0;
-      find_var_event_t under_repl t3
+	List.iter (fun (b,_) ->
+	  if is_selected_var b then
+	    raise (Error("cannot guess a variable bound in a term", ext_command()));
+	  add_var under_guess b) bl;
+	find_var_event_t under_guess t1;
+	find_var_event_t under_guess t2) l0;
+      find_var_event_t under_guess t3
   | ResE(b,t) ->
-      add_var under_repl b;
-      find_var_event_t under_repl t
+      if is_selected_var b then
+	raise (Error("cannot guess a variable bound in a term", ext_command()));
+      add_var under_guess b;
+      find_var_event_t under_guess t
   | EventAbortE f ->
-      add_event under_repl f
+      add_event under_guess f
   | LetE(pat, t1, t2, topt) ->
-      find_var_event_pat under_repl pat;
-      find_var_event_t under_repl t1;
-      find_var_event_t under_repl t2;
+      let b_var = Terms.vars_from_pat [] pat in
+      if List.exists is_selected_var b_var then
+	raise (Error("cannot guess a variable bound in a term", ext_command()));
+      find_var_event_pat under_guess pat;
+      find_var_event_t under_guess t1;
+      find_var_event_t under_guess t2;
       begin
       match topt with
 	None -> ()
-      |	Some t3 -> find_var_event_t under_repl t3
+      |	Some t3 -> find_var_event_t under_guess t3
       end
   | EventE(({ t_desc = FunApp(f,_) } as t),p) ->
-      add_event under_repl f;
-      find_var_event_t under_repl t;
-      find_var_event_t under_repl p
+      add_event under_guess f;
+      find_var_event_t under_guess t;
+      find_var_event_t under_guess p
   | EventE _ ->
       Parsing_helper.internal_error "Events should be function applications"
   | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
       
-and find_var_event_pat under_repl = function
-    PatVar b -> add_var under_repl b
-  | PatTuple(_,l) -> List.iter (find_var_event_pat under_repl) l
-  | PatEqual t -> find_var_event_t under_repl t
+and find_var_event_pat under_guess = function
+    PatVar b -> add_var under_guess b
+  | PatTuple(_,l) -> List.iter (find_var_event_pat under_guess) l
+  | PatEqual t -> find_var_event_t under_guess t
 
-let rec find_var_event_i under_repl p =
+let rec find_var_event_i cur_array under_guess p =
   match p.i_desc with
   | Nil -> ()
   | Par(p1,p2) ->
-      find_var_event_i under_repl p1;
-      find_var_event_i under_repl p2
+      find_var_event_i cur_array under_guess p1;
+      find_var_event_i cur_array under_guess p2
   | Repl(ri,p1) ->
+      let cur_array' = ri::cur_array in
       if is_selected_repl p then
 	begin
-	  if !found_repl then
+	  if (!found_guess) != [] then
 	    raise (Error("The designated replication is not unique", ext_command()));
-	  found_repl := true;
-	  repl_param := Terms.param_from_type ri.ri_type;
-	  find_var_event_i true p1
+	  found_guess := [p1.i_occ];
+	  if and_above() then
+	    begin
+	      List.iter (fun ri -> check_size ri.ri_type) cur_array';
+	      guess_card := 
+		 match p1.i_desc with
+		 | Input((c,_),_,_) -> OCount c
+		 | _ -> Polynom.p_prod (List.map (fun ri -> Proba.card ri.ri_type) cur_array')
+	    end
+	  else
+	    begin
+	      check_size ri.ri_type;
+	      guess_card := Proba.card ri.ri_type;
+	    end;
+	  find_var_event_i cur_array' true p1
 	end
       else
-	find_var_event_i under_repl p1
+	find_var_event_i cur_array' under_guess p1
   | Input((c,tl), pat, p1) ->
-      List.iter (find_var_event_t under_repl) tl;
-      find_var_event_pat under_repl pat;
-      find_var_event_o under_repl p1
+      List.iter (find_var_event_t under_guess) tl;
+      find_var_event_pat under_guess pat;
+      let vars_pat = Terms.vars_from_pat [] pat in
+      if (List.exists is_selected_var vars_pat) && (good_indices cur_array p1) then
+	begin
+	  found_guess := p1.p_occ :: (!found_guess);
+	  find_var_event_o cur_array true p1
+	end
+      else
+	find_var_event_o cur_array under_guess p1
 
-and find_var_event_o under_repl p =
+and find_var_event_o cur_array under_guess p =
   match p.p_desc with
   | Yield -> ()
-  | EventAbort e -> add_event under_repl e
+  | EventAbort e -> add_event under_guess e
   | Restr(b,p1) ->
-      add_var under_repl b;
-      find_var_event_o under_repl p1
+      add_var under_guess b;
+      if is_selected_var b && (good_indices cur_array p1) then
+	begin
+	  found_guess := p1.p_occ :: (!found_guess);
+	  find_var_event_o cur_array true p1
+	end
+      else	
+	find_var_event_o cur_array under_guess p1
   | Test(t,p1,p2) ->
-      find_var_event_t under_repl t;
-      find_var_event_o under_repl p1;
-      find_var_event_o under_repl p2
+      find_var_event_t under_guess t;
+      find_var_event_o cur_array under_guess p1;
+      find_var_event_o cur_array under_guess p2
   | Find(l0,p3,_) ->
-      find_var_event_o under_repl p3;
+      find_var_event_o cur_array under_guess p3;
       List.iter (fun (bl,def_list,t,p1) ->
-	List.iter (fun (b,_) -> add_var under_repl b) bl;
-	find_var_event_t under_repl t;
-	find_var_event_o under_repl p1
+	List.iter (fun (b,_) -> add_var under_guess b) bl;
+	find_var_event_t under_guess t;
+	if List.exists (fun (b,_) -> is_selected_var b) bl && (good_indices cur_array p1) then
+	  begin
+	    found_guess := p1.p_occ :: (!found_guess);
+	    find_var_event_o cur_array true p1
+	  end
+	else		
+	  find_var_event_o cur_array under_guess p1
 	  ) l0
   | Output((c, tl),t2,p1) ->
-      List.iter (find_var_event_t under_repl) tl;      
-      find_var_event_t under_repl t2;
-      find_var_event_i under_repl p1
+      List.iter (find_var_event_t under_guess) tl;      
+      find_var_event_t under_guess t2;
+      find_var_event_i cur_array under_guess p1
   | Let(pat, t, p1, p2) ->
-      find_var_event_pat under_repl pat;
-      find_var_event_t under_repl t;
-      find_var_event_o under_repl p1;
-      find_var_event_o under_repl p2
+      find_var_event_pat under_guess pat;
+      find_var_event_t under_guess t;
+      let vars_pat = Terms.vars_from_pat [] pat in
+      if (List.exists is_selected_var vars_pat) && (good_indices cur_array p1) then
+	begin
+	  found_guess := p1.p_occ :: (!found_guess);
+	  find_var_event_o cur_array true p1
+	end
+      else
+	find_var_event_o cur_array under_guess p1;
+      find_var_event_o cur_array under_guess p2
   | EventP(({ t_desc = FunApp(f,_) } as t),p) ->
-      add_event under_repl f;
-      find_var_event_t under_repl t;
-      find_var_event_o under_repl p
+      add_event under_guess f;
+      find_var_event_t under_guess t;
+      find_var_event_o cur_array under_guess p
   | EventP _ ->
       Parsing_helper.internal_error "Events should be function applications"
   | Get _| Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
@@ -489,16 +606,16 @@ and def_dup_var_pat  = function
   | PatEqual t -> def_dup_var_t t
 
 (* [transfo_i eq_test cur_array p] transforms the input process [p]
-   located just under the replication that we guess.
+   located just under the replication or variable that we guess.
    [eq_test] is the equality test [i = i_tested] *)
 
+let make_test eq_test cur_array assigned p =
+  let p_then = transfo (!duplicated_vars) (!duplicated_events) cur_array assigned p in
+  let p_else = transfo (!new_pub_vars) [] cur_array assigned p in
+  Terms.oproc_from_desc (Test(eq_test, p_then, p_else))
+
+
 let transfo_i eq_test cur_array p =
-  let make_test cur_array assigned p =
-    let p_then = transfo (!duplicated_vars) (!duplicated_events) cur_array assigned p in
-    let p_else = transfo (!new_pub_vars) [] cur_array assigned p in
-    Terms.oproc_from_desc (Test(eq_test, p_then, p_else))
-  in
-    
   let rec aux cur_array p =
     match p.i_desc with
     | Nil -> p
@@ -517,11 +634,11 @@ let transfo_i eq_test cur_array p =
 	  let bterm = Terms.term_from_binder b in
 	  let p1' = Terms.oproc_from_desc (Let(pat, bterm, p1, Terms.oproc_from_desc Yield)) in
 	  Terms.iproc_from_desc_loc p
-	    (Input((c,tl), PatVar b, make_test cur_array [] p1'))
+	    (Input((c,tl), PatVar b, make_test eq_test cur_array [] p1'))
 	else
 	  let assigned = Terms.vars_from_pat [] pat in
 	  Terms.iproc_from_desc_loc p
-	    (Input((c,tl), pat, make_test cur_array assigned p1))
+	    (Input((c,tl), pat, make_test eq_test cur_array assigned p1))
 
   in
   aux cur_array p
@@ -538,18 +655,22 @@ let rec full_transfo_i cur_array p =
       let cur_array' = i :: cur_array in
       let p1' =
 	if is_selected_repl p then
-	  let i_tested =
-	    Settings.create_fun (Terms.fresh_id (i.ri_sname ^ "_tested"))
-	      ([], i.ri_type) Std
+	  let i_list =
+	    if and_above() then
+	      cur_array'
+	    else
+	      [i]
 	  in
-	  (* Adding i_tested to Stringmap.env so that it can be used in 
-	     the "replace" command *)
-	  Stringmap.env := Stringmap.StringMap.add i_tested.f_name
-	       (Stringmap.EFunc i_tested) (!Stringmap.env);
+	  let ilist_tested =
+	    List.map (fun ri -> get_cst ri.ri_sname ri.ri_type) i_list
+	  in
 	  let eq_test =
-	    Terms.make_equal
-	      (Terms.term_from_repl_index i)
-	      (Terms.app i_tested [])
+	    Terms.make_and_list 
+	      (List.map2 (fun ri i_tested ->
+		Terms.make_equal
+		  (Terms.term_from_repl_index ri)
+		  (Terms.app i_tested [])
+		  ) i_list ilist_tested)
 	  in
 	  transfo_i eq_test cur_array' p1
 	else
@@ -561,60 +682,80 @@ let rec full_transfo_i cur_array p =
 	(Input(c,pat, full_transfo_p cur_array p1))
 	
 and full_transfo_p cur_array p =
-  match p.p_desc with
-  | Yield | EventAbort _ -> p
-  | Restr(b,p1) ->
-      Terms.oproc_from_desc_loc p (Restr(b, full_transfo_p cur_array p1))
-  | Test(t,p1,p2) ->
-      Terms.oproc_from_desc_loc p (Test(t, full_transfo_p cur_array p1,
-					full_transfo_p cur_array p2))
-  | Find(l0,p3,find_info) ->
-      let l0' =
-	List.map (fun (bl, def_list, t1, p2) ->
-	  (bl, def_list, t1, full_transfo_p cur_array p2)
-	    ) l0
-      in
-      Terms.oproc_from_desc_loc p (Find(l0',full_transfo_p cur_array p3,find_info))	
-  | Output(c,t,p1) ->
-      Terms.oproc_from_desc_loc p (Output(c,t, full_transfo_i cur_array p1))
-  | Let(pat,t,p1,p2) ->
-      Terms.oproc_from_desc_loc p (Let(pat, t, full_transfo_p cur_array p1,
-				       full_transfo_p cur_array p2))
-  | EventP(t,p1) -> 
-      Terms.oproc_from_desc_loc p (EventP(t, full_transfo_p cur_array p1))
-  | Insert _ | Get _ ->
-      Parsing_helper.internal_error "Insert/get should have been expanded"
+  if List.memq p.p_occ (!found_guess) then
+    make_test (!var_eq_test) cur_array [] p
+  else
+    match p.p_desc with
+    | Yield | EventAbort _ -> p
+    | Restr(b,p1) ->
+	Terms.oproc_from_desc_loc p (Restr(b, full_transfo_p cur_array p1))
+    | Test(t,p1,p2) ->
+	Terms.oproc_from_desc_loc p (Test(t, full_transfo_p cur_array p1,
+					  full_transfo_p cur_array p2))
+    | Find(l0,p3,find_info) ->
+	let l0' =
+	  List.map (fun (bl, def_list, t1, p2) ->
+	    (bl, def_list, t1, full_transfo_p cur_array p2)
+	      ) l0
+	in
+	Terms.oproc_from_desc_loc p (Find(l0',full_transfo_p cur_array p3,find_info))	
+    | Output(c,t,p1) ->
+	Terms.oproc_from_desc_loc p (Output(c,t, full_transfo_i cur_array p1))
+    | Let(pat,t,p1,p2) ->
+	Terms.oproc_from_desc_loc p (Let(pat, t, full_transfo_p cur_array p1,
+					 full_transfo_p cur_array p2))
+    | EventP(t,p1) -> 
+	Terms.oproc_from_desc_loc p (EventP(t, full_transfo_p cur_array p1))
+    | Insert _ | Get _ ->
+	Parsing_helper.internal_error "Insert/get should have been expanded"
 
 
 
 let guess_session arg state g =
   reset();
   let p = Terms.get_process g in
-  selected_repl := arg;
+  selected_guess := arg;
+  begin
+    match arg with
+    | GuessVar((b,l),ext) ->
+	check_size b.btype;
+	guess_card := Proba.card b.btype;
+	let b_tested = get_cst b.sname b.btype in
+	var_eq_test :=
+	   Terms.make_equal
+	     (Terms.term_from_binder b)
+	     (Terms.app b_tested []);	   
+	if l != [] then
+	  (* We will need facts to prove that the indices are/are not equal to [l] *)
+	  Improved_def.improved_def_game None false g
+    | _ -> ()
+  end;
   (* Compute query_variables: variables on which test secrecy
      or one-session secrecy. Those that occur only under the
-     guessed replication will be duplicated *)
+     guessed replication or variable will be duplicated *)
   List.iter (function ((q,_),_) as q_proof ->
     match q with
     | _ when Settings.get_query_status q_proof != ToProve -> () (* I ignore already proved and inactive queries *)
     | QSecret (b,_,_) ->
+	if is_selected_var b then
+	  raise (Error("Cannot guess a variable for which we want to prove secrecy", ext_command()));
 	if not (List.memq b (!query_variables)) then
 	  query_variables := b :: (!query_variables)
     | QEventQ _ -> ()
     | _ ->
-	raise (Error("Cannot guess the tested session when there is an equivalence query to prove, or no query", ext_command()))
-    ) g.current_queries;
-  (* Compute the variables/events found under the guessed replication/elsewhere *)
-  find_var_event_i false p;
-  if not (!found_repl) then
-    raise (Error("Could not find the designated replication", ext_command()));
+	raise (Error("Cannot guess a value when there is an equivalence query to prove, or no query", ext_command()))
+	  ) g.current_queries;
+  (* Compute the variables/events found under the guessed replication or variable/elsewhere *)
+  find_var_event_i [] false p;
+  if (!found_guess) == [] then
+    raise (Error("Could not find the designated replication or variable", ext_command()));
   
   let dup_vars = 
-    List.filter (fun b -> not (List.memq b (!variables_elsewhere))) (!variables_under_repl)
+    List.filter (fun b -> not (List.memq b (!variables_elsewhere))) (!variables_under_guess)
   in
   duplicated_vars := List.map (fun b -> (b, Terms.new_binder b)) dup_vars;
   let dup_events =
-    List.filter (fun e -> not (List.memq e (!events_elsewhere))) (!events_under_repl)
+    List.filter (fun e -> not (List.memq e (!events_elsewhere))) (!events_under_guess)
   in
   duplicated_events :=
      List.map (fun e ->
@@ -676,7 +817,7 @@ let guess_session arg state g =
   let new_queries' =
     List.map (fun (proof_opt,q) ->
       let proof_opt' = ref ToProve in
-      proof_opt := Proved(MulQueryProba(!repl_param, (q,g'), proof_opt'), state);
+      proof_opt := Proved(MulQueryProba(!guess_card, (q,g'), proof_opt'), state);
       ((q,g'), proof_opt')
 	) (!new_queries)
   in
@@ -688,6 +829,12 @@ let guess_session arg state g =
 	   ) (!duplicated_events);
   
   reset();
+  begin
+    match arg with
+    | GuessVar((_,l),_) when l != [] ->
+	Improved_def.empty_improved_def_game false g
+    | _ -> ()
+  end;
   Settings.changed := true;
   (g', [], [DGuess arg])
 

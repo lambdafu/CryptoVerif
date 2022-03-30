@@ -1,0 +1,46 @@
+fun f(bitstring): bitstring.
+
+channel c.
+
+param Nx, Ny.
+type nonce [large, fixed].
+
+event e.
+query event(e) ==> false.
+
+proof {
+  replace 36 "y[v[u]]";
+  (* Transformation rejected because the definition of y[v[u]] is not
+     guaranteed by a defined condition.
+     That avoids problems (see replace_bug.cv), but is it a problematic 
+     limitation? Perhaps not *)
+  simplify;
+  success
+  }
+
+process
+(
+!ix <= Nx
+in(c, x:bitstring);
+new Na: nonce;
+out(c, Na);
+in(c, Nb': nonce);
+find u = j <= Ny suchthat defined(Nb[j],Na[v[j]]) && Nb' = Nb[j] then
+if Na = Na[v[u]] then
+let y = f(x) in
+event e;
+out(c, y)
+)
+|
+(
+!iy <= Ny
+in(c, Na': nonce);
+find v = k <= Nx suchthat defined(Na[k]) && Na' = Na[k] then
+new Nb: nonce;
+out(c, Nb)
+)
+
+(* EXPECTED
+Error: The definition of an array reference should be guaranteed by a defined condition
+xtime: error in child process (status : 2)
+END *)
