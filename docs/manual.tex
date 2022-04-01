@@ -2961,12 +2961,12 @@ The program point $occ$ must correspond to a term not containing \texttt{if}, \t
   \item $occ\texttt{ \&\& above}$, where $occ$ is the occurrence of a replication; then, just under that replication,
     one guesses the whole sequence of replication indices above that replication.
 
-  \item $x[i_1, \dots, i_n]$, where $x[i_1, \dots, i_n]$ is the variable to be guessed,
+  \item $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$, where $x[i_1, \dots, i_n]$ is the variable to be guessed,
     defined under $n$ replications, and $i_1, \dots, i_n$ are constant replication indices
     (typically produced by a previous guess of the replication indices).
     CryptoVerif must be able to determine, at each definition of $x$, whether its indices
     will be equal to $i_1, \dots, i_n$ or not. Otherwise, the transformation fails.
-    When $x$ is defined under no replication, one writes $x$ instead of $x[i_1, \dots, i_n]$.
+    When $x$ is defined under no replication, one writes $x$ instead of $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$.
 
   \end{enumerate}
     CryptoVerif distinguishes whether the element specified by  $\nonterm{guessspec}$

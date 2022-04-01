@@ -295,16 +295,12 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
 
 (* Proof strategy 
 
-- guess the session i = i0 for which k0 is tested.
+- guess the session i = i0, id = id0 for which k0 is tested.
 - insert an event badAuth when authentication fails
 - focus on the query event(badAuth) => false
-- guess the session id = id0 for which k0 is tested.
-    TODO for better bounds, implement guessing i and id together
-    (yields a multiplication by #ODecap instead of N * Qdperuser)
 - guess the value of j[i0,id0]
     We need to know from the start which key we want to use in OutsiderAuth,
     so I think we need to guess it.
-    TODO implement guessing a value!
 - test at the beginning whether i = guessed value of j[i0,id0]
 - success simplify removes the compromise of sk in session i = i0
   and in case i = j[i0,id0] 
@@ -314,15 +310,31 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
 - then we go back to before the focus command
 - use InsiderCCA to prove secrecy
 
-TODO
+I think this is not provable using the current definition of OutsiderAuth,
+because it does not show that an event does not happen.
+Given this kind of definition, we would need OutsiderAuth to allow
+the compromise of the sender key after reception of the message
+(the compromise of the receiving key is not allowed). 
+That does not seem easy to formalize as an equivalence allowed by
+CryptoVerif. (Use event_abort when we compromise a key that
+we are not allowed to compromise? But then, this event_abort will remain...)
+
+The proof should be feasible for DHKEM from GDH + ROM 
+and for the variant with hash chaining, from PRF-ODH.
+It should also be feasible at the level of HPKE (instead of AKEM) 
+from OutsiderAuth and InsiderCCA, because the AEAD decryption will fail when 
+authentication does not hold.
 *)
 proof {
       guess id && above;
       show_game occ;
       guess "j_1[id_tested,i_tested]";
       show_game;
+      insert after "Osetup" "if i = j_tested then";
       simplify;
-      show_game
+      remove_assign binder k0_1;
+      merge_branches;
+      interactive
 
 }
 
@@ -363,7 +375,7 @@ process
 	    if defined(comp) && comp = false then 
 	    (
 	    (* The receiving key [sk] will never be compromised *)
-	       find j <= N suchthat defined(comp[j],sk[j]) && pk_S = pkgen(sk[j]) && comp = true then
+	       find j <= N suchthat defined(comp[j],sk[j]) && pk_S = pkgen(sk[j]) && comp[j] = true then
 	         (* The sender key [sk[j]] is honest and compromised; authentication is not assured *)
                  return(dummy_k)
 	       else find j <= N suchthat defined(sk[j]) && pk_S = pkgen(sk[j]) then

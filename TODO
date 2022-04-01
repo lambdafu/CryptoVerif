@@ -42,10 +42,6 @@ DONE update tech report
 
 
 
-Prove forward secrecy for the DHKEM of HPKE, from Insider-CCA and Outsider-Auth,
-from GDH and ROM, from PRF-ODH.
-see file examplesnd/notest/dhkem.auth.forward-secrecy.ocv
-
 Be able to display the used interactive commands, to be able to copy-paste
 them to the input file.
 
@@ -64,8 +60,9 @@ Treatment of key compromise in CryptoVerif and related ideas
 - Applications
   - proof of assumption with key oracle from assumption without key oracle
   - compromise of PSK in TLS and WG
-  - proof of forward secrecy for (variant of) HPKE in several ways,
-    including from PRF-ODH
+  - example with PRF-ODH and compromise of some DH keys. I am not sure
+    which one. WireGuard? it is complex. HPKE? does not really make sense.
+    another noise protocol, with fewer DH pairs?
   - other application of PRF-ODH: TLS
   - examples/basic/pkauth-guess.cv
 
@@ -6346,3 +6343,11 @@ CV manages to show that the "guessed" branch is executed once while the
 other branch is executed at most N times. But then it does not take the max
 the two branches in the crypto transformation, it takes the sum, 
 which yields N+1 instead of N.
+
+Prove forward secrecy for the DHKEM of HPKE, from Insider-CCA and Outsider-Auth,
+from GDH and ROM, from PRF-ODH.
+see file examplesnd/notest/dhkem.auth.forward-secrecy.ocv
+ABANDONED, forward secrecy does not make too much sense for HPKE:
+it is weaker than insider-CCA for HPKE.
+And DHKEM itself only provides weak authentication: the obtained
+key is random is case of bad authentication, but decryption does not fail.
