@@ -1,6 +1,97 @@
 open Types
 open Parsing_helper
 
+let command_out_file = ref None
+
+type command_t =
+  | ComQuit
+  | ComOther of string
+    
+let run_commands = ref ([]: command_t list)
+
+let out_command f semi a =
+  match a with
+  | ComQuit ->
+      output_string f "\n(* end of interactive section *)\n"
+  | ComOther s ->
+      output_string f s;
+      if semi then output_string f ";"
+
+(* Remove final semi-colons and white space from [s] *)
+let strip_semi s =
+  let rec aux last =
+    match s.[last] with
+    | ' ' | '\009' | '\012' | '\010' | '\013' | ';' -> aux (last-1)
+    | _ ->
+	String.sub s 0 (last+1)
+  in
+  aux (String.length s -1)
+
+let add_command state_before state_after s commands =
+  if (state_before != state_after) ||
+  ( List.exists (function
+    (* Commands to keep even if they do not change state *)
+    | Ptree.CQuit | Ptree.CSetting _ | Ptree.CAllowed_collisions _
+    | Ptree.CTag _ | CForget_old_games -> true
+    | _ -> false
+	) commands) then
+    let command = 
+      match commands with
+      | [ CQuit ] -> ComQuit
+      | _ -> ComOther (strip_semi s)
+    in
+    begin
+      match !command_out_file with
+      | None -> ()
+      | Some f -> 
+         out_command f true command; output_string f "\n"; flush f
+    end;
+    run_commands := command :: (!run_commands)
+       
+let out_commands always_semi f =
+  let rec aux = function
+    | [] -> ()
+    | [a] -> out_command f always_semi a; output_string f "\n"; flush f
+    | a::l ->
+	out_command f true a; output_string f "\n";
+	aux l
+  in
+  aux (List.rev (!run_commands))
+
+
+let allowed_file_name s =
+  let rec allowed_chars s n =
+    (n >= String.length s) ||
+    (let c = s.[n] in
+    (c == '%' || c == '+' || c == '-' || c == '.' ||
+    (c >= '0' && c <= '9') || c == '=' ||
+    (c >= '@' && c <= 'Z') || c == '_' ||
+    (c >= 'a' && c <= 'z') || c == '~') && (allowed_chars s (n+1)))
+  in
+  s <> "" && s.[0] <> '.' &&
+  (allowed_chars s 0)
+
+let prepare_filename s ext =
+  if not (allowed_file_name s) then
+    raise (Error("File name " ^ s ^ " is not allowed.\nAllowed characters: 0-9A-Za-z%+-.=@_~\n. is not allowed as first character.", ext));
+  Filename.concat (!Settings.out_dir) s 
+    
+let final_out_commands() =
+  begin
+    match !command_out_file with
+    | Some f -> close_out f; command_out_file := None
+    | None -> ()
+  end;
+  if !Settings.command_output <> "" then
+    let fname = prepare_filename (!Settings.command_output) dummy_ext in
+    try 
+      let f = open_out fname in
+      out_commands false f;
+      close_out f
+    with Sys_error s ->
+      raise (Error("Cannot open file " ^ fname ^ ": " ^ s, dummy_ext))
+    
+    
 (* For backtracking *)
 exception Backtrack
 
@@ -76,23 +167,8 @@ let rec replace_list b bl = function
       else
 	b' :: (replace_list b bl l)
 
-let allowed_file_name s =
-  let rec allowed_chars s n =
-    (n >= String.length s) ||
-    (let c = s.[n] in
-    (c == '%' || c == '+' || c == '-' || c == '.' ||
-    (c >= '0' && c <= '9') || c == '=' ||
-    (c >= '@' && c <= 'Z') || c == '_' ||
-    (c >= 'a' && c <= 'z') || c == '~') && (allowed_chars s (n+1)))
-  in
-  s <> "" && s.[0] <> '.' &&
-  (allowed_chars s 0)
-
 let default_file_out s ext f =
-  if not (allowed_file_name s) then
-    raise (Error("File name " ^ s ^ " is not allowed.\nAllowed characters: 0-9A-Za-z%+-.=@_~\n. is not allowed as first character.", ext));
-  let filename = Filename.concat (!Settings.out_dir) s in
-  Display.file_out filename ext f
+  Display.file_out (prepare_filename s ext) ext f
 		
 let sa_rename_ins_updater b bl = function
     (ExpandGetInsert_ProveUnique | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
@@ -1515,18 +1591,27 @@ let help() =
   "replace <occ> <term>         : replace term at occurrence <occ> with <term> (when equal)\n" ^
   "merge_arrays <ident> ...     : merge all given variables\n" ^
   "merge_branches               : merge find branches\n" ^
+  "expand                       : expand terms if, let, find, new, event, event_abort into processes\n" ^
+  "guess <i>                    : guess replication index <i>\n" ^
+  "guess <i> && above           : guess replication indices above replication index <i>\n" ^
+  "guess <occ>                  : guess replication index at occurrence <occ>\n" ^
+  "guess <occ> && above         : guess replication indices above replication at occurrence <occ>\n" ^
+  "guess \"x[i1...in]\"           : guess value of x[i1...in]\n" ^
   "start_from_other_end         : in equivalence proofs, transform the other game\n" ^
   "success                      : check the desired properties\n" ^
+  "success simplify             : remove code that cannot make properties to prove false\n" ^
   "show_game                    : show the current game\n" ^
   "show_game occ                : show the current game with occurrences\n" ^
   "show_state                   : show the sequence of games up to now\n" ^
   "show_facts <occ>             : show the facts that hold at program point <occ>\n" ^
   "show_equiv ...               : display the equivalence used by a cryptographic transformation\n" ^
+  "show_commands                : display the executed interactive commands\n" ^
   "out_game <filename>          : output the current game to <filename>\n" ^
   "out_game <filename> occ      : output the current game with occurrences to <filename>\n" ^
   "out_state <filename>         : output the sequence of games up to now to <filename>\n" ^
   "out_facts <filename> <occ>   : output the facts that hold at program point <occ> to <filename>\n" ^
   "out_equiv <filename> ...     : output the equivalence used by a cryptographic transformation to <filename>\n" ^
+  "out_commands <filename>      : output the executed interactive commands to <filename>\n" ^
   "auto                         : try to terminate the proof automatically\n" ^
   "set <param> = <value>        : set the value of various parameters\n" ^
   "allowed_collisions <formulas>: determine when to eliminate collisions\n" ^
@@ -1534,6 +1619,8 @@ let help() =
   "undo                         : undo the last transformation\n" ^
   "undo <n>                     : undo the last n transformations\n" ^
   "undo focus                   : go back until before the last focus command\n" ^
+  "tag <tag>                    : give the name <tag> to the current state\n" ^
+  "undo <tag>                   : undo the transformation until the state named <tag>\n" ^
   "restart                      : restart from the initial game\n" ^
   "forget_old_games             : remove old games from memory, to have more space (prevents undo)\n" ^
   "quit                         : quit interactive mode\n" ^
@@ -1781,6 +1868,47 @@ let rec interpret_command interactive state = function
       let (equiv, _) = get_equiv false interactive eqname special_args info ext2 in
       default_file_out s ext (fun () ->
 	Display.display_equiv equiv);
+      state
+  | CShow_commands ->
+      out_commands true stdout;
+      state
+  | COut_commands(s,ext) ->
+      begin
+	let new_file =
+	  if s = "" then
+	    None
+	  else
+	    let fname = prepare_filename s ext in
+	    try
+	      Some (open_out fname)
+	    with Sys_error e ->
+	      raise (Error("Cannot open file " ^ fname ^ ": " ^ e, ext))
+	in
+	if !Settings.command_output <> "" then
+	  begin
+	    final_out_commands();
+	    print_string ("Passed commands output to "^(!Settings.command_output)^".\n");
+	    run_commands := [];
+	    Settings.command_output := s;
+	    command_out_file := new_file;
+	    if s = "" then
+	      print_string "Future commands will not be output.\n"
+	    else
+	      print_string ("Future commands will be output to "^s^".\n");
+	  end
+	else if s = "" then
+	  (* Situation unchanged: no output before and after the command *)
+	  print_string "Interactive commands not output.\n"
+	else
+	  begin
+	    Settings.command_output := s;
+	    command_out_file := new_file;
+	    print_string ("Interactive commands output to "^s^".\n");
+	    match new_file with
+	    | None -> assert false
+	    | Some f -> out_commands true f
+	  end
+      end;
       state
   | CStart_from_other_end(ext) ->
       let rec remove_eq_query state =
@@ -2050,7 +2178,15 @@ and interactive_loop state =
 	  let state' = interpret_command_forget true state c1 in
 	  run_commands state' rest
     in
-    interactive_loop (run_commands state commands)
+    let state' =
+      try
+	run_commands state commands
+      with (End state' | EndSuccess state') as e ->
+	add_command state state' s commands;
+	raise e
+    in
+    add_command state state' s commands;
+    interactive_loop state'
   with
     End s ->
       CSuccess s
@@ -2080,6 +2216,14 @@ let rec execute_proofinfo proof state =
 let do_proof proof state =
   if (!Settings.tex_output) <> "" then
     Displaytex.start();
+  if !Settings.command_output <> "" then
+    begin
+      let fname = prepare_filename (!Settings.command_output) dummy_ext in
+      try
+	command_out_file := Some (open_out fname)
+      with Sys_error s ->
+	Parsing_helper.user_error ("Cannot open file " ^ fname ^ ": " ^ s)
+    end;
   let r = 
     match proof with
       Some pr -> execute_proofinfo pr (initial_expand_simplify state)
@@ -2099,5 +2243,6 @@ let do_proof proof state =
     | CFailure _ -> ()
   end;
   if (!Settings.tex_output) <> "" then
-    Displaytex.stop()
+    Displaytex.stop();
+  final_out_commands()
 

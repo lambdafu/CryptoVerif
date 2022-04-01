@@ -3,6 +3,9 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow saving and showing executed interactive commands
+  (command-line option -ocommands, interactive commands show_commands
+  and out_commands)
 - Extended the "guess" transformation to be able to guess any variable,
   not only replication indices, and to guess the whole sequence of
   replication indices up to a replication.

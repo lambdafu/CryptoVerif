@@ -42,9 +42,6 @@ DONE update tech report
 
 
 
-Be able to display the used interactive commands, to be able to copy-paste
-them to the input file.
-
 Have a notion of intermediate result: you prove an equivalence, and then
 reuse it with the associated probability to prove some other result.
 
@@ -6351,3 +6348,9 @@ ABANDONED, forward secrecy does not make too much sense for HPKE:
 it is weaker than insider-CCA for HPKE.
 And DHKEM itself only provides weak authentication: the obtained
 key is random is case of bad authentication, but decryption does not fail.
+
+Be able to display the used interactive commands, to be able to copy-paste
+them to the input file.
+DONE 1/4/2022
+It might be nice to simplify out undo commands, but that's tricky.
+Need to keep the set/allowed_collisions commands... 

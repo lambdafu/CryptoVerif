@@ -151,6 +151,7 @@ let return_channel = (dummy_channel, None)
 %token SUCCESS
 %token SHOW_GAME
 %token OCC
+%token SHOW_COMMANDS      
 %token SHOW_STATE
 %token SHOW_FACTS
 %token SHOW_EQUIV
@@ -158,6 +159,7 @@ let return_channel = (dummy_channel, None)
 %token OUT_STATE
 %token OUT_FACTS
 %token OUT_EQUIV
+%token OUT_COMMANDS      
 %token AUTO
 %token ALLOWED_COLLISIONS
 %token UNDO
@@ -527,6 +529,8 @@ proofcommand:
     { COut_equiv($2, PNoName, [], PVarList([], false), parse_extent()) }
 |   OUT_EQUIV idst equiv special_args_opt cryptotransfinfo
     { COut_equiv($2, $3, $4, $5, parse_extent()) }
+|   OUT_COMMANDS idst
+    { COut_commands($2) }
 |   SHOW_FACTS occ
     { CShow_facts($2) }
 |   SHOW_STATE
@@ -539,6 +543,8 @@ proofcommand:
     { CShow_equiv(PNoName, [], PVarList([], false), parse_extent()) }
 |   SHOW_EQUIV equiv special_args_opt cryptotransfinfo
     { CShow_equiv($2, $3, $4, parse_extent()) }
+|   SHOW_COMMANDS
+    { CShow_commands }
 |   SUCCESS
     { CSuccesscom }
 |   SUCCESS SIMPLIFY optcollelim

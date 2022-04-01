@@ -124,10 +124,12 @@ let keyword_table_proof =
       "show_state", SHOW_STATE;
       "show_facts", SHOW_FACTS;
       "show_equiv", SHOW_EQUIV;
+      "show_commands", SHOW_COMMANDS;
       "out_game", OUT_GAME;
       "out_state", OUT_STATE;
       "out_facts", OUT_FACTS;
       "out_equiv", OUT_EQUIV;
+      "out_commands", OUT_COMMANDS;
       "auto", AUTO;
       "allowed_collisions", ALLOWED_COLLISIONS;
       "undo", UNDO;

@@ -234,10 +234,12 @@ type command =
   | COut_state of ident
   | COut_game of ident * bool(*true when "occ"*)
   | COut_equiv of ident * peqname * special_args_e list * crypto_transf_user_info * Parsing_helper.extent
+  | COut_commands of ident
   | CShow_facts of pocc
   | CShow_state
   | CShow_game of bool(*true when "occ"*)
   | CShow_equiv of peqname * special_args_e list * crypto_transf_user_info * Parsing_helper.extent
+  | CShow_commands
   | CSuccesscom
   | CSuccessSimplify of pcoll_elim_t list
   | CQuit

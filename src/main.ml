@@ -234,6 +234,8 @@ let _ =
       "<filename> \tchoose TeX output file";
       "-oproof", Arg.String (fun s -> Settings.proof_output := s),
       "<filename> \toutput the proof in this file";
+      "-ocommands", Arg.String (fun s -> Settings.command_output := s),
+      "<filename> \toutput the interactive commands in this file";
       "-oequiv", Arg.String (fun s -> Settings.equiv_output := s),
       "<filename> \tappend the generated special equivalences to this file";
       "-in", Arg.String (function 

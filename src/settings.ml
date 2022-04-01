@@ -10,6 +10,7 @@ let get_implementation = ref false
 let out_dir = ref Filename.current_dir_name 
 let proof_output = ref ""
 let equiv_output = ref ""
+let command_output = ref ""
     
 let front_end = ref Channels
 
