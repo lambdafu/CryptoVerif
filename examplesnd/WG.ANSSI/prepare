@@ -24,8 +24,14 @@ do
 	# The following is for correspondences on the second, third, and
 	# the transport data messages, message secrecy, and absence of unknown
 	# key share attacks.
-	modname=$pattern.S_i_compr.S_r_compr.$replay_status
-	m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_S_i_compr -Dm4_S_r_compr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+	for icompr in S_i_compr E_i_compr
+	do
+	    for rcompr in S_r_compr E_r_compr
+	    do
+		modname=$pattern.$icompr.$rcompr.$replay_status
+		m4 --define="m4_name=$modname" -Dm4_zero_test -Dm4_$icompr -Dm4_$rcompr -Dm4_$sessions -Dm4_$replay_status $sourcefile > $modname.cv
+	    done
+	done
 	
     done
 done

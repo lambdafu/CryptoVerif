@@ -226,9 +226,9 @@ ifdef(`m4_only_psk',`',`
      The ROM assumptions applied before make comparisons with these
      Diffie-Hellman shared secrets appear. *)
 ifdef(`m4_AB',`
-  crypto gdh(exp_div8) S_B_priv E_i_priv_5 S_A_priv E_r_priv_2;
+  crypto gdh(exp_div8) [variables: S_A_priv -> a, S_B_priv -> b ifdef(`m4_E_i_compr',`', `, E_i_priv_5 -> a, E_i_priv_4 -> a') ifdef(`m4_E_r_compr',`',`, E_r_priv_2 -> b') .];
 ',`
-  crypto gdh(exp_div8) S_B_priv E_i_priv_8 S_A_priv E_r_priv_4;
+  crypto gdh(exp_div8) [variables: S_A_priv -> a, S_B_priv -> b ifdef(`m4_E_i_compr',`', `, E_i_priv_8 -> a, E_i_priv_7 -> a') ifdef(`m4_E_r_compr',`',`, E_r_priv_4 -> b') .];
 ')
 ')
   (* Unset useKnownEqualitiesWithFunctionsInMatching and 
@@ -286,9 +286,17 @@ ifdef(`m4_S_i_compr',`
      using the regular expression T_i_send_[0-9]* as it is easier
      and the proof still works. *)
 ifdef(`m4_AB',`
+ifdef(`m4_E_r_compr',`
+  crypto int_ctxt_corrupt(enc) T_i_send_9 T_i_send_24 T_i_send_25 T_i_send_8;
+',`
   crypto int_ctxt_corrupt(enc) T_i_send_9 T_i_send_21 T_i_send_24 T_i_send_11 T_i_send_12 T_i_send_17 T_i_send_37 T_i_send_35 T_i_send_8 T_i_send_26 T_i_send_15 T_i_send_27 T_i_send_30 T_i_send_20 T_i_send_22 T_i_send_10 T_i_send_43 T_i_send_14 T_i_send_41 T_i_send_25 T_i_send_29 T_i_send_23 T_i_send_18 T_i_send_32 T_i_send_13 T_i_send_33 T_i_send_39 T_i_send_31 T_i_send_40 T_i_send_38 T_i_send_36 T_i_send_16 T_i_send_28 T_i_send_19 T_i_send_34;
+')
+',`
+ifdef(`m4_E_r_compr',`
+  crypto int_ctxt_corrupt(enc) T_i_send_12 T_i_send_15 T_i_send_30 T_i_send_14 T_i_send_13 T_i_send_31;
 ',`
   crypto int_ctxt_corrupt(enc) T_i_send_46 T_i_send_21 T_i_send_24 T_i_send_12 T_i_send_17 T_i_send_37 T_i_send_35 T_i_send_42 T_i_send_26 T_i_send_15 T_i_send_27 T_i_send_30 T_i_send_20 T_i_send_22 T_i_send_43 T_i_send_14 T_i_send_41 T_i_send_25 T_i_send_29 T_i_send_23 T_i_send_18 T_i_send_44 T_i_send_32 T_i_send_13 T_i_send_33 T_i_send_39 T_i_send_31 T_i_send_40 T_i_send_38 T_i_send_36 T_i_send_47 T_i_send_49 T_i_send_16 T_i_send_45 T_i_send_28 T_i_send_19 T_i_send_34;
+')
 ')
       (* WAS: "T_i_send_[0-9]*"; but it includes keys generated in the hash functions for which we do not want to apply int_ctxt, to avoid term N_qH * Pencctxt in the probability *)
   success; (* - responder can authenticate a transport data message sent
@@ -1491,8 +1499,7 @@ let initiator_swapped(key_hash: hashkey_t,
          timestamp_i_enc: bitstring, 
          es_i: G_t, ss_i: G_t, H_i4: hashoutput_t) =
       prepare1(key_hash, key_rom1, key_rom2, S_X_pub_sw, S_i_priv, S_i_pub, timestamp_i) in
-
-    out(c_init2resp_send_sw, (ifdef(`m4_E_r_compr',`E_i_priv',`dummy_z') , (msg_type_init2resp, reserved, I_i, E_i_pub_sent_sw, static_i_enc, timestamp_i_enc)));
+    out(c_init2resp_send_sw, (E_i_priv (* Always compromise ephemeral *), (msg_type_init2resp, reserved, I_i, E_i_pub_sent_sw, static_i_enc, timestamp_i_enc)));
 
     (* Receive two plaintexts for the indistinguishability game of the
        third protocol message aka key confirmation message. *)
@@ -1525,7 +1532,7 @@ ifdef(`m4_replay_prot',`
     let prepare2succ(I_r: session_index_t, E_r_priv: Z_t, E_r_pub_sent: G_t, T_r_recv: key_t, T_r_send: key_t, H_r7: hashoutput_t, empty_bitstring_enc: bitstring) =
       prepare2_sw(key_hash, key_rom3,
         S_i_pub_rcvd, E_i_pub_rcvd, H_r4, es_r, ss_r, Q) in
-    out(c_resp2init_send_sw, (ifdef(`m4_E_i_compr',`E_r_priv',`dummy_z'), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
+    out(c_resp2init_send_sw, (E_r_priv (* Always compromise ephemeral *), (msg_type_resp2init, reserved, I_r, I_i_rcvd, E_r_pub_sent, empty_bitstring_enc), (T_r_recv, T_r_send))).
     (* The adversary can run the rest of the session by himself *)
 
 (* Corruption processes: the adversary uses them to corrupt

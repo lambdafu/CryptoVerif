@@ -32,7 +32,16 @@ DH pairs (i,j) instead of taking the maximum na*nb.
 The number of DH pairs is often linear in the number of sessions
 (because each session uses a constant number of DH pairs),
 while na.nb will be quadratic if there are ephemerals on both sides.
-
+[tried in branch 2022.07.crypto_count_vars]
+==> NO, that would be wrong!
+But in Wireguard, we can improve the probability when ephemerals
+are compromised just by not applying GDH to the compromised ephemerals.
+When we do not know yet whether we are going to compromise the static
+key or the ephemerals for one participant, to get the best probability,
+we should guess what we are going to compromise and use one proof
+or the other accordingly.
+I am wondering if the guessing transformation that I have implemented
+would allow me to do that.
 
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
