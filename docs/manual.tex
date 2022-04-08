@@ -2951,24 +2951,34 @@ The program point $occ$ must correspond to a term not containing \texttt{if}, \t
   which are used only for testing that branch $j$ has been executed.
   This allows the merge to succeed more often.
 
-\item $\texttt{guess }\nonterm{guessspec}$ guesses value of $\nonterm{guessspec}$ in the tested session,
+\item $\texttt{guess }\nonterm{guessspec}$ guesses the value of $\nonterm{guessspec}$,
   where $\nonterm{guessspec}$ can be one of the following:
   \begin{enumerate}
-  \item $i$, where $i$ is the replication index to be guessed. There must be a single
-    replication with index $i$ in the game.
+  \item $i$, where $i$ is a replication index: one guesses the value
+    of the replication index $i$ in the tested session. (The other sessions
+    still exist, but one does not try to prove queries for them.) There must be
+    a single replication with index $i$ in the game.
 
-  \item $occ$, where $occ$ is the occurrence of the replication whose index $i$ is to be guessed.
+  \item $occ$, where $occ$ is the occurrence of a replication; then
+    one guesses the value of the replication index $i$ of that
+    replication in the tested session.
 
-  \item $i\texttt{ \&\& above}$, where $i$ is a replication index; then, just under the replication with index $i$,
-    one guesses the whole sequence of replication indices above the replication with index $i$.
-    There must be a single replication with index $i$ in the game.
+  \item $i\texttt{ \&\& above}$, where $i$ is a replication index;
+    then, just under the replication with index $i$, one guesses the
+    value of the whole sequence of replication indices above the
+    replication with index $i$ in the tested session.  There must be a
+    single replication with index $i$ in the game.
 
-  \item $occ\texttt{ \&\& above}$, where $occ$ is the occurrence of a replication; then, just under that replication,
-    one guesses the whole sequence of replication indices above that replication.
+  \item $occ\texttt{ \&\& above}$, where $occ$ is the occurrence of a
+    replication; then, just under that replication, one guesses the
+    value of the whole sequence of replication indices above that
+    replication in the tested session.
 
-  \item $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$, where $x[i_1, \dots, i_n]$ is the variable to be guessed,
-    defined under $n$ replications, and $i_1, \dots, i_n$ are constant replication indices
-    (typically produced by a previous guess of the replication indices).
+  \item $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$, where $x[i_1, \dots, i_n]$
+    is the variable to be guessed, defined under $n$
+    replications, and $i_1, \dots, i_n$ are constant replication
+    indices (typically produced by a previous guess of the replication
+    indices).
     CryptoVerif must be able to determine, at each definition of $x$, whether its indices
     will be equal to $i_1, \dots, i_n$ or not. Otherwise, the transformation fails.
     When $x$ is defined under no replication, one writes $x$ instead of $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$.
@@ -2977,24 +2987,24 @@ The program point $occ$ must correspond to a term not containing \texttt{if}, \t
     CryptoVerif distinguishes whether the element specified by  $\nonterm{guessspec}$
 is equal to a constant value $v_{\mathit{tested}}$ by introducing a test 
 under the definition of that element, and tries to prove the
-security properties for the session in which $\nonterm{guessspec} = v_{\mathit{tested}}$.
+security properties for $\nonterm{guessspec} = v_{\mathit{tested}}$.
 The queries are adjusted accordingly. The probability of breaking
 the initial query is typically the size of the guessed element $\nonterm{guessspec}$
 (e.g. $N$ when we guess a replication index $i$ in $[1,N]$;
 $\#O$ when we guess the whole sequence of indices above a replication just above oracle $O$;
 $|T|$ when we guess a variable $x$ of type $T$)
 times the probability of
-breaking the query for session $\nonterm{guessspec} = v_{\mathit{tested}}$.
+breaking the query for $\nonterm{guessspec} = v_{\mathit{tested}}$.
 The size of the guessed element must be estimated less than \texttt{maxGuess}
 (see the command \texttt{set maxGuess}).
 
-This transformation cannot apply to injective correspondences.
-If injective correspondences are present, they are left unchanged
+Guessing the value of replication indices cannot apply to injective correspondences.
+When we guess replication indices and injective correspondences are present, they are left unchanged
 and proved on all sessions. If all queries are injective
 correspondences, the transformation fails.
 
 This transformation does not apply to $\texttt{equivalence}$
-and $\texttt{query\_equiv}$ proofs either. The transformation fails
+and $\texttt{query\_equiv}$ proofs. The transformation fails
 if such a proof is still required.
 
 \item \texttt{start\_from\_other\_end}: for proofs of indistinguishability
@@ -3083,12 +3093,12 @@ generated by \texttt{equiv} \dots \texttt{special}.
 Be careful: file $f$ will be overwritten if it already exists.)
 
 \item $\texttt{out\string_commands}\ f$: output the executed interactive commands
-  to file $f$. In no output file was specified before, outputs both the previous
-  and future interactive commands to $f$. In an output file was specified before
+  to file $f$. If no output file was specified before, outputs both the previous
+  and future interactive commands to $f$. If an output file was specified before
   (by the command-line setting \texttt{-ocommands} or by a previous command
-  \texttt{out\string_commands}, the previous commands are output to the previously
+  \texttt{out\string_commands}), the previous commands are output to the previously
   specified file, and the future commands are output to $f$.
-  If $f$ is the empty string \texttt{\"\"}, stops outputting interactive commands.
+  If $f$ is the empty string \texttt{""}, stops outputting interactive commands.
 (See command \texttt{out\string_game} for details on the filename $f$.
 Be careful: file $f$ will be overwritten if it already exists.)
 

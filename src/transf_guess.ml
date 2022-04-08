@@ -87,6 +87,8 @@ let found_guess = ref []
 
 let guess_card = ref Zero
 let var_eq_test = ref (Terms.make_true ())
+let has_secrecy = ref false
+let guess_b_defined = ref None
     
 let query_variables = ref []
 let events_under_guess = ref []
@@ -104,6 +106,8 @@ let reset() =
   found_guess := [];
   guess_card := Zero;
   var_eq_test := (Terms.make_true ());
+  has_secrecy := false;
+  guess_b_defined := None;
   query_variables := [];
   events_under_guess := [];
   events_elsewhere := [];
@@ -614,6 +618,15 @@ let make_test eq_test cur_array assigned p =
   let p_else = transfo (!new_pub_vars) [] cur_array assigned p in
   Terms.oproc_from_desc (Test(eq_test, p_then, p_else))
 
+let e_bad_guess =
+  let event_set = ref None in
+  fun () ->
+    match !event_set with
+    | None ->
+	let r = Terms.create_event (Terms.fresh_id "bad_guess") [] in
+	event_set := Some r;
+	r
+    | Some r -> r
 
 let transfo_i eq_test cur_array p =
   let rec aux cur_array p =
@@ -683,7 +696,15 @@ let rec full_transfo_i cur_array p =
 	
 and full_transfo_p cur_array p =
   if List.memq p.p_occ (!found_guess) then
-    make_test (!var_eq_test) cur_array [] p
+    begin
+    (* Abort when a variable is not guessed correctly *)
+      let p_test = Terms.oproc_from_desc (Test(!var_eq_test, p, Terms.oproc_from_desc (EventAbort (e_bad_guess())))) in
+      match !guess_b_defined with
+      | None -> p_test
+      | Some b' ->
+	  Terms.oproc_from_desc (Let(PatVar b', Terms.make_true(), p_test,
+				     Terms.oproc_from_desc Yield))
+    end
   else
     match p.p_desc with
     | Yield | EventAbort _ -> p
@@ -709,46 +730,105 @@ and full_transfo_p cur_array p =
     | Insert _ | Get _ ->
 	Parsing_helper.internal_error "Insert/get should have been expanded"
 
-
-
-let guess_session arg state g =
-  reset();
+let guess_var ((b,l),ext) state g =
   let p = Terms.get_process g in
-  selected_guess := arg;
-  begin
-    match arg with
-    | GuessVar((b,l),ext) ->
-	check_size b.btype;
-	guess_card := Proba.card b.btype;
-	let b_tested = get_cst b.sname b.btype in
-	var_eq_test :=
-	   Terms.make_equal
-	     (Terms.term_from_binder b)
-	     (Terms.app b_tested []);	   
-	if l != [] then
-	  (* We will need facts to prove that the indices are/are not equal to [l] *)
-	  Improved_def.improved_def_game None false g
-    | _ -> ()
-  end;
-  (* Compute query_variables: variables on which test secrecy
-     or one-session secrecy. Those that occur only under the
-     guessed replication or variable will be duplicated *)
+  check_size b.btype;
+  guess_card := Proba.card b.btype;
+  let b_tested = get_cst b.sname b.btype in
+  var_eq_test :=
+     Terms.make_equal
+       (Terms.term_from_binder b)
+       (Terms.app b_tested []);	   
+  if l != [] then
+    (* We will need facts to prove that the indices are/are not equal to [l] *)
+    Improved_def.improved_def_game None false g;
+  (* Check that queries are ok *)
   List.iter (function ((q,_),_) as q_proof ->
     match q with
     | _ when Settings.get_query_status q_proof != ToProve -> () (* I ignore already proved and inactive queries *)
     | QSecret (b,_,_) ->
+	has_secrecy := true;
 	if is_selected_var b then
 	  raise (Error("Cannot guess a variable for which we want to prove secrecy", ext_command()));
+    | QEventQ _ -> ()
+    | _ ->
+	raise (Error("Cannot guess a value when there is an equivalence query to prove, or no query", ext_command()))
+	  ) g.current_queries;
+  (* Locate the definitions of guessed variable.
+     In particular, raise an error if that variable is defined in a term.
+     Also computes the query variables/events found under the guessed value/elsewhere, even though
+     we do not use it here: we need it only when we guess a replication index. *)
+  if !has_secrecy then
+    guess_b_defined := Some (Terms.create_binder ("guess_"^b.sname^"_defined") Settings.t_bool b.args_at_creation);
+  find_var_event_i [] false p;
+  if (!found_guess) == [] then
+    raise (Error("Could not find the designated variable", ext_command()));
+  
+  (* Compute the new queries *)
+  (*   Create a new physical place for the proof indication, 
+       so that the proof is carried to the father game only when
+       it is a full proof *)
+  let current_queries' = List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries in
+  let new_queries = ref [] in
+  List.iter (function ((q, g), proof_opt) as q_proof ->
+      match q with
+      | _ when Settings.get_query_status q_proof != ToProve -> () 
+          (* I ignore already proved and inactive queries *)
+      | QSecret(b,pub_vars,one_session) ->
+	  begin
+	    match !guess_b_defined with
+	    | None ->
+		(* guess_b_defined must be defined when there is a secrecy query *)
+                assert false
+	    | Some b' ->
+		new_queries := (proof_opt, QSecret(b,b'::pub_vars,one_session))
+		   :: (!new_queries)		
+	  end
+      | QEventQ _ ->
+	  new_queries := (proof_opt, q) :: (!new_queries)
+      | _ ->
+	  Parsing_helper.internal_error "equivalence queries/absent query should have been eliminated earlier"
+      ) current_queries';
+
+  if (!new_queries) == [] then
+    raise (Error("Guess is useless: no query could be modified", ext_command()));
+  
+  let p' = full_transfo_i [] p in
+  let g' = Terms.build_transformed_game p' g in
+  let new_queries' =
+    List.map (fun (proof_opt,q) ->
+      let proof_opt' = ref ToProve in
+      proof_opt := Proved(MulQueryProba(!guess_card, (q,g'), proof_opt'), state);
+      ((q,g'), proof_opt')
+	) (!new_queries)
+  in
+  g'.current_queries <- new_queries' @ current_queries';
+  
+  if l != [] then
+    Improved_def.empty_improved_def_game false g;
+  g'
+
+  
+
+let guess_session state g =
+  let p = Terms.get_process g in
+  (* Compute query_variables: variables on which test secrecy
+     or one-session secrecy. Those that occur only under the
+     guessed replication will be duplicated *)
+  List.iter (function ((q,_),_) as q_proof ->
+    match q with
+    | _ when Settings.get_query_status q_proof != ToProve -> () (* I ignore already proved and inactive queries *)
+    | QSecret (b,_,_) ->
 	if not (List.memq b (!query_variables)) then
 	  query_variables := b :: (!query_variables)
     | QEventQ _ -> ()
     | _ ->
 	raise (Error("Cannot guess a value when there is an equivalence query to prove, or no query", ext_command()))
 	  ) g.current_queries;
-  (* Compute the variables/events found under the guessed replication or variable/elsewhere *)
+  (* Compute the variables/events found under the guessed replication/elsewhere *)
   find_var_event_i [] false p;
   if (!found_guess) == [] then
-    raise (Error("Could not find the designated replication or variable", ext_command()));
+    raise (Error("Could not find the designated replication", ext_command()));
   
   let dup_vars = 
     List.filter (fun b -> not (List.memq b (!variables_elsewhere))) (!variables_under_guess)
@@ -827,14 +907,19 @@ let guess_session arg state g =
     if !used2 then
       Stringmap.env := Stringmap.StringMap.add e2.f_name (Stringmap.EEvent e2) (!Stringmap.env)
 	   ) (!duplicated_events);
-  
+  g'
+
+
+let guess arg state g =
   reset();
-  begin
+  selected_guess := arg;
+  let g' =
     match arg with
-    | GuessVar((_,l),_) when l != [] ->
-	Improved_def.empty_improved_def_game false g
-    | _ -> ()
-  end;
+    | GuessVar((b,l),ext) ->
+	guess_var ((b,l),ext) state g
+    | _ ->
+	guess_session state g
+  in
+  reset();
   Settings.changed := true;
   (g', [], [DGuess arg])
-

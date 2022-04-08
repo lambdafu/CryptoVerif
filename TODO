@@ -40,8 +40,9 @@ When we do not know yet whether we are going to compromise the static
 key or the ephemerals for one participant, to get the best probability,
 we should guess what we are going to compromise and use one proof
 or the other accordingly.
-I am wondering if the guessing transformation that I have implemented
-would allow me to do that.
+The guessing transformation that I have implemented
+should allow me to do that, together with guessing a branch
+(see point 4) in HIGH PRIORITY).
 
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
@@ -68,7 +69,7 @@ Treatment of key compromise in CryptoVerif and related ideas
   - compromise of PSK in TLS and WG
   - example with PRF-ODH and compromise of some DH keys. I am not sure
     which one. WireGuard? it is complex. HPKE? does not really make sense.
-    another noise protocol, with fewer DH pairs?
+    another noise protocol, with fewer DH pairs? Perhaps Noise NK.
   - other application of PRF-ODH: TLS
   - examples/basic/pkauth-guess.cv
 
@@ -526,54 +527,22 @@ correspondence, e.g. because a nonce appears in the arguments on both sides;
 b) then work on the non-injective correspondence and use the guess
 transformation).
 
-More generally, it is sometimes useful to apply crypto transformations
-to "partial" games, e.g., to prove the suf_cma_corrupt equivalence
-from the suf_cma one (same for signatures), or in the proof of OTR.
-It could be done as follows:
-we want to show that some program point P2 is unreachable
-unless some other program point P1 has been reached.
-We can represent P1 as the definition of a variable x,
-and we insert a test and an event at P2, so that it becomes:
-   if defined(x) then P2 else event advwins.
-If the only property we want to prove is that "advwins"
-is unreachable, then we can insert an event "advloses"
-just after the definitions of x, and thus remove the
-part of the game that follows the definition of x.
-==> Probably useful for TLS, to prove forward secrecy for the
-PSKDHE mode.
-
-More generally, if the only property we want to prove is that "advwins"
-is unreachable and we can prove that x is not defined when "advwins" is
-reached, then we can insert an event "advloses" just after the 
-definitions of x. (This is done by "success simplify".)
-
 - TLS: github/ProtoTLS/cv/tls13-core.cv
 * It does not work with DDH. To make it work, 
 I would need to guess the tested session, and apply DDH only
-in that session. Some difficulties:
-   - I don't know how to express in CV that the tests in the
-   tested session all succeed until the desired secret key is defined.
-   (I need to express that it is known from the start that all these
-   tests *will* succeed.)
-   - What happens for the independence property between the session
-   keys? I cannot prove it if I have a single session. It is enough
-   to reveal keys of other sessions to the adversary. If the key
-   of the tested session is still secret, it proves independence.
+in that session. 
 
-   When I guess a value y, add a test
-      if y = y_tested then P else event_abort adv_loses
-   after the definition of y. The definition of y must not be
-   under replication.
-   y_tested is a constant.
-   BE CAREFUL: same as above.
-   The probability of attack must be multiplied by the cardinal
-   of the type of y (which must be small enough).
-   NOTE: we could do the same when the definition of y is
-   under a replication, but the probability would be multiplied
-   by |T|^{N1...Nn} where T is the type of y and N1...Nn are
-   the bounds of replication indices of y. That's not negligible
-   even for |T|=2.
-   BETTER: If there is a conditional not under a replication:
+There is probably an imprecision in the computation of probabilities
+when I guess a variable or a tested session: if I have
+Pr[e1 || e2], it will probably be decomposed into
+Pr[e1] + Pr[e2] at the point of guessing, and Pr[e1] = |T| * Pr[e1 after guess]
+and the same for e2. It would be better to keep the ||:
+|T| Pr[e1 || e2] after guess. Does not seem that easy to implement
+given how the computation of probabilities is organized.
+
+Guess a branch:
+   If there is a conditional not under a replication
+   (or with fixed indices, e.g. if the replication indices have been guessed):
       if C then P else P'
    we create two games, replacing the conditional with
       if C then P else event_abort Adv_loses
@@ -581,11 +550,17 @@ in that session. Some difficulties:
    the probability of attack in the initial game is at most the sum
    of the probabilities of attack in the two generated games.
    ("at most" because there may be attacks in which the condition
-   is not tested. Does it really work for secrecy?)
-   In particular, the condition C can test each possible value of
-   a variable y.
+   is not tested. Does it really work for secrecy? We might need to make
+   public whether the test is reached, by defining a public variable
+   at that point, as we do when we guess the value of a variable)
 
-   => Sometimes, I derive a contradiction but I need to leave some
+   The same can be done for find and let pat = .. in .. else ...
+
+When I guess a boolean x, I can also enumerate the two values,
+that is, introduce a test "if x then P else P" by the "insert"
+command, which yields two games by guessing the branch.
+
+=> Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
 
    I am wondering if the changes to guess the tested session,
@@ -6329,6 +6304,27 @@ pb in examplesnd/otest/hpke.internalerror.ocv
 FIXED 18/3/2022
 
 Allow guessing of a value in a polynomial type, not only of a replication index (see point 4 in HIGH PRIORITY)
+   - I don't know how to express in CV that the tests in the
+   tested session all succeed until the desired secret key is defined.
+   (I need to express that it is known from the start that all these
+   tests *will* succeed.)
+   - What happens for the independence property between the session
+   keys? I cannot prove it if I have a single session. It is enough
+   to reveal keys of other sessions to the adversary. If the key
+   of the tested session is still secret, it proves independence.
+
+   When I guess a value y, add a test
+      if y = y_tested then P else event_abort adv_loses
+   after the definition of y. The indices of y must be fixed.
+   y_tested is a constant.
+   BE CAREFUL: same as above.
+   The probability of attack must be multiplied by the cardinal
+   of the type of y (which must be small enough).
+   NOTE: we could do the same when the definition of y is
+   under a replication, but the probability would be multiplied
+   by |T|^{N1...Nn} where T is the type of y and N1...Nn are
+   the bounds of replication indices of y. That's not negligible
+   even for |T|=2.
 DONE, but bug, see examplesnd/test/guess6.cv
 One can make a term y[ix_tested] appear when y[ix] is defined and ix = ix_tested, but y[ix_tested] is not guarded by an appropriate defined condition.
 Is the risk higher with
@@ -6363,3 +6359,25 @@ them to the input file.
 DONE 1/4/2022
 It might be nice to simplify out undo commands, but that's tricky.
 Need to keep the set/allowed_collisions commands... 
+
+More generally, it is sometimes useful to apply crypto transformations
+to "partial" games, e.g., to prove the suf_cma_corrupt equivalence
+from the suf_cma one (same for signatures), or in the proof of OTR.
+It could be done as follows:
+we want to show that some program point P2 is unreachable
+unless some other program point P1 has been reached.
+We can represent P1 as the definition of a variable x,
+and we insert a test and an event at P2, so that it becomes:
+   if defined(x) then P2 else event advwins.
+If the only property we want to prove is that "advwins"
+is unreachable, then we can insert an event "advloses"
+just after the definitions of x, and thus remove the
+part of the game that follows the definition of x.
+==> Probably useful for TLS, to prove forward secrecy for the
+PSKDHE mode.
+
+More generally, if the only property we want to prove is that "advwins"
+is unreachable and we can prove that x is not defined when "advwins" is
+reached, then we can insert an event "advloses" just after the 
+definitions of x. (This is done by "success simplify".)
+DONE (success simplify)

@@ -1,5 +1,5 @@
 open Types
 
-(* Guess the tested session *)
+(* Guess replication index or variable *)
   
-val guess_session : guess_arg_t -> state -> game_transformer
+val guess : guess_arg_t -> state -> game_transformer

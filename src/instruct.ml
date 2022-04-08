@@ -261,7 +261,7 @@ let execute state ins =
     | MergeBranches ->
 	Transf_merge.merge_branches g
     | Guess(arg) ->
-	Transf_guess.guess_session arg state g
+	Transf_guess.guess arg state g
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
