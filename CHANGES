@@ -8,7 +8,9 @@ Version
   and out_commands)
 - Extended the "guess" transformation to be able to guess any variable,
   not only replication indices, and to guess the whole sequence of
-  replication indices up to a replication.
+  replication indices up to a replication. Also extended the "guess"
+  transformation to deal with injective correspondences, by proving
+  injectivity and leaving a non-injective query to prove.		 
 - New setting "set maxGuess = <size>." to limit the size of guessable
   values.
 - Improved modelling of Diffie-Hellman in the standard library of primitives:

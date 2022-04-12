@@ -2998,10 +2998,13 @@ breaking the query for $\nonterm{guessspec} = v_{\mathit{tested}}$.
 The size of the guessed element must be estimated less than \texttt{maxGuess}
 (see the command \texttt{set maxGuess}).
 
-Guessing the value of replication indices cannot apply to injective correspondences.
-When we guess replication indices and injective correspondences are present, they are left unchanged
-and proved on all sessions. If all queries are injective
-correspondences, the transformation fails.
+Guessing the value of replication indices cannot apply to injective
+correspondences.  When we guess replication indices and injective
+correspondences are present, CryptoVerif tries to prove injectivity,
+so that only a non-injective correspondence remains to prove.  It that fails,
+injective correspondences are left unchanged and proved on all sessions. If
+all queries are injective correspondences for which that fails, the
+transformation fails.
 
 This transformation does not apply to $\texttt{equivalence}$
 and $\texttt{query\_equiv}$ proofs. The transformation fails

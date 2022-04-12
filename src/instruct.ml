@@ -747,7 +747,7 @@ let display_state final state =
       begin
 	List.iter (function 
 	  | (AbsentQuery, g), poptref -> 
-	      poptref := Proved(CstProba [], state)
+	      poptref := Proved([], state)
 	  | q -> ()) eq_queries;
 	Success.update_full_proof state;
 	{ game = state.game;

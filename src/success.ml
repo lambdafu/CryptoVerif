@@ -631,7 +631,7 @@ let rec check_query_list collector event_accu state = function
 	  if res then
 	    begin
 	      (* The query is proved *)
-              poptref := Proved(CstProba proba, state);
+              poptref := Proved(List.map (fun p -> CstProba p) proba, state);
 	      ((a,proba)::l', b)
 	    end
 	  else 
@@ -663,7 +663,7 @@ let rec update_full_proof state =
 	      let poptref' = List.assq q state.game.current_queries in
 	      match !poptref' with
 	      | Proved(proba_info, state') ->
-		  if Display.is_full_proba_info proba_info then
+		  if List.for_all Display.is_full_proba_info proba_info then
 		    poptref := !poptref'
 	      | _ -> ()
 		  ) s'.game.current_queries;

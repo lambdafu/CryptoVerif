@@ -590,35 +590,12 @@ let is_event_false = function
       (f.f_cat == Event)
   | _ -> false
 
-(* [check_corresp event_accu corresp g] is the main function to prove
-   correspondences. It proves the correspondence [corresp = t1 ==> t2] in the game [g],
-   using the information on events collected in [event_accu].
-   ([event_accu] is a list of events and program points at which they are 
-   executed. From the program point, we can recover the facts that hold,
-   the variables that are defined, etc.) *)
-      
-let check_corresp collector event_accu (t1,t2,pub_vars) g =
-  Terms.auto_cleanup (fun () ->
-(* Dependency collision must be deactivated, because otherwise
-   it may consider the equality between t1 and t1' below as an unlikely
-   collision, because t1 does not depend on variables in the process.
-   That's why I use "no_dependency_anal" *)
 
-  if !Settings.debug_corresp then
-    begin
-      print_string "Trying to prove ";
-      Display.display_query (QEventQ(t1,t2,pub_vars), g)
-    end;
-  Depanal.reset [] g;
-  let vars_t1 = ref [] in
-  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
-  let vars_t1' = List.map (fun b ->
-    b.def <- [];
-    ignore (Terms.set_def [b] DNone DNone None);
-    let b' = Terms.new_binder b in
-    Terms.link b (TLink (Terms.term_from_binder b'));
-    b') (!vars_t1)
-  in
+(* [collect_facts_list collector event_accu next_f tl] collects 
+   the facts that hold when [tl] is true and calls [next_f] on 
+   the collected facts *)
+	
+let collect_facts_list collector event_accu next_f tl =
   let collect_facts1 next_f (events_found, facts, def_vars, elsefind_facts_list, injrepidx_pps, vars, collector_pp, collector_elsefind_facts) (is_inj,t) =
     Terms.for_all_collector collector (fun (t1',end_pp) ->
       match t.t_desc,t1'.t_desc with
@@ -759,16 +736,51 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
       | _ -> Parsing_helper.internal_error "event expected in check_corresp"
 	    ) event_accu
   in
+
   let rec collect_facts_list next_f accu = function
       [] -> next_f accu
     | (a::l) -> 
         collect_facts1 (fun accu' -> collect_facts_list next_f accu' l) accu a
-  in  
+  in
+
+  collect_facts_list next_f ([], ([],[],[]), [], [], [], [], [], []) tl
+
+
+
+(* [check_corresp event_accu corresp g] is the main function to prove
+   correspondences. It proves the correspondence [corresp = t1 ==> t2] in the game [g],
+   using the information on events collected in [event_accu].
+   ([event_accu] is a list of events and program points at which they are 
+   executed. From the program point, we can recover the facts that hold,
+   the variables that are defined, etc.) *)
+      
+let check_corresp collector event_accu (t1,t2,pub_vars) g =
+  Terms.auto_cleanup (fun () ->
+(* Dependency collision must be deactivated, because otherwise
+   it may consider the equality between t1 and t1' below as an unlikely
+   collision, because t1 does not depend on variables in the process.
+   That's why I use "no_dependency_anal" *)
+
+  if !Settings.debug_corresp then
+    begin
+      print_string "Trying to prove ";
+      Display.display_query (QEventQ(t1,t2,pub_vars), g)
+    end;
+  Depanal.reset [] g;
+  let vars_t1 = ref [] in
+  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
+  let vars_t1' = List.map (fun b ->
+    b.def <- [];
+    ignore (Terms.set_def [b] DNone DNone None);
+    let b' = Terms.new_binder b in
+    Terms.link b (TLink (Terms.term_from_binder b'));
+    b') (!vars_t1)
+  in
   let injinfo = ref [] in
   let r =
     (* The proof of the correspondence [t1 ==> t2] works in two steps:
        first, collect all facts that hold because [t1] is true *)
-    collect_facts_list (fun (events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
+    collect_facts_list collector event_accu (fun (events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
       try 
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
@@ -842,7 +854,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
 	    false)
       with Contradiction -> 
 	true
-	  ) ([], ([],[],[]), [], [], [], [], [], []) t1
+	  ) t1
   in
   if r then
     (* Add probability for eliminated collisions *)
@@ -851,3 +863,222 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
     (false, [])
       )
 
+(**** Prove that a non-injective correspondence implies the injective
+      correspondence and replace the injective one with the non-injective one. 
+      *)
+
+let rec remove_inj_qt = function
+  | QEvent(inj,t) -> QEvent(false,t)
+  | QTerm t -> QTerm t
+  | QAnd(t1,t2) ->
+      QAnd(remove_inj_qt t1, remove_inj_qt t2)
+  | QOr(t1,t2) ->
+      QOr(remove_inj_qt t1, remove_inj_qt t2)
+
+let remove_inj_q = function
+  | QEventQ(hyp,concl,pub_vars) ->
+      QEventQ(List.map (fun (inj,t) -> (false,t)) hyp,
+	      remove_inj_qt concl, pub_vars)
+  | x -> x
+
+(* [add_inj] works similarly to when we want to prove injectivity,
+   except that it uses the [begin_fact] we want to prove instead
+   of the [begin_sid_occ] *)
+
+let check_inj_compat
+    (simp_facts, elsefind_facts_list, injrepidx_pps, begin_fact) 
+    (facts', elsefind_facts_list', injrepidx_pps', begin_fact') =
+  Terms.auto_cleanup (fun () ->
+    try
+      (* different end events: injrepidx_pps \neq injrepidx_pps' *)
+      let facts'' =
+	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
+	else
+	  (* When one end_occ is different from end_occ', we know that injrepidx_pps \neq injrepidx_pps'.
+	     However, we can still get information from the incompatibility of the program points end_pp/end_pp' *)
+	  List.fold_left2 Incompatible.both_pp_add_fact facts' injrepidx_pps injrepidx_pps'
+      in
+      (* same begin events *)
+      let eq_facts =
+	match begin_fact.t_desc, begin_fact'.t_desc with
+	| FunApp(f,l), FunApp(f',l') when f == f' -> 
+	    List.map2 Terms.make_equal l l'
+	| _ -> assert false
+      in
+      (* Add all facts *)
+      let facts_with_inj1 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts'' in
+      let facts_with_inj2 = Facts.simplif_add_list Facts.no_dependency_anal facts_with_inj1 eq_facts in
+      (* If we could not prove the injectivity so far,
+         try to use elsefind facts to prove it.
+	 We distinguish cases depending on which event is executed
+	 with indices different in the two sequences of events
+	 before the arrow considered in the proof of injectivity. *)
+      if not (List.for_all2 (case_check facts_with_inj2) elsefind_facts_list elsefind_facts_list') then
+	raise NoMatch
+    with Contradiction ->
+      ())
+
+let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars) fact' fact injinfo =
+	let nsimpfacts = Facts.true_facts_from_simp_facts simp_facts in 
+	List.iter (fun b -> b.ri_link <- TLink (Terms.term_from_repl_index (Terms.new_repl_index b))) repl_indices;
+	List.iter (fun b -> b.link <- TLink (Terms.term_from_binder (Terms.new_binder b))) vars;
+	let new_facts = List.map (Terms.copy_term Terms.Links_RI_Vars) nsimpfacts in
+	(* The variables that we rename are variables that occur in the correspondence to prove.
+           They do not occur in def_vars, so we need to rename only replication indices.
+	   Same comment for elsefind_facts. *)
+	let new_elsefind_facts_list =  List.map (function (elsefind, end_pp, def_vars, new_end_sid) ->
+	  (List.map Terms.copy_elsefind elsefind,
+	   end_pp,
+	   Terms.copy_def_list Terms.Links_RI def_vars,
+	   List.map (Terms.copy_term Terms.Links_RI_Vars) new_end_sid)
+	    ) elsefind_facts_list in
+	let new_injrepidx_pps =
+	  List.map
+	    (function (end_sid, end_pp) ->
+	      (List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid, end_pp))
+	    injrepidx_pps
+	in
+	let new_fact = Terms.copy_term Terms.Links_RI_Vars fact' in
+	List.iter (fun b -> b.ri_link <- NoLink) repl_indices;
+	List.iter (fun b -> b.link <- NoLink) vars;
+
+        if !Settings.debug_corresp then
+          begin
+	    print_string "Checking inj compatiblity\n";
+	    Facts.display_facts simp_facts;
+	    print_string "New facts\n";
+	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
+	    print_string "Inj rep idxs:";
+	    let display_end_sid_occ (end_sid, end_pp) =
+	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
+	      Display.display_list Display.display_term end_sid
+	    in
+	    Display.display_list display_end_sid_occ injrepidx_pps;
+	    print_string "\nNew inj rep idxs:";
+	    Display.display_list display_end_sid_occ new_injrepidx_pps;
+	    print_string "\nBegin fact:";
+	    Display.display_term fact';
+	    print_string "\nNew begin fact:";
+	    Display.display_term new_fact;
+	    print_string "\n\n";
+	  end;
+        (* The new element [inj_elem] to be added to [inj_info] *)
+	let add_inj_info = (simp_facts, elsefind_facts_list, injrepidx_pps, fact') in
+        (* The new element [inj_elem] with variables renamed *)
+	let new_inj_info = (new_facts, new_elsefind_facts_list, new_injrepidx_pps, new_fact) in
+	
+	check_inj_compat add_inj_info new_inj_info;
+	try
+	  let l = List.assq fact injinfo in
+	  List.iter (fun lelem -> check_inj_compat lelem new_inj_info) l;
+	  (fact, add_inj_info :: l) :: (List.filter (fun (f, _) -> f != fact) injinfo)
+	with Not_found ->
+	  (fact, [add_inj_info]) ::injinfo 
+
+
+let rec check_term_inj next_check known_facts injinfo = function
+  | QAnd(t,t') | QOr(t,t') ->
+      check_term_inj (fun injinfo' -> check_term_inj next_check known_facts injinfo' t')
+	known_facts injinfo t
+  | QTerm t2 ->
+      next_check injinfo
+  | QEvent(is_inj,t2) as qt ->
+      if is_inj then
+	next_check
+	  (try
+	    let fact' = Terms.copy_term Terms.Links_Vars t2 in
+	    add_inj known_facts fact' t2 injinfo
+	  with NoMatch ->
+	    raise (NoMatchExplain (FactFailed qt)))
+      else
+	next_check injinfo
+
+let proved_inj event_accu (t1,t2,pub_vars) g = 
+  Terms.auto_cleanup (fun () ->
+(* Dependency collision must be deactivated, because otherwise
+   it may consider the equality between t1 and t1' below as an unlikely
+   collision, because t1 does not depend on variables in the process.
+   That's why I use "no_dependency_anal" *)
+  if !Settings.debug_corresp then
+    begin
+      print_string "Trying to prove injectivity for ";
+      Display.display_query (QEventQ(t1,t2,pub_vars), g)
+    end;
+  Depanal.reset [] g;
+  let vars_t1 = ref [] in
+  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
+  let vars_t1' = List.map (fun b ->
+    b.def <- [];
+    ignore (Terms.set_def [b] DNone DNone None);
+    let b' = Terms.new_binder b in
+    Terms.link b (TLink (Terms.term_from_binder b'));
+    b') (!vars_t1)
+  in
+  let injinfo = ref [] in
+  let r =
+    (* The proof of the correspondence [t1 ==> t2] works in two steps:
+       first, collect all facts that hold because [t1] is true *)
+    collect_facts_list None event_accu (fun (events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
+      try 
+	Terms.auto_cleanup (fun () -> 
+	  let facts2 = 
+	    if !Settings.elsefind_facts_in_success then
+	      Facts_of_elsefind.get_facts_of_elsefind_facts g vars' facts' def_vars' 
+	    else
+	      []
+	  in
+          let facts' = Facts.simplif_add_list Facts.no_dependency_anal facts' facts2 in
+          (* second, prove [t2] from these facts *)
+	  try
+	    check_term_inj (fun injinfo' -> injinfo := injinfo'; true) (facts', elsefind_facts_list', injrepidx_pps', vars', vars_t1') (!injinfo) t2
+	  with NoMatchExplain e ->
+	    (* The proof failed. Explain why in a short message. *)
+	    print_string "Proof of injectivity for ";
+	    Display.display_query3 (QEventQ(t1,t2,pub_vars));
+	    print_string " failed:\n";
+	    print_string "  Found ";
+	    Display.display_list (fun t ->
+	      Display.display_term t;
+	      print_string " at ";
+	      print_int t.t_occ
+		) events_found';
+	    print_newline();
+	    print_string "  but could not prove injectivity of ";
+	    display_explanation e;
+	    print_newline();
+	    false)
+      with Contradiction -> 
+	true
+	  ) t1
+  in
+  if r then
+    (* Add probability for eliminated collisions *)
+    Some (Depanal.final_add_proba())
+  else
+    begin
+      Depanal.reset [] g;
+      None
+    end
+      )
+
+
+let proved_inj event_accu g = function
+  | QEventQ(hyp,concl,pub_vars) ->
+      if List.exists (fun (inj,_) -> inj) hyp then
+	proved_inj event_accu (hyp,concl,pub_vars) g
+      else
+	(* The query is not injective *)
+	None
+  | x -> 
+      None
+
+	
+let remove_inj event_accu g q =
+  match proved_inj event_accu g q with
+  | Some proba -> 
+      Some (remove_inj_q q, proba)
+  | None -> 
+      None

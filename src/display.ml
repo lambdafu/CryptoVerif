@@ -1681,11 +1681,11 @@ let display_proba_bound = function
 let rec is_full_poptref poptref =
   match !poptref with
   | Inactive | ToProve -> false
-  | Proved(proba_info, _) -> is_full_proba_info proba_info
+  | Proved(proba_info, _) -> List.for_all is_full_proba_info proba_info
 
 and is_full_proba_info = function
   | CstProba(proba) ->
-      if not (List.for_all is_full_proba proba) then
+      if not (is_full_proba proba) then
 	Parsing_helper.internal_error "Final success proba should not contain events";
       true
   | MulQueryProba(_,_,poptref) -> is_full_poptref poptref
@@ -1812,7 +1812,7 @@ let rec build_proof_tree bounds ((q0,g0) as q) p s =
 		(* Get the proof of the property "Event f is not executed in game g" *)
                 let (proba_info,s') = get_proved popt' in
                 let f_query = Terms.build_event_query f pub_vars in
-		let p' = proba_from_proba_info (f_query, s'.game) bounds proba_info in
+		let p' = List.concat (List.map (proba_from_proba_info (f_query, s'.game) bounds) proba_info) in
 		(* Build the query that tests for event f in game g *)
 		let q' = (f_query, g) in
 
@@ -1919,10 +1919,10 @@ and compute_proba_internal bounds ((q0,g) as q) p s =
   evaluate_proba bounds start_queries g [] start_queries pt 
 
 and proba_from_proba_info (q0,g0) bounds = function
-  | CstProba p -> p
+  | CstProba p -> [p]
   | MulQueryProba(n, (q,g), poptref) ->
       let (proba_info,s) = get_proved poptref in
-      let p = proba_from_proba_info (q,s.game) bounds proba_info in
+      let p = List.concat (List.map (proba_from_proba_info (q,s.game) bounds) proba_info) in
       let fullp = compute_proba_internal bounds (q,g) p s in
       bounds := (SumBound([InitQuery q,g],g,fullp,[],g)) :: (!bounds);
       bounds := (MulBound(InitQuery q0,g0,n,InitQuery q,g)) ::(!bounds);
@@ -1944,7 +1944,7 @@ let compute_proba_internal2 bounds ((q0,g) as q) p s =
     
 let compute_proba ((q0,g) as q) proba_info s =
   let bounds = ref [] in
-  let p = proba_from_proba_info (q0,s.game) bounds proba_info in
+  let p = List.concat (List.map (proba_from_proba_info (q0,s.game) bounds) proba_info) in
   List.iter display_proba_bound (List.rev (!bounds));
   begin
     match q0 with
@@ -2446,7 +2446,7 @@ and add_sequence_poptref accu poptref =
   match !poptref with
   | ToProve | Inactive -> accu
   | Proved(proba_info,s') ->
-      add_sequence_proba_info (add_sequence accu s') proba_info
+      List.fold_left add_sequence_proba_info (add_sequence accu s') proba_info
 
 and add_sequence_proba_info accu = function
   | CstProba _ -> accu

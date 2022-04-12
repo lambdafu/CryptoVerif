@@ -96,6 +96,8 @@ let events_elsewhere = ref []
 let variables_under_guess = ref []
 let variables_elsewhere = ref []
 
+let event_accu_ref = ref None
+    
 let duplicated_vars = ref ([]: (binder * binder) list) (* list of (initial var, image var) *)
 let new_pub_vars = ref ([]: (binder * binder) list)
 let duplicated_events = ref ([]: (funsymb * funsymb * bool ref * bool ref) list)
@@ -113,6 +115,7 @@ let reset() =
   events_elsewhere := [];
   variables_under_guess := [];
   variables_elsewhere := [];
+  event_accu_ref := None;
   duplicated_vars := [];
   new_pub_vars := [];
   duplicated_events := []
@@ -798,7 +801,7 @@ let guess_var ((b,l),ext) state g =
   let new_queries' =
     List.map (fun (proof_opt,q) ->
       let proof_opt' = ref ToProve in
-      proof_opt := Proved(MulQueryProba(!guess_card, (q,g'), proof_opt'), state);
+      proof_opt := Proved([MulQueryProba(!guess_card, (q,g'), proof_opt')], state);
       ((q,g'), proof_opt')
 	) (!new_queries)
   in
@@ -810,6 +813,15 @@ let guess_var ((b,l),ext) state g =
 
   
 
+let get_event_accu g =
+  match !event_accu_ref with
+  | Some event_accu -> event_accu
+  | None ->
+      let event_accu = ref [] in
+      Improved_def.improved_def_game (Some event_accu) false g;
+      event_accu_ref := Some (!event_accu);
+      !event_accu
+      
 let guess_session state g =
   let p = Terms.get_process g in
   (* Compute query_variables: variables on which test secrecy
@@ -870,7 +882,7 @@ let guess_session state g =
 		  in
 		  new_pub_var :: pub_vars
 	      in
-	      new_queries := (proof_opt, QSecret(b',pub_vars',one_session)) :: (!new_queries)
+	      new_queries := (proof_opt, QSecret(b',pub_vars',one_session), []) :: (!new_queries)
 	    with Not_found ->
 	      ()
 	  end
@@ -878,12 +890,29 @@ let guess_session state g =
 	  let is_inj = List.exists (fun (inj,_) -> inj) hyp in
 	  (* Cannot transform injective correspondences *)
 	  if is_inj then
-	    record_useful_corresp (hyp, concl, pub_vars)
+	    let _, changed = transform_hyp hyp in
+	    if changed then
+	      begin
+		(* If the query contains a duplicated event
+		   in assumption, try to prove injectivity now,
+                   and leave a non-injective query to prove *)
+		match Check_corresp.remove_inj (get_event_accu g) g q with
+		| None -> 
+		    record_useful_corresp (hyp, concl, pub_vars)
+		| Some(QEventQ(hyp', concl', pub_vars'), proba) ->
+		    let hyp'', changed = transform_hyp hyp' in
+		    assert changed;
+		    record_useful_corresp (hyp'', concl', pub_vars');
+		    new_queries := (proof_opt, QEventQ(hyp'', concl', pub_vars'), proba) :: (!new_queries)
+		| _ -> assert false
+	      end
+	    else
+	      record_useful_corresp (hyp, concl, pub_vars)
 	  else
 	    let hyp', changed = transform_hyp hyp in
 	    record_useful_corresp (hyp', concl, pub_vars);
 	    if changed then
-	      new_queries := (proof_opt, QEventQ(hyp', concl, pub_vars)) :: (!new_queries)
+	      new_queries := (proof_opt, QEventQ(hyp', concl, pub_vars), []) :: (!new_queries)
 
       | _ ->
 	  Parsing_helper.internal_error "equivalence queries/absent query should have been eliminated earlier"
@@ -895,9 +924,10 @@ let guess_session state g =
   let p' = full_transfo_i [] p in
   let g' = Terms.build_transformed_game p' g in
   let new_queries' =
-    List.map (fun (proof_opt,q) ->
+    List.map (fun (proof_opt,q, proba) ->
       let proof_opt' = ref ToProve in
-      proof_opt := Proved(MulQueryProba(!guess_card, (q,g'), proof_opt'), state);
+      proof_opt := Proved((MulQueryProba(!guess_card, (q,g'), proof_opt')) ::
+			  (List.map (fun p -> CstProba p) proba), state);
       ((q,g'), proof_opt')
 	) (!new_queries)
   in

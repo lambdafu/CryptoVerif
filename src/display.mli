@@ -74,7 +74,7 @@ val is_full_proba : setf -> bool
 
 (* [get_proved poptref] returns [p,s] when [!poptref = Proved(p,s)].
    Otherwise, it causes an internal error. *)
-val get_proved : proof_t ref -> proba_info * state
+val get_proved : proof_t ref -> proba_info list * state
 
 type query_specif =
     InitQuery of query

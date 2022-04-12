@@ -116,6 +116,6 @@ process
 	 (! iK <= NK processK(Kas,Kbs)))
 
 (* EXPECTED
-Error: Guess is useless: no query could be modified
-xtime: error in child process (status : 2)
+RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+0.080s (user 0.080s + system 0.000s), max rss 15876K
 END *)

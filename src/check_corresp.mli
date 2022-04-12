@@ -9,3 +9,10 @@ val check_corresp :
     known_when_adv_wins ref option -> (term * program_point) list -> 
     (bool * term) list * qterm * binder list -> game -> bool * setf list
 
+(* [remove_inj event_accu g q] returns
+   - [Some(q',proba)] when [q] is an injective correspondence and 
+   it managed to prove injectivity; [q'] is the non-injective
+   query still proba and [proba] is the probability of breaking injectivity.
+   - [None] otherwise. *)
+val remove_inj : (term * program_point) list -> game -> query ->
+  (query * setf list) option

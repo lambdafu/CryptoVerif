@@ -435,11 +435,11 @@ and game =
 and cur_queries_t = ((query * game) * proof_t ref) list
 
 and proba_info =
-  | CstProba of setf list
+  | CstProba of setf 
   | MulQueryProba of probaf * (query * game) * proof_t ref
       
 and proof_t =
-  | Proved of proba_info * state
+  | Proved of proba_info list * state
   | ToProve
   | Inactive
 

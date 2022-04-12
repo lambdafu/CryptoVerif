@@ -1486,7 +1486,7 @@ let display_proba_bound = function
 
 let compute_proba ((q0,g) as q) proba_info s =
   let bounds = ref [] in
-  let p = Display.proba_from_proba_info (q0,s.game) bounds proba_info in
+  let p = List.concat (List.map (Display.proba_from_proba_info (q0,s.game) bounds) proba_info) in
   List.iter display_proba_bound (List.rev (!bounds));
   begin
     match q0 with
