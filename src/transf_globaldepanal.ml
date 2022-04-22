@@ -1593,35 +1593,39 @@ let init_find_compos_probaf b0 =
 		 p_indep_types_option = None }],[],[]))
     
 let check_all_deps b0 init_proba_state g =
-  whole_game := g;
-  main_var := b0;
-  let vcounter = Terms.get_var_num_state() in
-  try
-    let dummy_term = Terms.term_from_binder b0 in
-    let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
-    let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, init_find_compos_probaf b0], ref Unset))) in
-    dvar_list := [b0st];
-    defvar_list := [];
-    let proc' = check_depend_iter init_proba_state in
-    let res_game = Terms.build_transformed_game proc' g in
-    if not (!local_changed) then
-      begin
-	print_string "The global dependency analysis succeeded but did not make any change.\n";
-	raise BadDep
-      end;
-    (* Some cleanup to free memory *)
-    dvar_list := [];
-    defvar_list := [];
-    whole_game := Terms.empty_game;
-    Some(res_game)
-  with BadDep -> 
-    (* Some cleanup to free memory *)
-    dvar_list := [];
-    defvar_list := [];
-    whole_game := Terms.empty_game;
-    Terms.set_var_num_state vcounter; (* Forget variables when fails *)
+  if !Settings.proba_zero then
     None
-
+  else
+    begin
+      whole_game := g;
+      main_var := b0;
+      let vcounter = Terms.get_var_num_state() in
+      try
+	let dummy_term = Terms.term_from_binder b0 in
+	let args_opt = Some (List.map Terms.term_from_repl_index b0.args_at_creation) in
+	let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, init_find_compos_probaf b0], ref Unset))) in
+	dvar_list := [b0st];
+	defvar_list := [];
+	let proc' = check_depend_iter init_proba_state in
+	let res_game = Terms.build_transformed_game proc' g in
+	if not (!local_changed) then
+	  begin
+	    print_string "The global dependency analysis succeeded but did not make any change.\n";
+	    raise BadDep
+	  end;
+        (* Some cleanup to free memory *)
+	dvar_list := [];
+	defvar_list := [];
+	whole_game := Terms.empty_game;
+	Some(res_game)
+      with BadDep -> 
+        (* Some cleanup to free memory *)
+	dvar_list := [];
+	defvar_list := [];
+	whole_game := Terms.empty_game;
+	Terms.set_var_num_state vcounter; (* Forget variables when fails *)
+	None
+    end
 (* [main b0 coll_elim g] is the entry point for calling
    the dependency analysis alone.
    [b0] is the variable on which we perform the dependency analysis.
@@ -1633,6 +1637,11 @@ let main b0 coll_elim g =
   if not g.expanded then
     begin
       print_string "Does not support non-expanded games. ";
+      (g,[],[])
+    end
+  else if !Settings.proba_zero then
+    begin
+      print_string "Global dependency analysis disabled when elimination of collisions is not allowed. ";
       (g,[],[])
     end
   else

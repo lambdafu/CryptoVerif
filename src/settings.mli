@@ -34,6 +34,8 @@ set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
 val allow_undefined_var : bool ref
 
+val proba_zero : bool ref
+
 val use_oracle_count_in_result : bool ref
 
 val max_efl : int ref

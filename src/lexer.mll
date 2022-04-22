@@ -143,6 +143,7 @@ let keyword_table_proof =
       "special", SPECIAL;
       "assume", ASSUME;
       "guess", GUESS;
+      "guess_branch", GUESS_BRANCH;
       "above", ABOVE
     ]
     

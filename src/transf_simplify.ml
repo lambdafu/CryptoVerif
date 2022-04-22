@@ -154,7 +154,9 @@ let rec simplify_term cur_array dep_info true_facts t =
       let t' = simplify_term cur_array dep_info true_facts t1 in
       Terms.make_not_at t t'
   | FunApp(f,[t1;t2]) 
-    when ((f.f_cat == Equal) || (f.f_cat == Diff)) && (Proba.is_large_term t1 || Proba.is_large_term t2) ->
+      when ((f.f_cat == Equal) || (f.f_cat == Diff)) &&
+           (Proba.is_large_term t1 || Proba.is_large_term t2) &&
+           (not (!Settings.proba_zero)) ->
       begin
 	let rec try_dep_info = function
 	    [] -> t
@@ -387,21 +389,25 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
               let status ((b, _) as bdepinfo) =
 		match find_compos true_facts bdepinfo t with
 		| _, Some (probaf, t'',_) ->
-		    let (t2', dep_types, indep_types) = Depanal.is_indep_pat true_facts bdepinfo pat in
-		    if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) 
-			t'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation))
-			(probaf, dep_types, t.t_type, indep_types) then raise Else;
+		    if not (!Settings.proba_zero) then
+		      begin
+			let (t2', dep_types, indep_types) = Depanal.is_indep_pat true_facts bdepinfo pat in
+			if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) 
+			    t'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation))
+			    (probaf, dep_types, t.t_type, indep_types) then raise Else
+		      end;
 		    true
 		| _, None ->
-		    begin
-		      match Depanal.find_compos_pat (find_compos true_facts bdepinfo) pat with
-		      | None -> ()
-		      |	Some(probaf, t1', _) ->
-			  let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t in
+		    if not (!Settings.proba_zero) then		    
+		      begin
+			match Depanal.find_compos_pat (find_compos true_facts bdepinfo) pat with
+			| None -> ()
+			| Some(probaf, t1', _) ->
+			    let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t in
 			  (* Add probability *)
-			  if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
-			    raise Else
-		    end;
+			    if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
+			      raise Else
+		      end;
 		    (depends bdepinfo t) || (Depanal.depends_pat (depends bdepinfo) pat)
 	      in
 	      (* dependency information for the "in" and "else" branches *)
@@ -529,7 +535,10 @@ let dependency_anal cur_array dep_info =
     | None ->
 	Depanal.try_two_directions (dependency_collision_rec1 cur_array simp_facts) t1' t2'
   in
-  (Facts.default_indep_test get_dep_info, collision_test)
+  if !Settings.proba_zero then
+    (Facts.default_indep_test get_dep_info, Facts.no_collision_test)
+  else
+    (Facts.default_indep_test get_dep_info, collision_test)
 		
 (* [contradicts_known_when_adv_wins] returns [true] when the information
    given as argument contradicts the fact that the adversary wins,

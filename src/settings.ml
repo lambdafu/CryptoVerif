@@ -40,6 +40,10 @@ set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
 let allow_undefined_var = ref false
     
+let proba_zero = ref false
+    (* When true, prevents all eleiminations of collisions, so that
+       computed equalities *always* hold (not up to negligible probability). *)
+
 let use_oracle_count_in_result = ref true
 
 let max_efl = ref 50

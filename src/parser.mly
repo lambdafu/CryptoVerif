@@ -172,6 +172,7 @@ let return_channel = (dummy_channel, None)
 %token TAG
 %token ASSUME
 %token GUESS
+%token GUESS_BRANCH
 %token ABOVE
       
 /* Precedence (from low to high) and associativities */
@@ -593,6 +594,8 @@ proofcommand:
     { CGuess(CGuessId($2, $3)) }
 |   GUESS occ optabove
     { CGuess(CGuessOcc($2, $3, parse_extent())) }
+|   GUESS_BRANCH occ
+    { CGuess_branch($2, parse_extent()) }
 
 guess_binderref:
     IDENT LBRACKET identlist RBRACKET

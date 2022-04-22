@@ -1860,6 +1860,16 @@ let e_adv_loses =
 	r
     | Some r -> r
 
+let e_bad_guess =
+  let event_set = ref None in
+  fun () ->
+    match !event_set with
+    | None ->
+	let r = create_event (fresh_id "bad_guess") [] in
+	event_set := Some r;
+	r
+    | Some r -> r
+
 (* Create a term containing general variables that corresponds to a pattern *)
 
 exception NonLinearPattern

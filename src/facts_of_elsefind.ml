@@ -76,8 +76,11 @@ let dependency_anal_order_hyp cur_array dep_info =
       end;
     res
   in
-  (Facts.default_indep_test get_dep_info_for_indep, collision_test)
-
+  if !Settings.proba_zero then
+    (Facts.default_indep_test get_dep_info_for_indep, Facts.no_collision_test)
+  else
+    (Facts.default_indep_test get_dep_info_for_indep, collision_test)
+      
 (* this function returns the list of all the binderref that are defined before the node `node' after transformation through the rename_br transformation, and stops if it encounters a binder from stop_binders or if the node is stop_node *)
 
 let rec add_vars_until_binder_or_node node stop_binders stop_node acc =

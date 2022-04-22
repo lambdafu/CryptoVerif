@@ -55,7 +55,10 @@ let dependency_anal cur_array =
     Facts.reset_repl_index_list();
     Depanal.try_two_directions (Depanal.dependency_collision_rec cur_array simp_facts (fun _ -> Facts.nodepinfo)) t1' t2'
   in
-  (Facts.indep_test_noinfo, collision_test)
+  if !Settings.proba_zero then
+    (Facts.indep_test_noinfo, Facts.no_collision_test)
+  else
+    (Facts.indep_test_noinfo, collision_test)
     
 (* Note on the elimination of collisions in find conditions:
    The find indices are replaced with fresh replication indices,

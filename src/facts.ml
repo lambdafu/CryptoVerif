@@ -591,6 +591,9 @@ let rec apply_collisions_at_root_once reduce_rec dep_info simp_facts final t = f
   | coll_statement::other_coll ->
       let { c_restr = restr; c_forall = forall; c_redl = redl; c_proba = proba; c_redr = redr;
 	    c_indep_cond = indep_cond; c_side_cond = side_cond; c_restr_may_be_equal = restr_may_be_equal } = coll_statement in
+      if !Settings.proba_zero && proba != Zero then
+	apply_collisions_at_root_once reduce_rec dep_info simp_facts final t other_coll
+      else
       try
 	match_term_root_or_prod_subterm simp_facts restr final (fun () ->
 	  (* Compute the side condition that guarantees that all restrictions are independent,
@@ -944,6 +947,7 @@ let simplify_equal t1 t2 =
     (f1.f_options land Settings.fopt_COMPOS) != 0 && f1 == f2 -> 
       l1, l2
   | Var(b1,l1), Var(b2,l2) when
+    (not (!Settings.proba_zero)) &&
     (Terms.is_restr b1) && (Terms.is_restr b2) &&
     (Proba.is_large_term t1  || Proba.is_large_term t2) &&
     (Proba.add_elim_collisions b1 b2) ->

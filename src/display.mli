@@ -80,10 +80,15 @@ type query_specif =
     InitQuery of query
   | QEvent of funsymb
 
-type proba_bound =
-  | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
-  | MulBound of query_specif * game * probaf * query_specif * game
+type proba_bound_rec =
+  | BSum of proba_bound_rec list
+  | BCst of setf list
+  | BMul of probaf * proba_bound_rec
+  | BQuery of (query_specif * game) list * game
 
+type proba_bound =
+  | BLeq of ((query_specif * game) list * game) * proba_bound_rec
+    
 (* [compute_proba_internal2 bounds (q,g) p s] computes the probability of
    breaking query [q] in game [g], knowing that the probability of breaking [q]
    is [p] in the last game of the sequence [s].
@@ -101,8 +106,8 @@ val compute_proba_internal2 :
    otherwise it causes an internal error.
    Intermediate results are stored in [bounds] to be displayed after the function 
    returns. *)
-val proba_from_proba_info :
-  query * game -> proba_bound list ref -> proba_info -> setf list
+val proba_from_proba_info_list :
+  query * game -> proba_bound list ref -> proba_info list -> setf list
 
     
 val get_initial_game : state -> game

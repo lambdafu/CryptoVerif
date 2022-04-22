@@ -673,25 +673,28 @@ let rec display_set ?separate_time = function
       print_string " + ";
       display_set ?separate_time l
   
-let display_proba_set_m modify s =
+let display_proba_set_m modify level s =
   let proba = Display.proba_from_set_m modify s in
   if has_assume s then
     begin
-      print_string "\\Pr[COMMAND NOT CHECKED]";
       match proba with
-      | Zero | Cst 0.0 -> ()
+      | Zero | Cst 0.0 ->
+	  print_string "\\Pr[COMMAND NOT CHECKED]"
       | _ ->
+	  if level > 1 then print_string "(";
+	  print_string "\\Pr[COMMAND NOT CHECKED]";
 	  print_string " + ";
-	  display_proba ~separate_time:true 0 proba
+	  display_proba ~separate_time:true 1 proba;
+	  if level > 1 then print_string ")"	    
     end
   else
-    display_proba ~separate_time:true 0 proba
+    display_proba ~separate_time:true level proba
   
-let display_proba_set s =
-  display_proba_set_m Display.id s
+let display_proba_set level s =
+  display_proba_set_m Display.id level s
 
 let display_proba_set_may_double q s =
-  display_proba_set_m (Display.may_double q) s
+  display_proba_set_m (Display.may_double q) 0 s
 
 (* Result of an oracle in an equivalence *)
 
@@ -1416,6 +1419,7 @@ let display_instruct = function
       print_string "focus on queries";
       List.iter (fun q -> print_string "\\\\\n\\qquad -- "; display_query3 q) ql
   | Guess arg ->
+      begin
       print_string "guess ";
       match arg with
       | GuessVar((b,l),_) ->
@@ -1429,7 +1433,11 @@ let display_instruct = function
 	  print_string "the tested session for the replication at ";
 	  print_int occ;
 	  if and_above then print_string " and above"
-
+      end
+  | GuessBranch(occ,_) ->
+      print_string "guess branch at ";
+      print_int occ
+	
 (* Explain probability formulas *)
 
 let display_qevent = function
@@ -1465,28 +1473,39 @@ let display_adv ql game =
       print_string "]"
   | _ -> Parsing_helper.internal_error "Bad query list in display_adv"
 
+let rec display_proba_bound_rec level = function
+  | Display.BCst p ->
+      display_proba_set level p
+  | Display.BQuery(ql,g) ->
+      display_adv ql g
+  | Display.BMul(p,b) ->
+      display_proba 3 p;
+      print_string " \\times ";
+      display_proba_bound_rec 3 b
+  | Display.BSum l ->
+      match l with
+      | [] -> print_string "0"
+      | (a::r) ->
+	  if level > 1 then print_string "(";
+	  display_proba_bound_rec 1 a;
+	  List.iter (fun b ->
+	    print_string " + ";
+	    display_proba_bound_rec 1 b) r;
+	  if level > 1 then print_string ")"
+	  
+	    
 let display_proba_bound = function
-  | Display.SumBound(ql,g,p,ql_list,g') ->
+  | Display.BLeq((ql,g),b) ->
       print_string "$";
       display_adv ql g;
       print_string " \\leq ";
-      display_proba_set p;
-      List.iter (fun ql_i ->
-	print_string " + ";
-	display_adv ql_i g') ql_list;
+      display_proba_bound_rec 0 b;
       print_string "$\\\\\n"
-  | Display.MulBound(q,g,proba,q',g') ->
-      print_string "$";
-      display_adv [q,g] g;
-      print_string " \\leq ";
-      display_proba 0 proba;
-      print_string " \\times ";
-      display_adv [q',g'] g';
-      print_string "$\\\\\n"
+
 
 let compute_proba ((q0,g) as q) proba_info s =
   let bounds = ref [] in
-  let p = List.concat (List.map (Display.proba_from_proba_info (q0,s.game) bounds) proba_info) in
+  let p = Display.proba_from_proba_info_list (q0,s.game) bounds proba_info in
   List.iter display_proba_bound (List.rev (!bounds));
   begin
     match q0 with
@@ -1495,7 +1514,7 @@ let compute_proba ((q0,g) as q) proba_info s =
 	if p <> [] then
 	  begin
             print_string " up to probability $";
-            display_proba_set p;
+            display_proba_set 0 p;
 	    print_string "$"
 	  end;
 	print_string ".\\\\\n"
@@ -1767,7 +1786,7 @@ let display_detailed_ins = function
       display_with_user_info user_info;
       print_string "\\\\\n"
   | DInsertEvent _  | DInsertInstruct _ 
-  | DReplaceTerm _  | DMergeArrays _ | DGuess _ ->
+  | DReplaceTerm _  | DMergeArrays _ | DGuess _ | DGuessBranch _ ->
       (* Don't display anything since the detailed description is the
 	 same as the high level one *)
       ()
@@ -1939,7 +1958,7 @@ let display_state s =
 	if p'' != [] then
 	  begin
 	    print_string " up to probability $";
-	    display_proba_set p'';
+	    display_proba_set 0 p'';
 	    print_string "$"
 	  end;
 	print_string "\\\\\n"

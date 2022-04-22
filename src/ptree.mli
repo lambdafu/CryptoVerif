@@ -263,6 +263,7 @@ type command =
   | CTag of ident
   | CUndoTag of ident
   | CGuess of guess_arg_t
+  | CGuess_branch of pocc * Parsing_helper.extent
 	
 (* Declarations *)
 

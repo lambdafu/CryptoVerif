@@ -388,6 +388,6 @@ process
       )
 
 (* EXPECTED
-Error: Cannot determine whether the guessed variable has the desired indices or not
+Error: Just before occurrence 5, cannot determine whether the guessed variable has the desired indices or not
 xtime: error in child process (status : 2)
 END *)

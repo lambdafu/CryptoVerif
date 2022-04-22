@@ -13,6 +13,8 @@ Version
   injectivity and leaving a non-injective query to prove.		 
 - New setting "set maxGuess = <size>." to limit the size of guessable
   values.
+- New command "guess_branch" to guess which branch of a test (if, find, let)
+  is taken at a certain program point.
 - Improved modelling of Diffie-Hellman in the standard library of primitives:
    - DH_proba_collision and square_DH_proba_collision no longer include
      DH_basic

@@ -151,6 +151,31 @@ let rec undo_tag s ext state =
       match state.prev_state with
       | None -> raise (Error("State with tag " ^ s ^ " not found", ext))
       | Some(_,_,_,state') -> undo_tag s ext state'
+
+let has_inactive state =
+  List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries
+    
+let rec undo_find_inactive_rec state =
+  match state.prev_state with
+    None -> Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus or guess_branch command"
+  | Some (IFocus _,_,_,s') -> s'
+  | Some (GuessBranch _,_,_,s') ->
+      begin
+	match Transf_guess_branch.next_case state with
+	| Some next_g ->
+            (* Prepare the new game as it is done after game transformations *)
+	    Terms.move_occ_game next_g;
+	    Invariants.global_inv next_g;
+	    { game = next_g;
+              prev_state = state.prev_state;
+              tag = None }	   
+	| None -> undo_find_inactive_rec s'
+      end
+  | Some (_,_,_,s') -> undo_find_inactive_rec s'
+
+let undo_find_inactive state =
+  print_string "All active queries proved. Going back to the last focus or guess_branch command."; print_newline();
+  undo_find_inactive_rec state
 	
 let eq_list l1 l2 =
   (List.for_all (fun x -> List.memq x l1) l2) &&
@@ -175,7 +200,8 @@ let sa_rename_ins_updater b bl = function
      RemoveAssign(Minimal | FindCond | EqSide) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
-     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) | IFocus _ | Guess _) as x -> [x]
+     MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) |
+     IFocus _ | Guess _ | GuessBranch _) as x -> [x]
   | RemoveAssign (Binders l) ->
       [RemoveAssign (Binders (replace_list b bl l))]
   | UseVariable l ->
@@ -262,6 +288,8 @@ let execute state ins =
 	Transf_merge.merge_branches g
     | Guess(arg) ->
 	Transf_guess.guess arg state g
+    | GuessBranch(occ,ext_o) ->
+	Transf_guess_branch.guess_branch occ ext_o state g 
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
@@ -824,16 +852,10 @@ let rec execute_any_crypto_rec1 interactive state =
     let (state', is_done) =  issuccess_with_advise None state in
     if is_done then
       begin
-	if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
+	if has_inactive state' then
 	  begin
-            (* undo focus when there is an inactive query *)
-	    print_string "All active queries proved. Going back to the last focus command."; print_newline();
-	    let state'' =
-	      try
-		undo_focus dummy_ext state'
-	      with Error _ ->
-		Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
-	    in
+            (* undo until focus/guess_branch when there is an inactive query *)
+	    let state'' = undo_find_inactive state' in
 	    execute_any_crypto_rec1 interactive state''
 	  end
 	else
@@ -1597,6 +1619,7 @@ let help() =
   "guess <occ>                  : guess replication index at occurrence <occ>\n" ^
   "guess <occ> && above         : guess replication indices above replication at occurrence <occ>\n" ^
   "guess \"x[i1...in]\"           : guess value of x[i1...in]\n" ^
+  "guess_branch <occ>           : guess which branch is taken at occurrence <occ>\n" ^
   "start_from_other_end         : in equivalence proofs, transform the other game\n" ^
   "success                      : check the desired properties\n" ^
   "success simplify             : remove code that cannot make properties to prove false\n" ^
@@ -1727,17 +1750,10 @@ let success_command do_simplify state =
   let (state', is_done) = issuccess_with_advise collector state in
   if is_done then
     begin
-      if List.exists (fun q -> Settings.get_query_status q == Inactive) state.game.current_queries then
+      if has_inactive state' then
 	begin
-          (* undo focus when there is an inactive query *)
-	  print_string "All active queries proved. Going back to the last focus command."; print_newline();
-	  let state'' =
-	    try
-	      undo_focus dummy_ext state'
-	    with Error _ ->
-	      Parsing_helper.internal_error "When there is an inactive query, there should be a previous focus command"
-	  in
-	  state''
+          (* undo until focus/guess_branch when there is an inactive query *)
+	  undo_find_inactive state'
 	end
       else
 	raise (EndSuccess state')
@@ -2019,7 +2035,10 @@ let rec interpret_command interactive state = function
 	      Settings.allowed_collisions := (pl', Settings.parse_pest pest) :: (!Settings.allowed_collisions)
 										  ) coll_list;
 	    Settings.tysize_MIN_Coll_Elim :=
-	       Terms.min_list (fun (_, ty_size) -> ty_size) (!Settings.allowed_collisions)
+	       Terms.min_list (fun (_, ty_size) -> ty_size) (!Settings.allowed_collisions);
+	    (* Optimization: when elimination of collision is entirely forbidden,
+	       disable without trying it and finding that the probability is too large *)
+	    Settings.proba_zero := (coll_list == [])
       end;
       state
   | CUndo(v, ext) ->
@@ -2123,6 +2142,9 @@ let rec interpret_command interactive state = function
 	    GuessOcc(occ, and_above, ext_o)
       in
       execute_display_advise (Guess interpreted_arg) state
+  | CGuess_branch(occ_br, ext_o) ->
+      let occ = interpret_occ state occ_br in
+      execute_display_advise (GuessBranch(occ, ext_o)) state
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

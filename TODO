@@ -10,7 +10,7 @@ TO DO next
 4) Implement the "diff" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
-   DONE, still to use on more examples and guess branches
+   DONE, minor probability improvement still possible
 6) Extend the "move" instruction to allow precisely moving
    "let"/"new" from one point to another (when correct).
    (see point 7 in HIGH PRIORITY)
@@ -39,9 +39,12 @@ When we do not know yet whether we are going to compromise the static
 key or the ephemerals for one participant, to get the best probability,
 we should guess what we are going to compromise and use one proof
 or the other accordingly.
-The guessing transformation that I have implemented
-should allow me to do that, together with guessing a branch
-(see point 4) in HIGH PRIORITY).
+Done using guess_branch in examplesnd/WG.ANSSI/WG.25519.AB-BA.replay_prot.cv
+However, that's not the end of the story. We would like:
+  - to allow the adversary compromise S_i and E_i in some sessions;
+  only sessions in which E_i is not compromised are secure. Some for E_r.
+  - to model a bad random number generator for E_i/E_r. That would be done
+  by receiving E_i/E_r from the network, rather than by leaking them.
 
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
@@ -519,26 +522,6 @@ Pr[e1] + Pr[e2] at the point of guessing, and Pr[e1] = |T| * Pr[e1 after guess]
 and the same for e2. It would be better to keep the ||:
 |T| Pr[e1 || e2] after guess. Does not seem that easy to implement
 given how the computation of probabilities is organized.
-
-Guess a branch:
-   If there is a conditional not under a replication
-   (or with fixed indices, e.g. if the replication indices have been guessed):
-      if C then P else P'
-   we create two games, replacing the conditional with
-      if C then P else event_abort Adv_loses
-      if C then event_abort Adv_loses else P'
-   the probability of attack in the initial game is at most the sum
-   of the probabilities of attack in the two generated games.
-   ("at most" because there may be attacks in which the condition
-   is not tested. Does it really work for secrecy? We might need to make
-   public whether the test is reached, by defining a public variable
-   at that point, as we do when we guess the value of a variable)
-
-   The same can be done for find and let pat = .. in .. else ...
-
-When I guess a boolean x, I can also enumerate the two values,
-that is, introduce a test "if x then P else P" by the "insert"
-command, which yields two games by guessing the branch.
 
 => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
@@ -6382,3 +6365,25 @@ b) then work on the non-injective correspondence and use the guess
 transformation).
 extended guess to injective correspondences.   
 DONE 11/4/2022
+
+Guess a branch:
+   If there is a conditional not under a replication
+   (or with fixed indices, e.g. if the replication indices have been guessed):
+      if C then P else P'
+   we create two games, replacing the conditional with
+      if C then P else event_abort Adv_loses
+      if C then event_abort Adv_loses else P'
+   the probability of attack in the initial game is at most the sum
+   of the probabilities of attack in the two generated games.
+   ("at most" because there may be attacks in which the condition
+   is not tested. Does it really work for secrecy? We might need to make
+   public whether the test is reached, by defining a public variable
+   at that point, as we do when we guess the value of a variable)
+
+   The same can be done for find and let pat = .. in .. else ...
+DONE 21/4/2022
+
+When I guess a boolean x, I can also enumerate the two values,
+that is, introduce a test "if x then P else P" by the "insert"
+command, which yields two games by guessing the branch.
+

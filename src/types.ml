@@ -623,6 +623,7 @@ and instruct =
   | Proof of ((query * game) * setf list) list
   | IFocus of query list
   | Guess of guess_arg_t
+  | GuessBranch of int(*occurrence of branching instruction to guess*) * Parsing_helper.extent
 	
 and ins_updater = (instruct -> instruct list) option
 
@@ -694,12 +695,13 @@ and detailed_instruct =
   | DMergeBranches of process * process list
   | DMergeBranchesE of term * term list
   | DGuess of guess_arg_t
-
+  | DGuessBranch of int(*occurrence of guessed branches*)
+	
 (* The type of game transformations: they take as input a game
 and return a triple (transformed game, probability difference,
 detailed description of the transformation).
-Game transformations also set Transform.changed when they actually
-modify the game, and add advised instructions in Transform.advise. *)
+Game transformations also set Settings.changed when they actually
+modify the game, and add advised instructions in Settings.advise. *)
 
 and game_transformer = game -> game * setf list * detailed_instruct list
 

@@ -1552,6 +1552,7 @@ let display_instruct = function
       print_string "focus on queries";
       List.iter (fun q -> print_string "\n  - "; display_query3 q) ql
   | Guess arg ->
+      begin
       print_string "guess ";
       match arg with
       | GuessVar((b,l),_) ->
@@ -1565,7 +1566,11 @@ let display_instruct = function
 	  print_string "the tested session for the replication at ";
 	  print_int occ;
 	  if and_above then print_string " and above"
-
+      end
+  | GuessBranch(occ,_) ->
+      print_string "guess branch at ";
+      print_int occ
+	
 type query_specif =
     InitQuery of query
   | QEvent of funsymb
@@ -1636,46 +1641,67 @@ let may_double (q,g) p =
 let proba_from_set_m modify s =
   Polynom.polynom_to_probaf (modify (poly_from_set s))
 	
-let display_proba_set_m modify s =
+let display_proba_set_m modify level s =
   let proba = proba_from_set_m modify s in
   if has_assume s then
     begin
-      print_string "Pr[COMMAND NOT CHECKED]";
       match proba with
-      | Zero | Cst 0.0 -> ()
+      | Zero | Cst 0.0 ->
+	  print_string "Pr[COMMAND NOT CHECKED]"
       | _ ->
+	  if level > 1 then print_string "(";
+	  print_string "Pr[COMMAND NOT CHECKED]";
 	  print_string " + ";
-	  display_proba ~separate_time:true 0 proba
+	  display_proba ~separate_time:true 1 proba;
+	  if level > 1 then print_string ")"	    
     end
   else
-    display_proba ~separate_time:true 0 proba
+    display_proba ~separate_time:true level proba
   
-let display_proba_set s =
-  display_proba_set_m id s
+let display_proba_set level s =
+  display_proba_set_m id level s
 
 let display_proba_set_may_double q s =
-  display_proba_set_m (may_double q) s
+  display_proba_set_m (may_double q) 0 s
+
+type proba_bound_rec =
+  | BSum of proba_bound_rec list
+  | BCst of setf list
+  | BMul of probaf * proba_bound_rec
+  | BQuery of (query_specif * game) list * game
 
 type proba_bound =
+  | BLeq of ((query_specif * game) list * game) * proba_bound_rec
+    
+(*type proba_bound =
   | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
-  | MulBound of query_specif * game * probaf * query_specif * game
+  | MulBound of query_specif * game * probaf * query_specif * game*)
 
-
+let rec display_proba_bound_rec level = function
+  | BCst p ->
+      display_proba_set level p
+  | BQuery(ql,g) ->
+      display_adv ql g
+  | BMul(p,b) ->
+      display_proba 3 p;
+      print_string " * ";
+      display_proba_bound_rec 3 b
+  | BSum l ->
+      match l with
+      | [] -> print_string "0"
+      | (a::r) ->
+	  if level > 1 then print_string "(";
+	  display_proba_bound_rec 1 a;
+	  List.iter (fun b ->
+	    print_string " + ";
+	    display_proba_bound_rec 1 b) r;
+	  if level > 1 then print_string ")"
+	    
 let display_proba_bound = function
-  | SumBound(ql,g,p,ql_list,g') ->
+  | BLeq((ql,g),b) ->
       display_adv ql g;
       print_string " <= ";
-      display_proba_set p;
-      List.iter (fun ql_i ->
-	print_string " + ";
-	display_adv ql_i g') ql_list;
-      print_newline()
-  | MulBound(q,g,proba,q',g') ->
-      display_adv [q,g] g;
-      print_string " <= ";
-      display_proba 0 proba;
-      print_string " * ";
-      display_adv [q',g'] g';
+      display_proba_bound_rec 0 b;
       print_newline()
 
 let rec is_full_poptref poptref =
@@ -1812,7 +1838,7 @@ let rec build_proof_tree bounds ((q0,g0) as q) p s =
 		(* Get the proof of the property "Event f is not executed in game g" *)
                 let (proba_info,s') = get_proved popt' in
                 let f_query = Terms.build_event_query f pub_vars in
-		let p' = List.concat (List.map (proba_from_proba_info (f_query, s'.game) bounds) proba_info) in
+		let p' = proba_from_proba_info_list (f_query, s'.game) bounds proba_info in
 		(* Build the query that tests for event f in game g *)
 		let q' = (f_query, g) in
 
@@ -1868,7 +1894,7 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
 	List.map (fun (i,p,pt_son,ql_ref) ->
 	  List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref)) pt.pt_sons
       in
-      bounds := (SumBound(start_queries, start_game, above_proba, ql_list, pt.pt_game)) :: (!bounds);
+      bounds := (BLeq((start_queries, start_game), BSum ((BCst above_proba) :: List.map (fun ql -> BQuery(ql, pt.pt_game)) ql_list))) :: (!bounds);
       above_proba @ 
   (List.concat (List.map (fun (i,p,pt_son,ql_ref) ->
     let ql' = List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref) in
@@ -1893,7 +1919,7 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
 	  match pl,ql' with
 	    [q,_],[q'] -> 
 	      let p = double_if_needed ql' proba_p in
-	      bounds := (SumBound(ql', pt.pt_game, p, [], pt.pt_game)) :: (!bounds);
+	      bounds := (BLeq((ql', pt.pt_game), BCst p)) :: (!bounds);
 	      p
 	  | _ -> Parsing_helper.internal_error "unexpected Proof element in proof tree"
 	end
@@ -1907,7 +1933,7 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
 	else
 	  begin
 	    (* An event has been introduced, display its probability separately *)
-	    bounds := (SumBound(ql', pt.pt_game, p, [ql''], pt_son.pt_game)) :: (!bounds);
+	    bounds := (BLeq((ql', pt.pt_game), BSum [BCst p; BQuery (ql'', pt_son.pt_game)])) :: (!bounds);
 	    p @ (evaluate_proba bounds ql'' pt_son.pt_game [] ql'' pt_son)
 	  end
     ) pt.pt_sons))
@@ -1922,15 +1948,44 @@ and proba_from_proba_info (q0,g0) bounds = function
   | CstProba p -> [p]
   | MulQueryProba(n, (q,g), poptref) ->
       let (proba_info,s) = get_proved poptref in
-      let p = List.concat (List.map (proba_from_proba_info (q,s.game) bounds) proba_info) in
+      let p = proba_from_proba_info_list (q,s.game) bounds proba_info in
       let fullp = compute_proba_internal bounds (q,g) p s in
-      bounds := (SumBound([InitQuery q,g],g,fullp,[],g)) :: (!bounds);
-      bounds := (MulBound(InitQuery q0,g0,n,InitQuery q,g)) ::(!bounds);
+      bounds := (BLeq(([InitQuery q,g],g), BCst(fullp))) :: (!bounds);
       List.map (function
 	| SetProba p -> SetProba(Mul(n, p))
 	| SetEvent _ -> Parsing_helper.internal_error "Probability of event should have been computed by compute_proba_internal"
 	| SetAssume -> SetAssume) fullp
 
+and proba_from_proba_info_list (q0,g0) bounds proba_info_list =
+  let p = List.concat (List.map (proba_from_proba_info (q0,g0) bounds) proba_info_list) in
+  if List.exists (function
+    | MulQueryProba _ -> true
+    | CstProba _ -> false) proba_info_list then
+    begin
+      let pcst =
+	List.fold_left (fun accu proba_info -> 
+	  match proba_info with
+	  | MulQueryProba _ -> accu
+	  | CstProba p -> p :: accu) [] proba_info_list
+      in
+      let cst = if pcst = [] then [] else [BCst pcst] in
+      let all = List.fold_left (fun accu proba_info -> 
+	match proba_info with
+	| MulQueryProba(n, (q,g), poptref) ->
+	    let query_proba = BQuery([InitQuery q,g],g) in
+	    (if n = Cst 1.0 then query_proba else BMul(n, query_proba))::accu
+	| CstProba _ -> accu) cst proba_info_list
+      in
+      let b =
+	match all with
+	| [] -> assert false
+	| [a] -> a
+	| l -> BSum(l)
+      in
+      bounds := (BLeq(([InitQuery q0,g0],g0), b)) :: (!bounds)
+    end;
+  p 
+	
 let compute_proba_internal2 bounds ((q0,g) as q) p s =
   match q0 with
   | QEquivalence(state,pub_vars,_) ->
@@ -1944,7 +1999,7 @@ let compute_proba_internal2 bounds ((q0,g) as q) p s =
     
 let compute_proba ((q0,g) as q) proba_info s =
   let bounds = ref [] in
-  let p = List.concat (List.map (proba_from_proba_info (q0,s.game) bounds) proba_info) in
+  let p = proba_from_proba_info_list (q0,s.game) bounds proba_info in
   List.iter display_proba_bound (List.rev (!bounds));
   begin
     match q0 with
@@ -1953,7 +2008,7 @@ let compute_proba ((q0,g) as q) proba_info s =
 	if p <> [] then
 	  begin
             print_string " up to probability ";
-            display_proba_set p
+            display_proba_set 0 p
 	  end;
 	print_string ".\n"
     | _ -> ()
@@ -2219,7 +2274,7 @@ let display_detailed_ins = function
       display_with_user_info user_info;
       print_newline()
   | DInsertEvent _  | DInsertInstruct _ 
-  | DReplaceTerm _  | DMergeArrays _ | DGuess _ ->
+  | DReplaceTerm _  | DMergeArrays _ | DGuess _ | DGuessBranch _ ->
       (* Don't display anything since the detailed description is the
 	 same as the high level one *)
       ()
@@ -2316,10 +2371,14 @@ let mark_occs1 f_p f_t = function
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end
   | DGuess(arg) ->
-      match arg with 
-      | GuessOcc(occ,_,_) -> useful_occs := occ :: (!useful_occs)
-      | GuessRepl _ | GuessVar _ -> ()
-	  
+      begin
+	match arg with 
+	| GuessOcc(occ,_,_) -> useful_occs := occ :: (!useful_occs)
+	| GuessRepl _ | GuessVar _ -> ()
+      end
+  | DGuessBranch occ ->
+      useful_occs := occ :: (!useful_occs)
+			      
 let mark_occs ins = 
   useful_occs := [];
   List.iter (mark_occs1 mark_useful_occ_p mark_useful_occ_t) ins
@@ -2525,7 +2584,7 @@ let display_state s =
 	if p'' != [] then
 	  begin
             print_string " up to probability ";
-            display_proba_set p''
+            display_proba_set 0 p''
 	  end;
 	print_newline()
       end
