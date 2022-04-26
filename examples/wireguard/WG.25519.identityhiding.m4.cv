@@ -41,10 +41,10 @@ proof {
   set useKnownEqualitiesWithFunctionsInMatching = true;
   set elsefindFactsInSimplify = true;
   m4_out_game;
-  insert after_nth 1 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_4) = pow8(E_i_pub_4[i]) then";
-  insert after_nth 2 "in(c_init2resp_recv\\[" "find i <= N_init_parties suchthat defined(E_i_pub_5[i]) && pow8(E_i_pub_rcvd_5) = pow8(E_i_pub_5[i]) then";
-  insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_2[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub_2[j]) then";
-  insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= N_resp_parties suchthat defined(E_r_pub_3[j]) && pow8(E_r_pub_rcvd_3) = pow8(E_r_pub_3[j]) then";
+  insert after_nth 1 "in(c_init2resp_recv\\[" "find i <= n_S suchthat defined(E_i_pub_4[i]) && pow8(E_i_pub_rcvd_4) = pow8(E_i_pub_4[i]) then";
+  insert after_nth 2 "in(c_init2resp_recv\\[" "find i <= n_S suchthat defined(E_i_pub_5[i]) && pow8(E_i_pub_rcvd_5) = pow8(E_i_pub_5[i]) then";
+  insert after_nth 1 "in(c_resp2init_recv\\[" "find j <= n_S suchthat defined(E_r_pub_2[j]) && pow8(E_r_pub_rcvd_2) = pow8(E_r_pub_2[j]) then";
+  insert after_nth 2 "in(c_resp2init_recv\\[" "find j <= n_S suchthat defined(E_r_pub_3[j]) && pow8(E_r_pub_rcvd_3) = pow8(E_r_pub_3[j]) then";
   simplify;
   m4_out_game;
   insert after_nth 1 "in(ch1_rom3" "let rom3_input(x1_rom3_2, G8_to_G(x2_rom3_2), G8_to_G(x3_rom3_2), x4_rom3_2, G8_to_G(x5_rom3_2), G8_to_G(x6_rom3_2), v_psk) = x_rom3_2 in";
@@ -62,7 +62,7 @@ proof {
   crypto rom(rom1_intermediate);
   crypto rom(rom1_intermediate);
   m4_out_game;
-  crypto gdh(exp_div8) S_A1_priv S_A2_priv E_i_priv_6 E_i_priv_4 S_B1_priv S_B2_priv E_r_priv_6 E_r_priv_4;
+  crypto gdh(exp_div8) [variables: S_A1_priv -> a, S_A2_priv -> a, E_i_priv_6 -> a, E_i_priv_4 -> a, S_B1_priv -> b, S_B2_priv -> b .];
   set useKnownEqualitiesWithFunctionsInMatching = false;
   set elsefindFactsInSimplify = false;
   m4_out_game;
@@ -75,7 +75,7 @@ proof {
   (* Simplify code of the following form:
 
                 if S_i_pub_rcvd_4 = S_A1_pub then
-                find [unique] u_118 = ri_110 <= N_resp_parties suchthat defined(r_rom2_6[ri_110], E_i_pub_rcvd_4[ri_110]) && (E_i_pub_rcvd_4 = E_i_pub_rcvd_4[ri_110]) then
+                find [unique] u_118 = ri_110 <= n_S suchthat defined(r_rom2_6[ri_110], E_i_pub_rcvd_4[ri_110]) && (E_i_pub_rcvd_4 = E_i_pub_rcvd_4[ri_110]) then
                   yield
                 else
                   let r_rom2_6: key_t = cst_key_t
@@ -89,28 +89,28 @@ proof {
      3 times.
 *)
 ifdef(`m4_replay_prot',`
-  insert after_nth 3 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_118 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
+  insert after_nth 3 "find \\[unique\\] u_118 = ri_110 <= n_S" "let x = cst_key_t in";
+  insert after_nth 2 "find \\[unique\\] u_118 = ri_110 <= n_S" "let x = cst_key_t in";
+  insert after_nth 1 "find \\[unique\\] u_118 = ri_110 <= n_S" "let x = cst_key_t in";
   merge_branches;
-  insert after_nth 3 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_93 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
+  insert after_nth 3 "find \\[unique\\] u_93 = ri_85 <= n_S" "let x = cst_key_t in";
+  insert after_nth 2 "find \\[unique\\] u_93 = ri_85 <= n_S" "let x = cst_key_t in";
+  insert after_nth 1 "find \\[unique\\] u_93 = ri_85 <= n_S" "let x = cst_key_t in";
 ',`
-  insert after_nth 3 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_110 = ri_110 <= N_resp_parties" "let x = cst_key_t in";
+  insert after_nth 3 "find \\[unique\\] u_110 = ri_110 <= n_S" "let x = cst_key_t in";
+  insert after_nth 2 "find \\[unique\\] u_110 = ri_110 <= n_S" "let x = cst_key_t in";
+  insert after_nth 1 "find \\[unique\\] u_110 = ri_110 <= n_S" "let x = cst_key_t in";
   merge_branches;
-  insert after_nth 3 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 2 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
-  insert after_nth 1 "find \\[unique\\] u_85 = ri_85 <= N_resp_parties" "let x = cst_key_t in";
+  insert after_nth 3 "find \\[unique\\] u_85 = ri_85 <= n_S" "let x = cst_key_t in";
+  insert after_nth 2 "find \\[unique\\] u_85 = ri_85 <= n_S" "let x = cst_key_t in";
+  insert after_nth 1 "find \\[unique\\] u_85 = ri_85 <= n_S" "let x = cst_key_t in";
 ')
   merge_branches;
   simplify;
 (* Simplify code of the form:
 
 In responder: 
-                find [unique] u_168 = ri_160 <= N_resp_parties suchthat defined(r_rom1_6[ri_160], E_i_pub_rcvd_4[ri_160]) && (E_i_pub_rcvd_4 = E_i_pub_rcvd_4[ri_160]) then
+                find [unique] u_168 = ri_160 <= n_S suchthat defined(r_rom1_6[ri_160], E_i_pub_rcvd_4[ri_160]) && (E_i_pub_rcvd_4 = E_i_pub_rcvd_4[ri_160]) then
                   yield
                 orfind u_166 = ri_158 <= N_qH1 suchthat defined(r_rom1_8[ri_158], x1_rom1_4[ri_158], x2_rom1_4[ri_158]) && (x2_rom1_4[ri_158] = exp_div8'(pow8(E_i_pub_rcvd_4), S_B1_priv)) && (E_i_pub_rcvd_4 = x1_rom1_4[ri_158]) then
                   yield
@@ -118,7 +118,7 @@ In responder:
                   new r_rom1_6: key_t
 
 and in hash oracle rom1:
-                find [unique] u_163 = ri_155 <= N_resp_parties suchthat defined(r_rom1_6[ri_155], E_i_pub_rcvd_4[ri_155]) && (x2_rom1_4 = exp_div8'(pow8(E_i_pub_rcvd_4[ri_155]), S_B1_priv)) && (x1_rom1_4 = E_i_pub_rcvd_4[ri_155]) then
+                find [unique] u_163 = ri_155 <= n_S suchthat defined(r_rom1_6[ri_155], E_i_pub_rcvd_4[ri_155]) && (x2_rom1_4 = exp_div8'(pow8(E_i_pub_rcvd_4[ri_155]), S_B1_priv)) && (x1_rom1_4 = E_i_pub_rcvd_4[ri_155]) then
                   out(ch2_rom1[iH_3], r_rom1_6[u_163])
                 orfind u_161 = ri_153 <= N_qH1 suchthat defined(r_rom1_8[ri_153], x1_rom1_4[ri_153], x2_rom1_4[ri_153]) && (x2_rom1_4 = x2_rom1_4[ri_153]) && (x1_rom1_4 = x1_rom1_4[ri_153]) then
                   out(ch2_rom1[iH_3], r_rom1_8[u_161])
@@ -172,13 +172,7 @@ ifdef(`m4_replay_prot',`
   success
 }
 
-param N_init_parties, N_resp_parties.
-param N_resp_send, N_resp_recv.
-param N_init_send, N_init_recv.
-
-param N_init_parties_sw, N_resp_parties_sw.
-param N_resp_send_sw, N_resp_recv_sw.
-param N_init_send_sw, N_init_recv_sw.
+param n_S.
 
 (**** Gap Diffie-Hellman ****)
 type G_t [bounded,large].  (* type of public keys *)
@@ -526,15 +520,6 @@ channel c_N_resp_recv_res, c_N_init_recv_res.
 channel c_publickeys.
 channel c_corrupt_S_i, c_corrupt_S_r, c_corrupt_psk.
 
-channel c_config_initiator_sw.
-channel c_init2resp_send_sw, c_resp2init_recv_sw.
-channel c_init2resp_recv_sw, c_resp2init_send_sw.
-channel c_keyconfirm_send_sw, c_keyconfirm_recv_sw, c_wait_before_2nd_part_sw.
-channel c_N_init_send_config_sw, c_N_resp_send_config_sw.
-channel c_N_init_send_sw, c_N_resp_send_sw.
-channel c_N_resp_recv_sw, c_N_init_recv_sw.
-channel c_N_resp_recv_res_sw, c_N_init_recv_res_sw.
-
 (* WireGuard specific types *)
 type G_set_t. (* set of public keys *)
 fun is_in(G_t, G_set_t): bool.
@@ -874,7 +859,7 @@ let initiator(key_hash: hashkey_t,
               key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
               S_i_priv: Z_t, S_i_pub: G_t, S_X_pub: G_t) =
 
-  ! i_N_init_parties <= N_init_parties
+  ! i_N_init_parties <= n_S
   (* Receive the timestamp and psk the initiator should use. *)
   in(c_config_initiator, (timestamp_i: timestamp_t, Q: psk_t));
 
@@ -897,7 +882,7 @@ let initiator(key_hash: hashkey_t,
 
 let responder(key_hash: hashkey_t, key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t, S_r_priv: Z_t, S_r_pub: G_t, allowed_peers: G_set_t) =
 
-  ! i_N_resp_parties <= N_resp_parties
+  ! i_N_resp_parties <= n_S
 
   in(c_init2resp_recv, (Q: psk_t, (=msg_type_init2resp, =reserved, I_i_rcvd: session_index_t, E_i_pub_rcvd: G_t, static_i_enc_rcvd: bitstring, timestamp_i_enc_rcvd: bitstring)));
 

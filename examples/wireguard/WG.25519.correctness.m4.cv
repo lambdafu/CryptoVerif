@@ -43,7 +43,7 @@ proof {
 }
 
 
-param N_sessions.
+param n_S.
 
 (**** Gap Diffie-Hellman ****)
 type G_t [bounded,large].  (* type of public keys *)
@@ -681,7 +681,7 @@ let initiator_responder(key_hash: hashkey_t,
               key_rom1: hashkey_t, key_rom2: hashkey_t, key_rom3: hashkey_t,
               S_i_priv: Z_t, S_i_pub: G_t, S_r_priv: Z_t, S_r_pub: G_t) =
 
-  ! i <= N_sessions
+  ! i <= n_S
   (* Initiator. Receive the public key of the responder we should communicate *)
   (* with, and the timestamp the initiator should use. *)
   (* The adversary also chooses the pre-shared key Q_i *)
