@@ -126,6 +126,7 @@ examples/wireguard/*replay_prot.cv
 examples/wireguard/hashgen
 examples/wireguard/hashoracles.cvl
 examples/wireguard/mylib.cvl
+examples/noiseNK/mylib.cvl
 implementation/nspk/A
 implementation/nspk/Akeygen
 implementation/nspk/B
