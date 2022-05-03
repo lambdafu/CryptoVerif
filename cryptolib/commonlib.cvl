@@ -3443,8 +3443,8 @@ equiv(cdh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448).
 
@@ -3650,8 +3650,8 @@ equiv(ddh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    Other arguments as in DH_basic.
 
    All arguments must be declared before this macro. 
@@ -3696,8 +3696,8 @@ equiv(ddh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448). It is needed because, for curve25519/448, to make 
    the DH decision oracle unambiguous, we generate private keys in [(p+1)/2,p-1]
@@ -3941,8 +3941,8 @@ equiv(gdh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448).
 
@@ -4223,8 +4223,8 @@ equiv(cdh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448).
 
@@ -4318,8 +4318,8 @@ equiv(ddh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448). It is needed because, for curve25519/448, to make 
    the DH decision oracle unambiguous, we generate private keys in [(p+1)/2,p-1]
@@ -4416,8 +4416,8 @@ equiv(gdh(exp))
    pDistRerandom: the probability that rerandomization can be distinguished from the
    original distribution
           It is 0 when exponents are chosen uniformly in (Z/qZ)^*.
-	  2^-125 for curve25519
-	  2^-220 for curve448
+	  2^-126 for curve25519
+	  2^-221 for curve448
    (see https://tools.ietf.org/html/draft-barnes-cfrg-mult-for-7748-00 for the rerandomization
    for curve25519 and curve448).
 
