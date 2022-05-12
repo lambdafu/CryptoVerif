@@ -1495,9 +1495,8 @@ let rec add_index_fungroup idx = function
       Fun(c, List.map (add_index_binder idx) inputs, add_index idx t, opt)
 
 let rec add_index_proba idx = function
-  | (OCount n) as p ->
-      print_string ("Warning: reference of oracle count #" ^ n.cname ^ " becomes less precise when adding a replication at the root of the equivalence.\n");
-      p
+  | OCount (o,n) ->
+      OCount(o,n+1)
   | Maxlength(g,t) ->
       assert (g == Terms.lhs_game);
       Maxlength(g, add_index idx t)

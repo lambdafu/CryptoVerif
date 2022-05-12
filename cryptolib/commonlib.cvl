@@ -5139,7 +5139,7 @@ equiv(ow_rsr(f))
 		(Oy() := return(f(pkgen(r), x)) |
 		 foreach i1 <= n1 do Oeq   (x' : D) := return(x' = x) |
 		 Ox() := return(x)))
-<=(max(nK, 4 * #Ox) * POW(time + (nK-1) * time(pkgen) + (#Oy-1) * time(f)))=> [computational]
+<=(nK * ((3 * #(Ox foreach r) + 1) * POW(time + (nK-1) * time(pkgen) + (#Oy+#(Oeq foreach r)) * time(f))))=> [computational]
       foreach iK <= nK do r <-R seed [unchanged]; (
 	Opk() := return(pkgen'(r)) |
 	foreach iF <= nF do x <-R D [unchanged]; 

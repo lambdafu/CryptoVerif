@@ -1206,7 +1206,9 @@ commonprobaf:
 |       IDENT
         { (PPIdent $1), parse_extent() }
 |       COUNT IDENT
-        { (PCount $2), parse_extent() }
+        { (PCount ($2, None)), parse_extent() }
+|       COUNT LPAREN IDENT FOREACH neidentlist RPAREN
+        { (PCount ($3, Some $5)), parse_extent() }
 |       BAR IDENT BAR
         { PCard($2), parse_extent() }
 |       TIME

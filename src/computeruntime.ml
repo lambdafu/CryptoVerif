@@ -131,7 +131,7 @@ let get_ri_mul indices tl =
 	current_candidate = None }
     in
     let state' = find_all_oracles state tl in
-    tl, Some(state'.remaining_indices, Polynom.p_prod (List.map (fun ch -> OCount ch) state'.found_oracles))
+    tl, Some(state'.remaining_indices, Polynom.p_prod (List.map (fun ch -> OCount(ch,0)) state'.found_oracles))
 
 
 let rec find_all_oracles_def_list state def_list =
@@ -162,7 +162,7 @@ let count_find_index bl def_list =
     in
     let state' = find_all_oracles_def_list state def_list in
     Polynom.probaf_to_polynom
-      (Polynom.p_prod ((List.map (fun ch -> OCount ch) state'.found_oracles) @
+      (Polynom.p_prod ((List.map (fun ch -> OCount(ch,0)) state'.found_oracles) @
 		       (List.map (fun ri -> Count (Terms.param_from_type ri.ri_type)) state'.remaining_indices)))
     
 	
@@ -383,7 +383,7 @@ let rec time_process multiplier p =
 	  (match Polynom.polynom_to_probaf multiplier with
 	  | Cst _ | Count _ -> false (* constant or single parameter: leave as it is *)
 	  | _ -> true (* other, ie product of parameters: use the #c instead *)) then
-	  Polynom.probaf_to_polynom (OCount c)
+	  Polynom.probaf_to_polynom (OCount(c,0))
 	else
 	  multiplier
       in
@@ -645,8 +645,8 @@ let compute_add_time_totcount lhs rhs mul_param opt2 =
     Polynom.p_sum
       (List.map (fun (count, oname, t) ->
 	let count1 = Polynom.p_mul((Sub(Count(mul_param),Cst 1.0)), count) in
-	Polynom.p_mul(OptimIf(OCProbaFun("<=", [ count1; OCount oname ]),
-			      count1, OCount oname),
+	Polynom.p_mul(OptimIf(OCProbaFun("<=", [ count1; OCount(oname,0) ]),
+			      count1, OCount(oname,0)),
 		      t)
 	  ) tfun)
   in

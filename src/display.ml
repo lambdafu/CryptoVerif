@@ -542,7 +542,20 @@ let rec display_proba ?(separate_time = false) level = function
 	  print_string ")"
 	end
   | Count p -> print_string p.pname
-  | OCount c -> print_string "#"; print_string c.cname
+  | OCount (c,n) ->
+      print_string "#"; 
+      if n > 0 then
+	begin
+	  print_string "(";
+	  print_string c.cname;
+	  print_string " foreach first ";
+	  if n = 1 then
+	    print_string "replication)"
+	  else
+	    print_string ((string_of_int n)^" replications)");
+	end
+      else
+	print_string c.cname
   | Add(x,y) -> 
       if level > 1 then print_string "(";
       display_proba ~separate_time 1 x;

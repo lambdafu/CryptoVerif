@@ -201,14 +201,16 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &&\mid  \ifchannels\texttt{time(newChannel)}\else\texttt{time(newOracle)}\fi\qquad\qquad\qquad\qquad\\
 &\phpr \#\nonterm{ident}
 &&\mid  \texttt{time(if)}\\
-&\phpr \texttt{eps\_find}
+&\phpr \#(\nonterm{ident}\ \texttt{foreach}\ \neseq{ident})
 &&\mid \texttt{time(find }n\texttt{)}\\
-&\phpr \texttt{eps\_rand(}T\texttt{)}
+&\phpr \texttt{eps\_find}
 &&\ifchannels\mid \texttt{time(out }[\texttt{[}\neseq{ident}\texttt{]}]\nonterm{ident}[\texttt{, }\neseq{proba}]\texttt{)}\fi\\
-&\phpr \texttt{Pcoll1rand(}T\texttt{)}
+&\phpr \texttt{eps\_rand(}T\texttt{)}
 &&\ifchannels\mid \texttt{time(in }n\texttt{)}\fi\\
+&\phpr \texttt{Pcoll1rand(}T\texttt{)}
+&&\mid \texttt{optim-if}\ \nonterm{optimcond}\ \texttt{then}\ \nonterm{proba}\ \texttt{else}\ \nonterm{proba}\\
 &\phpr \texttt{Pcoll2rand(}T\texttt{)}
-&&\mid \texttt{optim-if}\ \nonterm{optimcond}\ \texttt{then}\ \nonterm{proba}\ \texttt{else}\ \nonterm{proba}
+&&
 \end{xxalignat}\vspace*{-8mm}%
 \begin{align*}
 &\nonterm{optimcond} ::= \texttt{(}\nonterm{optimcond}\texttt{)}\\
@@ -2682,6 +2684,22 @@ designates the number of copies of a replication.
 
 \item $\#O$, where $O$ is an oracle,
 designates the number of different calls to the oracle $O$. 
+
+\item $\#(O\ \texttt{foreach}\ x)$, where $O$ is an oracle and $x$ is
+  a random variable, designates the maximum number of different calls
+  to the oracle $O$ for each choice of the random variable $x$.
+  The variable $x$ must be chosen in a sequence of random variables
+  at least one replication above the definition of oracle $O$.
+
+\item $\#(O\ \texttt{foreach}\ i_1, \dots, i_n)$, where $O$ is an
+  oracle and $i_1, \dots, i_n$ are replication indices, designates the
+  maximum number of different calls to the oracle $O$ for each value
+  of the replication indices $i_1, \dots, i_n$. These replication
+  indices must be a strict suffix of the current replication indices
+  at the definition of $O$. ($i_n$ must be the index of the
+  replication at the top of \texttt{equiv} statement, $i_{n-1}$ must
+  be a replication index of replication just under the one with index
+  $i_n$, and so on.)
 
 \item $|T|$, where
 $T$ has been declared by $\texttt{type }T$ and is \texttt{fixed}

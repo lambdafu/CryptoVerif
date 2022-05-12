@@ -1,0 +1,54 @@
+(* FDH signature scheme *)
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [large,fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash_large(hashkey, bitstring, D, hash, hashoracle, qH).
+
+(* Queries *)
+
+event forge.
+query event(forge) ==> false.
+
+let processS(hk: hashkey, sk: skey) =
+	foreach iS <= qS do
+	OS(m:bitstring) :=
+	return(invf(sk, hash(hk, m))).
+
+let processT(hk: hashkey, pk: pkey) = 
+	OT(m':bitstring, s:D) :=
+	if f(pk, s) = hash(hk, m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then yield else
+	event forge.
+
+process 
+	Ogenh() :=
+	hk <-R hashkey;
+	return;
+	(run hashoracle(hk) |
+	Ogenk() :=
+	r <-R seed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	(run processS(hk, sk) | run processT(hk, pk)))
+
+
+(* EXPECTED
+All queries proved.
+0.112s (user 0.104s + system 0.008s), max rss 16924K
+END *)

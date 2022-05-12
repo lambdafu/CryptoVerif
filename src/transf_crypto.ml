@@ -1133,8 +1133,10 @@ type mapping =
      count : (repl_index * dest_t * count_t) list;
         (* Replication binders of the right member of the equivalence, 
 	   and number of times each of them is repeated. *)
-     count_calls : channel * count_t;
-        (* Oracle name and number of calls to this oracle. *)
+     count_calls : channel * count_t list;
+        (* Oracle name and number of calls to this oracle for each
+	   first n replications. (The first element of the list 
+	   corresponds to n = 0.) *)
      mutable encode_fun_for_indices : funsymb option
    }
 
@@ -1392,6 +1394,22 @@ let rec used_indices indices t =
   | TestE _ | LetE _ |FindE _ | ResE _ | EventAbortE _  | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "If, find, let, new, event, event_abort, get, and insert should have been expanded (Cryptotransf.used_indices)"
 
+let rec make_count_oracle accu oracle_indices ordered_indexes before_transfo_name_table =
+  match ordered_indexes, before_transfo_name_table with
+  | [_], [_] ->
+      { name_table_above_opt = None;
+	indices_above = [];
+	indices = oracle_indices } :: accu
+  | _::indexl, _::ntl ->
+      let accu' = 
+	{ name_table_above_opt = Some ntl;
+	  indices_above = List.concat indexl;
+	  indices = oracle_indices } :: accu
+      in
+      make_count_oracle accu' oracle_indices indexl ntl
+  | _ -> assert false
+
+	
 let make_count_exp ch torg repl ordered_indexes rev_subst_name_indexes before_transfo_name_table =
   match repl, ordered_indexes, rev_subst_name_indexes, before_transfo_name_table with
   | (repl1::repll,index1::indexl,rev_subst_index1::rev_subst_indexl,nt1::ntl) ->
@@ -1416,12 +1434,13 @@ let make_count_exp ch torg repl ordered_indexes rev_subst_name_indexes before_tr
               reverse order *)
 	   indices = idx_current })
       in
+      let oracle_indices =
+	(* The field [indices] always contains the current replication indices in
+           reverse order; stored in [make_count_oracle] *)
+	List.rev_map (fun (i, used_ref) -> (i,if !used_ref then Counted else NotCounted)) top_indices_used
+      in
       entry :: (make_count repll indexl rev_subst_indexl ntl),
-      (ch, { name_table_above_opt = None;
-	     indices_above = [];
-	     (* The field [indices] always contains the current replication indices in
-                reverse order *)
-	     indices = List.rev_map (fun (i, used_ref) -> (i,if !used_ref then Counted else NotCounted)) top_indices_used})
+      (ch, make_count_oracle [] oracle_indices ordered_indexes before_transfo_name_table)
   | _ -> assert false  
 	
 let check_same_args_at_creation = function
@@ -2162,12 +2181,12 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 		  let count, count_calls = 
 		    match exp.name_indexes_exp with
 		      (_::_,top_indices)::_ -> (* The down-most sequence of restrictions is not empty *)
-			make_count repl' (List.map snd exp.name_indexes_exp) (List.map snd rev_subst_name_indexes) before_transfo_name_table,
-			(ch, { name_table_above_opt = None;
-			       indices_above = [];
-			       indices = List.map (fun i ->
-				 (i, Counted)
-				   ) exp.cur_array_exp })
+			let oracle_indices =
+			  List.map (fun i -> (i, Counted)) exp.cur_array_exp
+			in
+			let ordered_indexes = List.map snd exp.name_indexes_exp in
+			make_count repl' ordered_indexes (List.map snd rev_subst_name_indexes) before_transfo_name_table,
+			(ch, make_count_oracle [] oracle_indices ordered_indexes before_transfo_name_table)
 		        (* Another solution would use top_indices instead of
 			   exp.cur_array_exp
 		           It's not clear a priori which one is smaller... *)
@@ -2189,9 +2208,9 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 			    raise NoMatch
 			  end;
 			[],
-			(ch, { name_table_above_opt = None;
+			(ch, [{ name_table_above_opt = None;
 			       indices_above = [];
-			       indices = [] })
+			       indices = [] }])
 		  in
 
 	          (* verify that all restrictions will be correctly defined after the transformation *)
@@ -3957,7 +3976,7 @@ and is_transformed_pat = function
     
 type count_get =
     ReplCount of param
-  | OracleCount of channel
+  | OracleCount of channel * int
 
 let rec get_repl_from_count b_repl = function
     [] -> raise Not_found
@@ -3967,9 +3986,9 @@ let rec get_repl_from_count b_repl = function
       else
 	get_repl_from_count b_repl l
 
-let get_oracle_count c (c', count_v) =
+let get_oracle_count (c,n) (c', count_v) =
   if c == c' then
-    count_v
+    List.nth count_v n
   else
     raise Not_found
 
@@ -4096,7 +4115,7 @@ let get_opt_probaf indices ttransf =
     let state' = find_all_oracles state ttransf in
     Polynom.build_monomial
       ((List.map (fun t -> Count (Terms.param_from_type t.t_type)) state'.remaining_indices) @
-       (List.map (fun ch -> OCount ch) state'.found_oracles))
+       (List.map (fun ch -> OCount (ch,0)) state'.found_oracles))
 	
 	
 let seen_compat_info = ref []
@@ -4140,7 +4159,7 @@ let get_repl_from_map true_facts0 b_repl exp =
   let count_v = 
     match b_repl with
       ReplCount p -> get_repl_from_count p mapping.count
-    | OracleCount c -> get_oracle_count c mapping.count_calls
+    | OracleCount (c,n) -> get_oracle_count (c,n) mapping.count_calls
   in
   let before_exp_instance =
     match one_exp.before_exp_instance with
@@ -4277,7 +4296,7 @@ let get_opt_probaf_for_new indices b_new =
       let (ch, idx_for_ch) = get_oracle indices_terms b_new in
       let remaining_indices = Terms.remove_fail Terms.equal_terms indices_terms idx_for_ch in
       Polynom.build_monomial
-	((OCount ch)::
+	((OCount (ch,0))::
 	 (List.map (fun t -> Count (Terms.param_from_type t.t_type)) remaining_indices))
     with Not_found -> 
       Polynom.build_monomial (List.map (fun i -> Count (Terms.param_from_type i.ri_type)) indices)
@@ -4939,26 +4958,32 @@ let rec map_probaf env prob =
 	  fst env := (p, v') :: (! (fst env));
 	  v'
       end
-  | OCount c -> 
+  | (OCount (c,n)) as p -> 
       begin
 	try
-	  List.assq c (! (snd env))
+	  snd (List.find (fun ((c',n'),_) -> c' == c && n' == n) (! (snd env)))
 	with Not_found ->
 	  seen_compat_info := [];
-	  let v = repl_count_process [] (OracleCount c) (Terms.get_process (!whole_game)) in
+	  let v = repl_count_process [] (OracleCount (c,n)) (Terms.get_process (!whole_game)) in
 	  if (!Settings.debug_cryptotransf) > 1 then
 	    begin
 	      if (!seen_compat_info) != [] then
 		begin
-		  print_string ("List of oracles for #"^c.cname^"\n");
+		  print_string "List of oracles for ";
+		  Display.display_proba 0 p;
+		  print_newline();
 		  List.iter display_count_link (!seen_compat_info)
 		end
 	      else
-		print_string ("Nothing for #"^c.cname^"\n")
+		begin
+		  print_string "Nothing for ";
+		  Display.display_proba 0 p;
+		  print_newline()
+		end
 	    end;
 	  seen_compat_info := [];
 	  let v' = formula_to_polynom v in
-	  snd env := (c, v') :: (! (snd env));
+	  snd env := ((c,n), v') :: (! (snd env));
 	  v'
       end
   | Mul(x,y) ->

@@ -1,0 +1,68 @@
+(* FDH signature scheme
+   Result of Jean-Sebastien Coron, using the Random Self-Reducibility of RSA *)
+
+param qS, Nk.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [large,fixed].
+
+(* One-way trapdoor permutation *)
+
+proba POW.
+
+expand OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+proof {
+crypto rom(hash);
+remove_assign binder sk0;
+replace 168 "iK_1[u_2]";
+replace 55 "f(pk0, invf(skgen(r[iK_1[u_6]]), r_2[u_6]))";
+crypto remove_invf(f) r r_1 r_2;
+remove_assign binder pk0;
+replace 58 "r[iK_1[u_6]]";
+set debugCryptotransf = 2;
+crypto ow_rsr(f) r r_3 r_4;
+success
+}
+
+
+(* Hash function, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash_large(hashkey, bitstring, D, hash, hashoracle, qH).
+
+(* Queries *)
+
+event forge.
+query event(forge) ==> false.
+
+let processS() =
+	foreach iS <= qS do
+	OS(pk_r: pkey, m:bitstring) :=
+	find iK <= Nk suchthat defined(pk0[iK],sk0[iK],hk0[iK]) && pk_r = pk0[iK] then 
+	return(invf(sk0[iK], hash(hk0[iK],m))).
+
+let processT(hk: hashkey, pk: pkey) = 
+	OT(m':bitstring, s:D) :=
+	if f(pk, s) = hash(hk,m') then
+	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then yield else
+	event forge.
+
+process
+	(! Nk
+	Ogen() :=
+	hk0 <-R hashkey;
+	r <-R seed; 
+	pk0: pkey <- pkgen(r);
+	sk0: skey <- skgen(r);
+	return(pk0);
+	(run hashoracle(hk0) | run processT(hk0, pk0))) | run processS()
+
+
+(* EXPECTED
+All queries proved.
+0.116s (user 0.104s + system 0.012s), max rss 16928K
+END *)

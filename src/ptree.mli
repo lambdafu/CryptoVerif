@@ -99,7 +99,7 @@ type probabilityf =
   | PPFun of ident * probabilityf_e list
   | PPZero
   | PCard of ident
-  | PCount of ident
+  | PCount of ident * ident list option
   | PCst of int
   | PFloatCst of float
   | PTime

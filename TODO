@@ -1129,6 +1129,9 @@ A key r chosen in kgen is needed in hashoracle after a game
 transformation. In this case, we should move the generation of r
 upwards; it would end up being generated in the same block as hk,
 and we could then apply the game transformation as desired.
+   see examplesnd/notest/fdh.ocv
+   and examplesnd/notest/fdh-multikey.ocv (this one additionally needs
+   guessing the tested key pair)
 
 examples-1.28/nd/notest/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
 One could prove the secrecy of NaA/NaB by improving the 

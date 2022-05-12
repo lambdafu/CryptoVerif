@@ -1986,11 +1986,55 @@ let rec check_probability_formula seen_vals env = function
 	with Not_found ->
 	  raise_error (s ^ " is not defined. Expected a probability or a parameter.") ext
       end
-  | PCount(s,ext), ext2 ->
+  | PCount((s,ext), foreachopt), ext2 ->
       begin
 	try
 	  let (seen_ch, seen_repl, adv_time) = seen_vals in
-	  OCount(List.find (fun ch -> ch.cname = s) seen_ch), num_dim
+	  let (ch, cur_array, env') = List.find (fun (ch,_,_) -> ch.cname = s) seen_ch in
+	  let n_foreach = 
+	    match foreachopt with
+	    | None -> 0
+	    | Some idl ->
+		let idl' =
+		  List.map (fun (s,ext) ->
+		    try 
+		      match StringMap.find s env' with
+		      | (EVar _ | EReplIndex _) as x -> x
+		      | d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a variable or a replication index") ext
+		    with Not_found ->
+		      raise_error (s ^ " is not defined. Expected a variable or a replication index defined above oracle "^ch.cname) ext
+			) idl
+		in
+		match idl' with
+		| [EVar b] ->
+		    let n = List.length b.args_at_creation in
+		    if n >= List.length cur_array then
+		      raise_error "In #(O foreach a), the variable a should not be defined immediately above oracle O; there should be at least one replication in between" ext;
+		    n
+		| _ ->
+		    let idl_rev = List.rev idl' in
+		    let cur_array_rev = List.rev cur_array in
+		    let rec check_prefix idl_rev cur_array_rev =
+		      match idl_rev, cur_array_rev with
+		      | _, [] ->
+			  raise_error "In #(O foreach i1,...,in), the replication indices i1,...,in should be a strict suffix of the current replication indices at oracle O" ext
+		      | [], _::_ -> ()
+		      | id::id_rest, cur::cur_rest ->
+			  begin
+			    match id, cur with
+			    | EReplIndex ri, ri' ->
+				if ri != ri' then
+				  raise_error "In #(O foreach i1,...,in), the replication indices i1,...,in should be a strict suffix of the current replication indices at oracle O" ext
+			    | EVar _, _ ->
+				raise_error "In #(O foreach i1,...,in), i1,...,in must be replication indices; #(O foreach a) is accepted when a is a variable only when there is a single identifier after foreach." ext
+			    | _ -> assert false
+			  end;
+			  check_prefix id_rest cur_rest
+		    in
+		    check_prefix idl_rev cur_array_rev;
+		    List.length idl'
+	  in	    
+	  OCount(ch, n_foreach), num_dim
 	with Not_found -> 
 	  raise_error ("The oracle name " ^ s ^ " is not defined") ext
       end
@@ -2370,10 +2414,10 @@ let rec check_lm_fungroup2 cur_array cur_restr env seen_ch seen_repl = function
       ([], ReplRestr(repl_opt', restrlist'', funlist'))
   | PFun(((s, ext) as ch), arglist, tres, (priority, options)) ->
       let ch' = check_channel_id ch in
-      if List.memq ch' (!seen_ch) then
+      if List.exists (fun (ch0,_,_) -> ch0 == ch') (!seen_ch) then
 	raise_error ("Oracle name " ^ s ^ " already used in this equivalence") ext;
-      seen_ch := ch' :: (!seen_ch);
       let (env', arglist') = check_binder_list2 cur_array env arglist in
+      seen_ch := (ch', cur_array, env') :: (!seen_ch);
       let tres' = check_term (Some []) cur_array env' None tres in
       (* Note: restriction. Could be lifted, but simplifies cryptotransf.ml greatly 
 	 Restriction partly lifted, by completing sequences of names with names already in the map.
@@ -3287,7 +3331,10 @@ let rec rename_probaf (p,ext) =
   | PMax l -> PMax (List.map rename_probaf l)
   | PMin l -> PMin (List.map rename_probaf l)
   | PPIdent i -> PPIdent (rename_ie i)
-  | PCount i -> PCount (rename_ie i)
+  | PCount (i,lopt) ->
+      PCount (rename_ie i, match lopt with
+      | None -> None
+      | Some l -> Some (List.map rename_ie l))
   | PPFun(i,l) -> PPFun(rename_ie i, List.map rename_probaf l)
   | (PPZero | PCst _ | PFloatCst _ | PTime) as x -> x
   | PCard i -> PCard (rename_ie i)
@@ -4356,9 +4403,16 @@ let rec collect_id_probaf accu (p,ext) =
       collect_id_probaf accu p
   | PMax l | PMin l ->
       List.iter (collect_id_probaf accu) l
-  | PPIdent i | PCount i | PCard i | PEpsRand i
+  | PPIdent i | PCard i | PEpsRand i
   | PPColl1Rand i | PPColl2Rand i ->
       add_id accu i
+  | PCount (i,lopt) -> 	
+      add_id accu i;
+      begin
+	match lopt with
+	| None -> ()
+	| Some l -> List.iter (add_id accu) l
+      end
   | PPFun(i,l) | PLength(i,l) ->
       add_id accu i;
       List.iter (collect_id_probaf accu) l

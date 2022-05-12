@@ -446,7 +446,7 @@ and proof_t =
 and probaf = 
     Proba of proba * probaf list
   | Count of param
-  | OCount of channel
+  | OCount of channel * int
   | Add of probaf * probaf
   | Mul of probaf * probaf
   | Power of probaf * int

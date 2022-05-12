@@ -42,7 +42,7 @@ let nb_def_var b =
     card_index b
   else
     try
-      OCount (Computeruntime.get_oracle b)
+      OCount (Computeruntime.get_oracle b,0)
     with Not_found ->
       card_index b
 

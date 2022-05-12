@@ -121,9 +121,9 @@ let get_time_lhs_except_one_coll collisions coll =
   Polynom.p_sum (List.map (fun ((id_Neq, id_Oeq, (_, _, t1, _, _)) as coll') ->
     let nrep =
       if coll == coll' then
-	Sub(OCount { cname = id_Oeq }, Cst 1.0)
+	Sub(OCount({ cname = id_Oeq },0), Cst 1.0)
       else
-	OCount { cname = id_Oeq }
+	OCount({ cname = id_Oeq },0)
     in
     Polynom.p_mul(nrep, Computeruntime.compute_runtime_for_term Terms.lhs_game_nodisplay t1)
       ) collisions)
@@ -198,7 +198,7 @@ let move_array_equiv ext2 bl collisions =
       Polynom.p_sum (List.map (fun ((id_Neq, id_Oeq, (_, _, _, proba, _)) as coll) ->
 	let get_time() = get_time_lhs_except_one_coll collisions_with_oracle coll in
 	let proba' = instan_time get_time proba in
-	Polynom.p_mul (OCount { cname = id_Oeq }, proba')
+	Polynom.p_mul (OCount({ cname = id_Oeq },0), proba')
 	  ) collisions_with_oracle)
     in
     Display.display_proba 0 proba';	       

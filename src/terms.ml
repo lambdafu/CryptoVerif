@@ -1431,7 +1431,7 @@ let rec equal_probaf p1 p2 =
   match p1, p2 with
     Proba(p, l), Proba(p',l') -> (p == p') && (equal_lists equal_probaf l l')
   | Count p, Count p' -> p == p'
-  | OCount c, OCount c' -> c == c'
+  | OCount (c,n), OCount (c',n') -> c == c' && n == n'
   | Cst f, Cst f' -> f = f'
   | Zero, Zero -> true
   | Card t, Card t' -> t == t'

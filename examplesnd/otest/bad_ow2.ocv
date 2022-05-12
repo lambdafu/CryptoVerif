@@ -1,0 +1,95 @@
+(* One-way trapdoor permutation, with random self-reducibility. 
+   Same as above, but with a smaller probability of attack
+*)
+
+def bad_OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW) {
+
+param nK, nF, n1.
+
+fun pkgen(seed):pkey.
+fun pkgen'(seed):pkey.
+fun skgen(seed):skey.
+fun f(pkey, D):D.
+fun f'(pkey, D):D.
+fun invf(skey, D):D.
+
+(* invf is the inverse of f *)
+
+equation forall r:seed, x:D; invf(skgen(r), f(pkgen(r), x)) = x.
+
+(* f is the inverse of invf *)
+
+equation forall r:seed, x:D; f(pkgen(r), invf(skgen(r), x)) = x.
+
+(* Injectivity of f *)
+
+equation forall k:pkey, x:D, x':D; (f(k,x) = f(k,x')) = (x = x').
+equation forall k:pkey, x:D, x':D; (f'(k,x) = f'(k,x')) = (x = x').
+
+(* injectivity of invf *)
+
+equation forall k:skey, x:D, x':D; (invf(k,x) = invf(k,x')) = (x = x').
+
+(* f/invf are inverse permutations; use this to remove some
+   occurrences of invf in equality tests *)
+
+equation forall r:seed, x:D, x':D; 
+	(x' = invf(skgen(r),x)) = (f(pkgen(r),x') = x).
+
+(* We can permute the distribution, for uniformly distributed random
+   numbers x. Do that only when x is used in invf(skgen(r),x) *)
+
+equiv(remove_invf(f))
+      r <-R seed; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(invf(skgen(r),x)) | 
+	         Oim() := return(x)))
+<=(0)=> [computational]
+      r <-R seed [unchanged]; (
+	Opk() := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oant() := return(x) |
+                 Oim() := return(f(pkgen(r), x)))).
+
+(* One-wayness *)
+
+equiv(ow_rsr(f))
+      foreach iK <= nK do r <-R seed; (
+	Opk() [2] := return(pkgen(r)) |
+	foreach iF <= nF do x <-R D; 
+		(Oy() := return(f(pkgen(r), x)) |
+		 foreach i1 <= n1 do Oeq   (x' : D) := return(x' = x) |
+		 Ox() := return(x)))
+<=(nK * ((3 * #(Ox foreach iF) + 1) * POW(time + (nK-1) * time(pkgen) + (#Oy+#(Oeq foreach r)) * time(f))))=> [computational]
+      foreach iK <= nK do r <-R seed [unchanged]; (
+	Opk() := return(pkgen'(r)) |
+	foreach iF <= nF do x <-R D [unchanged]; 
+		(Oy() := return(f'(pkgen'(r), x)) |
+		 foreach i1 <= n1 do Oeq(x':D) := 
+	           if defined(k) then return(x' = x) else return(false) |
+		 Ox() := let k:bool = true in return(x))).
+
+}
+
+def bad_OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW) {
+
+expand bad_OW_trapdoor_perm_RSR_all_args(seed, pkey, skey, D, pkgen, pkgen', skgen, f, f', invf, POW).
+
+}
+
+type seed [large,fixed].
+type pkey [bounded].
+type skey [bounded].
+type D [large,fixed].
+
+proba POW.
+
+expand bad_OW_trapdoor_perm_RSR(seed, pkey, skey, D, pkgen, skgen, f, invf, POW).
+
+process 0
+
+(* EXPECTED
+Error: In #(O foreach i1,...,in), the replication indices i1,...,in should be a strict suffix of the current replication indices at oracle O
+xtime: error in child process (status : 2)
+END *)

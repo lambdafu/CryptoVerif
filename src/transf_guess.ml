@@ -197,7 +197,7 @@ let rec find_var_event_i cur_array under_guess p =
 	      List.iter (fun ri -> check_size ri.ri_type) cur_array';
 	      guess_card := 
 		 match p1.i_desc with
-		 | Input((c,_),_,_) -> OCount c
+		 | Input((c,_),_,_) -> OCount(c,0)
 		 | _ -> Polynom.p_prod (List.map (fun ri -> Proba.card ri.ri_type) cur_array')
 	    end
 	  else
