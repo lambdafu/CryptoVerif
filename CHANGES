@@ -18,6 +18,8 @@ Version
 - New probability formula #(O foreach a) (number of calls to oracle O
   for value of a, where a can be random variable or a sequence of replication
   indices).
+- Allow common events introduced by insert_event or insert in both sequences
+  of games of an indistinguishability proof.
 - Improved modelling of Diffie-Hellman in the standard library of primitives:
    - DH_proba_collision and square_DH_proba_collision no longer include
      DH_basic

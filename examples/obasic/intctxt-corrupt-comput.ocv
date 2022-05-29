@@ -1,0 +1,76 @@
+(* This file proves a version of INT-CTXT that allows corruption of keys
+   from a version that does not. Both the assumption and the conclusion
+   are indistinguishability properties with the [computational] 
+   annotation. The proof is simple because CryptoVerif automatically
+   translates the result to prove with the [computational] annotation
+   to showing that event [distinguish], raised when the 2 sides yield
+   different results, is executed with negligible probability. *)
+
+def INT_CTXT_sym_enc_no_corrupt(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Advintctxt) { 
+
+param N, N'.
+
+fun enc_r(cleartext, key, enc_seed): ciphertext.
+fun dec(ciphertext, key): bitstringbot.
+
+fun enc_r'(cleartext, key, enc_seed): ciphertext.
+
+fun injbot(cleartext):bitstringbot [data].
+equation forall x:cleartext; injbot(x) <> bottom.
+
+(* The function Z returns for each bitstring, a bitstring
+   of the same length, consisting only of zeroes. *)
+fun Z(cleartext):cleartext.
+
+(* The encryption function is probabilistic *)
+letfun enc(m: cleartext, k: key) =
+       r <-R enc_seed; enc_r(m, k, r).
+
+equation forall m:cleartext, k:key, r:enc_seed; 
+	dec(enc_r(m, k, r), k) = injbot(m).
+
+	(* INT-CTXT *)
+
+equiv(int_ctxt(enc))
+      k <-R key; (
+      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
+	      foreach i' <= N' do Odec(y:ciphertext) [useful_change] := return(dec(y,k)))
+     <=(Advintctxt(time, N, N', maxlength(x), maxlength(y)))=> [computational] 
+      k <-R key [unchanged]; (
+      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
+	      foreach i' <= N' do Odec(y:ciphertext) := find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom)).
+
+}
+
+type key [bounded].
+type cleartext.
+type ciphertext.
+type enc_seed [bounded].
+proba Advintctxt.
+
+expand INT_CTXT_sym_enc_no_corrupt(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Advintctxt).
+
+proof {
+  success simplify;
+  auto
+}
+
+param N, N'. 
+
+query_equiv(int_ctxt_corrupt(enc))
+      k <-R key; (
+      	      foreach i <= N do r <-R enc_seed; Oenc(x:cleartext) := return(enc_r(x, k, r)) |
+	      foreach i' <= N' do Odec(y:ciphertext) [useful_change] := return(dec(y,k)) |
+	      Ocorrupt() [10] := return(k))
+     <=(?)=> [manual,computational] 
+      k <-R key [unchanged]; (
+      	      foreach i <= N do r <-R enc_seed [unchanged]; Oenc(x:cleartext) := z:ciphertext <- enc_r(x, k, r); return(z) |
+	      foreach i' <= N' do Odec(y:ciphertext) :=
+	      	      if defined(corrupt) then return(dec(y,k)) else
+		      find j <= N suchthat defined(x[j],z[j]) && z[j] = y then return(injbot(x[j])) else return(bottom) |
+	      Ocorrupt() := let corrupt: bool = true in return(k))
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.040s + system 0.000s), max rss 16752K
+END *)

@@ -2962,6 +2962,12 @@ let build_event_query f pub_vars =
   let idx = term_from_binder b in
   let t = app f [idx] in
   QEventQ([false, t], QTerm (make_false()), pub_vars)
+
+let is_event_query f' ((q,_),_) =
+  match q with
+  | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
+      f' == f && is_false t_false
+  | _ -> false
     
 (* Functions used for updating elsefind facts when a new variable
    is defined.

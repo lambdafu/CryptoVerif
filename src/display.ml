@@ -1738,6 +1738,23 @@ let get_proved poptref =
   | Inactive | ToProve -> Parsing_helper.internal_error "Probability not fully computed"
   | Proved(proba_info, s) -> (proba_info, s)
 
+let contains_event_q f s =
+  List.exists (Terms.is_event_query f) s.game.current_queries 
+	
+let get_proved_maybe_other_side other_side_info f poptref =
+  match !poptref with
+  | Inactive | ToProve ->
+      begin
+	match other_side_info with
+	| Some middle_s, Some s_other_side ->
+	    (* We accept unproved queries event(..) => false when we prove
+	       an equivalence between 2 games and we are not in the sequence
+	       of games in which the query was proved *)
+	    (true, [], middle_s)
+	| _ -> Parsing_helper.internal_error "Probability not fully computed"
+      end
+  | Proved(proba_info, s) -> (false, proba_info, s)
+
 (* A proof tree is a tree in which
    - nodes are games (field pt_game below) 
    - edges correspond to game transformations. These edges are labelled with
@@ -1789,11 +1806,40 @@ let rec display_proof_tree indent pt =
 
 (* Build the proof tree *)
 
-let rec build_proof_tree bounds ((q0,g0) as q) p s =
+(* [other_side_info] is used only for indistinguishability proofs between
+   2 games G0 and G1. ProVerif generates two sequences of games
+   G0 ---> G2 and G1 ---> G2' in which G2 and G2' are trivially 
+   indistinguishable (just by eliminating collisions).
+   Indistinguishability between G2 and G2' is proved when we are either 
+   working on G2 or on G2'; let's say G2. Then the proof continues from
+   G2, showing that the probability of events remaining in G2 is bounded.
+   In this case, [other_side_info] is a pair 
+   [(Some middle_state, other_side_state_option)]
+   where [middle_state] is the final state of the sequence we are currently
+   looking at and [other_side_state_option] is 
+   [None] when we are looking at the sequence in which the proof succeeded
+   (G0 ---> G2; all queries are necessarily proved in this sequence)
+   [Some other_side_middle_state] when we are looking at the other sequence
+   (G1 ---> G2'; some queries may not be explicitly proved in this sequence:
+   - events that appear in the middle game and whose probability is bounded
+   in the sequence in which the proof succeeded;
+   - events that do not appear in the middle game, but whose absence was
+   not necessarily proved; we know that they are absent because the proof
+   succeeded in the other sequence and the middle games are the same.)
+   In this case, [other_side_middle_state] is the final state of the sequence 
+   G0 ---> G2 in which the proof succeeded.
+
+   In other cases, [other_side_info = (None, None)].
+   *)
+	
+let rec build_proof_tree other_side_info bounds ((q0,g0) as q) p s =
   let pt_init = { pt_game = g0;
 		  pt_sons = [] }
   in
   let proof_tree_table = ref [(g0, pt_init)] in
+  let pt_final_proof = { pt_game = Terms.empty_game (* dummy_game *);
+			 pt_sons = [] }
+  in
   (* We need to ignore "Proof" steps because they do not change the game at all
      (the game is physically the same), which causes bugs if we don't ignore 
      this step *)
@@ -1805,21 +1851,23 @@ let rec build_proof_tree bounds ((q0,g0) as q) p s =
 	father_ignore_proof s'
     | x -> x
   in
-  (* Add a new query [q] in the list of proved properties, in a part of the proof tree that is
-     already built *)
+  (* Add a new query [q] in the list of proved properties, in a part of the 
+     proof tree that is already built *)
   let rec add_query q pt_cur s =
     if s.game == snd q then () else 
     match father_ignore_proof s with
       None -> ()
     | Some (i,p,_,s') ->
-	try
-	  let pt_father = List.assq s'.game (!proof_tree_table) in
-	  let (_,_,_,queries) = List.find (fun (_,_,pt,_) -> pt == pt_cur) pt_father.pt_sons in
-	  if not (List.exists (equal_qs q) (!queries)) then
-	    queries := q :: (!queries);
-	  add_query q pt_father s'
-	with Not_found ->
-	  Parsing_helper.internal_error "This game should always be found"
+	add_query_here q pt_cur s'
+  and add_query_here q pt_cur s' = 
+    try
+      let pt_father = List.assq s'.game (!proof_tree_table) in
+      let (_,_,_,queries) = List.find (fun (_,_,pt,_) -> pt == pt_cur) pt_father.pt_sons in
+      if not (List.exists (equal_qs q) (!queries)) then
+	queries := q :: (!queries);
+      add_query q pt_father s'
+    with Not_found ->
+      Parsing_helper.internal_error "This game should always be found"
   in
   (* Build the proof tree for state [s], proving property [q]. [sons_to_add] is a list
      of sons (edges, in fact) to add to the proof corresponding to state [s]. 
@@ -1849,37 +1897,38 @@ let rec build_proof_tree bounds ((q0,g0) as q) p s =
 	      SetProba _ | SetAssume -> ()
 	    | SetEvent(f,g, pub_vars, popt') ->
 		(* Get the proof of the property "Event f is not executed in game g" *)
-                let (proba_info,s') = get_proved popt' in
+		let (proved_other_side,proba_info,s') = get_proved_maybe_other_side other_side_info f popt' in
                 let f_query = Terms.build_event_query f pub_vars in
 		let p' = proba_from_proba_info_list (f_query, s'.game) bounds proba_info in
 		(* Build the query that tests for event f in game g *)
 		let q' = (f_query, g) in
 
-		let sons_to_add =
-		  let pt_final_event_f_in_g =
-		    { pt_game = Terms.empty_game (* dummy_game *);
-		      pt_sons = [] }
+		if proved_other_side then
+		  add_query_here (QEvent f, g) pt_final_proof s'
+		else
+		  let sons_to_add =
+		    let pt_final_event_f_in_g =
+		      { pt_game = Terms.empty_game (* dummy_game *);
+			pt_sons = [] }
+		    in
+		    [(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
 		  in
-		  [(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
-		in
-		build_pt_rec sons_to_add (QEvent f, g) s'
-		  ) p
+		  build_pt_rec sons_to_add (QEvent f, g) s'
+		    ) p
   in
   let sons_to_add =
-    let pt_final_proof = { pt_game = Terms.empty_game (* dummy_game *);
-			   pt_sons = [] }
-    in
     [(Proof [q,p], p, pt_final_proof, ref [InitQuery q0, g0])]
   in
   build_pt_rec sons_to_add (InitQuery q0,g0) s;
   pt_init
 
-and evaluate_proba bounds start_queries start_game above_proba ql pt =
+and evaluate_proba other_side_info bounds start_queries start_game above_proba ql pt =
   (* Sanity check: all elements of ql must occur in some edge in pt *)
   List.iter (fun qs -> 
-    if not (List.exists (fun (_,_,_,ql_ref) -> 
+    if not ((List.exists (fun (_,_,_,ql_ref) -> 
       List.exists (equal_qs qs) (!ql_ref)
-	) pt.pt_sons) then
+	) pt.pt_sons) )
+    then
       Parsing_helper.internal_error "Missing property in evaluate_proba"
 	) ql;
   (* Sanity check: the ql_ref are disjoint *)
@@ -1901,13 +1950,46 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
   match pt.pt_sons with
     [(i,p,pt_son,ql_ref)] when (match i with Proof _ -> false | _ -> true) &&
        (List.for_all (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p) ->
-	 evaluate_proba bounds start_queries start_game ((double_if_needed ql p) @ above_proba) ql pt_son
+	 evaluate_proba other_side_info bounds start_queries start_game ((double_if_needed ql p) @ above_proba) ql pt_son
   | _ -> 
       let ql_list = 
 	List.map (fun (i,p,pt_son,ql_ref) ->
 	  List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref)) pt.pt_sons
       in
-      bounds := (BLeq((start_queries, start_game), BSum ((BCst above_proba) :: List.map (fun ql -> BQuery(ql, pt.pt_game)) ql_list))) :: (!bounds);
+      begin
+	match other_side_info with
+	| (Some middle_s, _) when middle_s.game == pt.pt_game ->
+	    (* We omit the bound when it concerns only the middle game;
+	       it would yield an inaccurate display with potentially missing
+	       event probabilities in the sequence of games in which the 
+	       property is not proved, and in the other sequence, events 
+	       proved but presented only for that sequence while we need 
+	       them for both sequences *)
+	    if middle_s.game != start_game then
+	      bounds := (BLeq((start_queries, start_game), BSum [BCst above_proba; BQuery(List.concat ql_list, pt.pt_game)])) :: (!bounds)
+	| _ ->
+	    bounds := (BLeq((start_queries, start_game), BSum ((BCst above_proba) :: List.map (fun ql -> BQuery(ql, pt.pt_game)) ql_list))) :: (!bounds)
+      end;
+      begin
+	match other_side_info with
+	| (Some middle_s, Some s_other_side) when pt.pt_game == middle_s.game ->
+	(* we are in the middle game of the proof of an equivalence query
+	   and the probability of events is bounded on the other side sequence.
+	   If some event [f] is not proved on this side and absent in the 
+	   queries on the other side, that implicitly proves its absence 
+	   on the current side, because the middle games are the same. *)
+	    List.iter (function
+	      | (QEvent f, _) as qs ->
+		  if (not (List.exists (function
+		      | (Proof pl,_,_,_) ->
+			  List.exists (Terms.is_event_query f) pl
+		      | _ -> false) pt.pt_sons))
+		      && (not (contains_event_q f s_other_side)) then
+		    bounds := (BLeq(([qs],s_other_side.game), BCst [])) :: (!bounds)
+	      | _ -> ()
+		    ) ql
+	| _ -> ()
+      end;
       above_proba @ 
   (List.concat (List.map (fun (i,p,pt_son,ql_ref) ->
     let ql' = List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref) in
@@ -1929,8 +2011,17 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
       Proof pl ->
 	(* The desired property is proved *)
 	begin
-	  match pl,ql' with
-	    [q,_],[q'] -> 
+	  match other_side_info,pl,ql' with
+	  | (Some middle_s, _),_,_
+	      when middle_s.game == pt.pt_game 
+	        && List.exists (function (InitQuery _,_) -> true | (QEvent _,_) -> false) ql' ->
+	      (* Do not display the proof of the initial equivalence query 
+		 in the middle game (the middle game may contain events
+		 and in this case, the probability of these events 
+		 must be taken into account in the final result, which
+		 would not be done here) *)
+	      double_if_needed ql' proba_p
+	  | _,[q,_],[q'] -> 
 	      let p = double_if_needed ql' proba_p in
 	      bounds := (BLeq((ql', pt.pt_game), BCst p)) :: (!bounds);
 	      p
@@ -1942,27 +2033,27 @@ and evaluate_proba bounds start_queries start_game above_proba ql pt =
 	let p = double_if_needed ql' proba_p in
 	if ql'' == ql' then
 	  (* No event introduced *)
-	  evaluate_proba bounds ql' pt.pt_game p ql'' pt_son
+	  evaluate_proba other_side_info bounds ql' pt.pt_game p ql'' pt_son
 	else
 	  begin
 	    (* An event has been introduced, display its probability separately *)
 	    bounds := (BLeq((ql', pt.pt_game), BSum [BCst p; BQuery (ql'', pt_son.pt_game)])) :: (!bounds);
-	    p @ (evaluate_proba bounds ql'' pt_son.pt_game [] ql'' pt_son)
+	    p @ (evaluate_proba other_side_info bounds ql'' pt_son.pt_game [] ql'' pt_son)
 	  end
     ) pt.pt_sons))
 
-and compute_proba_internal bounds ((q0,g) as q) p s =
-  let pt = build_proof_tree bounds q p s in
+and compute_proba_internal other_side_info bounds ((q0,g) as q) p s =
+  let pt = build_proof_tree other_side_info bounds q p s in
   (* display_proof_tree "" pt; *)
   let start_queries = [InitQuery q0, g] in
-  evaluate_proba bounds start_queries g [] start_queries pt 
+  evaluate_proba other_side_info bounds start_queries g [] start_queries pt 
 
 and proba_from_proba_info (q0,g0) bounds = function
   | CstProba p -> [p]
   | MulQueryProba(n, (q,g), poptref) ->
       let (proba_info,s) = get_proved poptref in
       let p = proba_from_proba_info_list (q,s.game) bounds proba_info in
-      let fullp = compute_proba_internal bounds (q,g) p s in
+      let fullp = compute_proba_internal (None, None) bounds (q,g) p s in
       bounds := (BLeq(([InitQuery q,g],g), BCst(fullp))) :: (!bounds);
       List.map (function
 	| SetProba p -> SetProba(Mul(n, p))
@@ -2003,11 +2094,12 @@ let compute_proba_internal2 bounds ((q0,g) as q) p s =
   match q0 with
   | QEquivalence(state,pub_vars,_) ->
       let g' = get_initial_game state in
-      (compute_proba_internal bounds (QEquivalenceFinal(s.game, pub_vars),g) [] s) @ p @
-      (compute_proba_internal bounds (QEquivalenceFinal(state.game, pub_vars),g') [] state)
+      (compute_proba_internal (Some s, None) bounds (QEquivalenceFinal(s.game, pub_vars),g) [] s) @ p @
+      (compute_proba_internal (Some state, Some s) bounds (QEquivalenceFinal(state.game, pub_vars),g') [] state)
   | AbsentQuery ->
-      compute_proba_internal bounds (QEquivalenceFinal(s.game, []), g) p s 
-  | _ -> compute_proba_internal bounds q p s
+      compute_proba_internal (None, None) bounds (QEquivalenceFinal(s.game, []), g) p s 
+  | _ ->
+      compute_proba_internal (None, None) bounds q p s
 
     
 let compute_proba ((q0,g) as q) proba_info s =

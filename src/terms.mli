@@ -260,6 +260,7 @@ val create_event : string -> typet list -> funsymb
 val e_adv_loses : unit -> funsymb
 val e_bad_guess : unit -> funsymb
 val build_event_query : funsymb -> binder list -> query
+val is_event_query : funsymb -> (query * game) * 'a -> bool
     
 (* Copy a term, process, ..., substituting variables with their links.
    The substitution is performed in different ways, depending on

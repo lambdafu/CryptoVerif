@@ -53,7 +53,7 @@ case X$1 in
 	    Xdebug )
 		ocamlc -g -o ../cryptoverif$EXEC unix.cma str.cma $SRC
 		ocamlc -g -o ../cryptogen$EXEC $SRCGEN
-		ocamlc -g -I +threads -o ../analyze$EXEC -custom unix.cma threads.cms $SRCANAL
+		ocamlc -g -I +threads -o ../analyze$EXEC -custom unix.cma threads.cma $SRCANAL
 		ocamlc -g -o ../addexpectedtags$EXEC $SRCADDTAGS;;
 	    Xprofile )
 		ocamlopt -I /usr/include -o ../cryptoverif$EXEC str.cmxa unix.cmxa profileprim.c profile.mli profile.ml $SRC

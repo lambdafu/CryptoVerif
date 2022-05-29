@@ -431,29 +431,13 @@ let get_var find_cond env (s_b, ext_b) ty_opt cur_array =
       (* Should have been added to hash_binders in the first pass *)
       assert false
 
-let get_event (s, ext_s) =
-  try
-    let f = List.find (fun f -> f.f_name = s) (!Settings.events_to_ignore_lhs) in
-    (* [f] is an event that occurs in the RHS of an equivalence we want to prove
-       using [query_equiv]. *)
-    match (!whole_game).current_queries with
-    | [((QEquivalence(_,_,current_is_lhs),_),proof_opt)] when !proof_opt = ToProve ->
-	if current_is_lhs then
-	  f
-	else
-	  raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, one should be working on the left-hand side", ext_s))
-    | _ ->
-	raise (Error("In query_equiv, to introduce an event used in the right-hand side of the equivalence to prove, the only query to prove should be the equivalence", ext_s))
-  with Not_found -> 
-    let s' = Terms.fresh_id s in
-    if s' <> s then
-      print_string ("Warning: event "^s^" renamed into "^s'^" because "^s^" is already used.\n");
-    let f = Terms.create_event s' [] in
-    (* Adding the event to Stringmap.env so that it can be used in the "focus" command *)
-    Stringmap.env := Stringmap.StringMap.add f.f_name (Stringmap.EEvent f) (!Stringmap.env);
+let get_event ev_id =
+  let (f, add_query) =
+    Transf_insert_event.get_event (!whole_game).current_queries ev_id
+  in
+  if add_query then
     new_queries := f :: (!new_queries);
-    f
-
+  f
 	
 let check_type ext e t =
   if e.t_type != t then

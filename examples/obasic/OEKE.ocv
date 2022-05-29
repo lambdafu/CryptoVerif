@@ -57,7 +57,7 @@ conditions that can be eliminated by CDH.
 but it is not really necessary as long as you use the values of K_u, K_s, Kp in the rewritten condition inserted below.)
 - Instead of returning some r_i[...], we execute event_abort cdh. We will later
 show that this event cannot happen using CDH.
-- Hence we do need to require the definition r_i[...]
+- Hence we do not need to require the definition r_i[...]
 - Furthermore, we also do not require the definition of K_u[...] (or K_u_i[...] if you ran "remove_assign binder K_u") and of indices u_i[...], we replace them by a fresh index we look for using "find".
 - Therefore, the condition can be true as soon as the exponents have been computed and the arguments of the hash query are well chosen: the conditions are of the form: 
 i,j suchthat defined(x[i], y[j]) && (x14 = exp(g, x[i])) && (x13 = exp(g, y[j])) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x[i], y[j])))
@@ -241,10 +241,10 @@ event(termS(x, X, y, Ystar, a, k)) && event(acceptU(x, X, y, Ystar, a, k')) ==> 
 and 
 inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k) 
 with public variables sk_u, sk_s up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + k q^2 / |G| + q^2 / |hash1| 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 21 q^2 / |G| + q^2 / |hash1| 
 Proved secrecy of sk_s && sk_u up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2k q^2 / |G| + q^2 / |hash1| 
-for some small integer k. (k = 21 might work, I need to check it mechanically.)
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 40 q^2 / |G| + q^2 / |hash1| 
+
 *)
 
 
