@@ -1081,6 +1081,14 @@ I still think that the new semantics is much cleaner.
 
 MIDDLE PRIORITY
 
+12bis) The design of CryptoVerif will make it difficult to implement
+proof techniques such as rewinding, because the adversary is implicit
+in CryptoVerif, and schedules the execution of the honest processes.
+There is no way to call the adversary twice.
+(This is in sharp contrast with the BC logic and Squirrel in
+which rewinding is almost "the default": the adversary is called
+from the start everytime it sends a message.)
+
 13) Strengthen the global dependency analysis like the proof of one-session
 secrecy; one could even use a single dependency analysis for both.
 (For instance, with the current code, in the case of forward secrecy,
