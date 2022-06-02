@@ -730,7 +730,27 @@ That allows sharing in branches of tests by calling a common
 oracle, but that allows other forms of sharing as well
 (among code that does not come from different branches of tests).
 Plus it allows to deal with loops by using recursive calls
-to oracles.
+to oracles. (Can the "loop" construct of
+https://bblanche.gitlabpages.inria.fr/publications/CadeBlanchetJCS14.pdf
+be encoded using recursive calls? I think yes: 
+! i_m <= N_m ... ! i_1 <= N_1
+Oloop[i_1,..,i_m](x:T) :=
+    let (r:T,cont:bool) = O[i_1,..,i_m](x) in
+    if cont then
+      let r' = Oloop[i_1+1,i_2,..,i_m](r) in
+        return(r')
+      else
+        end
+    else
+      return(r)
+
+let r:T = loop O[M_1,..,M_m](M') in P else P'
+encoded as
+let r:T = Oloop[M_1,..,M_m](M') in P else P'
+Just blocks instead of running P' when i_1 > N_1.
+)
+Oracles can be made private using newOracle.
+
 It requires relatively few changes to the game transformations,
 I think, at least as a first step. (It is more work if we want
 to remain precise on data passed to the oracle call.)
@@ -1387,27 +1407,6 @@ cond1 && ... && condn => concl
 cond1 && ... && condn =(proba)=> concl
 they add concl to the known facts when cond1, ..., condn
 are present.
-
-21) work on forward secrecy (dynamic corruptions)
-   -> improve the proof of secrecy, to allow proving secrecy of some cells of an
-   array, even if other cells are leaked.
-   - in simplify, expand find in conditions of find even if the inner find
-   is not unique, when the outer find is unique. The resulting find is not 
-   unique.
-   - examples-1.28-converted/nd/test/signedDH-forward-secrecy4.cv requires a distinction
-   depending on the order in which variables are defined.
-   DONE 21/7/2015
-   - signedDH-forward-secrecy3.cv [No longer found!] additionally requires
-   an extension of the proof of secrecy, to support
-      if .. then out(c, s) else let secret = s
-   that is, some cells of s are secret, others are leaked.
-   Show that the usage of s[i] in which secrecy is required cannot
-   be executed for j=i when s[j] is leaked. Some similarity with
-   Simplify.CompatibleDefs: Simplify.CompatibleDefs tests
-   compatibility between two program points ("defined" test and 
-   variable definition); here we would also like to test compability
-   between two program points (s used as secret and s leaked).
-   DONE 28/7/2015
 
 22) prove the AuthA protocol:
    - simplified version in which I split the hash function H into 
@@ -3203,6 +3202,27 @@ to be able to prove both cases using "elsefind" facts. (Currently, we
 can only prove one case using an elsefind fact and the other case 
 by dependency analysis.)
 DONE 21/7/2015
+
+21) work on forward secrecy (dynamic corruptions)
+   -> improve the proof of secrecy, to allow proving secrecy of some cells of an
+   array, even if other cells are leaked.
+   - in simplify, expand find in conditions of find even if the inner find
+   is not unique, when the outer find is unique. The resulting find is not 
+   unique.
+   - examples-1.28-converted/nd/test/signedDH-forward-secrecy4.cv requires a distinction
+   depending on the order in which variables are defined.
+   DONE 21/7/2015
+   - signedDH-forward-secrecy3.cv [No longer found!] additionally requires
+   an extension of the proof of secrecy, to support
+      if .. then out(c, s) else let secret = s
+   that is, some cells of s are secret, others are leaked.
+   Show that the usage of s[i] in which secrecy is required cannot
+   be executed for j=i when s[j] is leaked. Some similarity with
+   Simplify.CompatibleDefs: Simplify.CompatibleDefs tests
+   compatibility between two program points ("defined" test and 
+   variable definition); here we would also like to test compability
+   between two program points (s used as secret and s leaked).
+   DONE 28/7/2015
 
 - extend the proof of secrecy, to support
       if .. then out(c, s) else let secret = s
