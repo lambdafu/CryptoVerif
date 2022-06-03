@@ -26,26 +26,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-Improve counting for CDH/GDH/DDH without RSR: count the number of used
-DH pairs (i,j) instead of taking the maximum na*nb.
-The number of DH pairs is often linear in the number of sessions
-(because each session uses a constant number of DH pairs),
-while na.nb will be quadratic if there are ephemerals on both sides.
-[tried in branch 2022.07.crypto_count_vars]
-==> NO, that would be wrong!
-But in Wireguard, we can improve the probability when ephemerals
-are compromised just by not applying GDH to the compromised ephemerals.
-When we do not know yet whether we are going to compromise the static
-key or the ephemerals for one participant, to get the best probability,
-we should guess what we are going to compromise and use one proof
-or the other accordingly.
-Done using guess_branch in examplesnd/WG.ANSSI/WG.25519.AB-BA.replay_prot.cv
-However, that's not the end of the story. We would like:
-  - to allow the adversary compromise S_i and E_i in some sessions;
-  only sessions in which E_i is not compromised are secure. Some for E_r.
-  - to model a bad random number generator for E_i/E_r. That would be done
-  by receiving E_i/E_r from the network, rather than by leaking them.
-
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
 
@@ -494,11 +474,6 @@ We could probably push this idea for noninterf x among S.
 
    Add get[unique] to ProVerif?
 
-3) 
-PRF-ODH: I think "success simplify" and "focus" 
-would help for working with PRF-ODH
-=> Benjamin Lipp will look at that
-      
 4) Guess the tested session; event adversary loses/adversary wins; ...
    
 - TLS: github/ProtoTLS/cv/tls13-core.cv
@@ -679,89 +654,9 @@ def macroname(..., list% <decl>, ...) special variable_arguments
 c) Also extend ProVerif to support these new macros.
 
 
-6) Sometimes, the size of the game tends to explode. To avoid that, we
-could use constructs that allow comon continuations for several
-branches:
+6) Sometimes, the size of the game tends to explode. Ideas to avoid that:
 
-begin
-   find ....
-
-end;
-P
-
-This is equivalent to plugging P instead of yield at the end of 
-all branches of the inner process.
-Same thing for "if" and "let pat = M in P else P'"
-(The case "let x = M in P" in fact has a single continuation.)
-Do we want to add the continuation to the contructs "find", "if",
-"let", or to have a generic construct "begin P end; P'"?
-The latter may be better.
-
-In fact, I think the generic construct should be a "merge"
-instruction, similar to a phi-function in SSA.
-* Can be displayed by showing "l: P" in one branch
-and "continue l" or "goto l" in the other branches that
-have the same continuation.
-* New transformations:
-   - Push the merge forward, distinguishing cases further,
-   or even remove it completely.
-* Effect on the game transformations:
-   - Collection of true facts: store the true in the merge
-      instruction for each branch. At the last branch,
-      compute the intersection of true facts and analyze the
-      continuation with that information.
-   - Simplify: as above.
-   - Expand: have a mode in which merge instructions are
-      used to avoid duplicating code in expansion.
-   - Crypto: almost no change, I think; the change is in expand.
-   - RemoveAssign: if the variable x on which we remove assignments
-      is used in the continuation (without array access), then
-      it must have the same definition in all branches that
-      have the same continuation.
-      Otherwise, I need to push the merge after the usage of x first.
-   - SA rename: when the SArenamed variable x is defined
-      in several merged branches, it must not be used in the
-      continuation after the merge.
-      Otherwise, I need to push the merge after the usage of x first.
-
-MUCH BETTER THAN A MERGE INSTRUCTION or the begin ... end; P:
-allow calls to oracles inside the code.
-That allows sharing in branches of tests by calling a common
-oracle, but that allows other forms of sharing as well
-(among code that does not come from different branches of tests).
-Plus it allows to deal with loops by using recursive calls
-to oracles. (Can the "loop" construct of
-https://bblanche.gitlabpages.inria.fr/publications/CadeBlanchetJCS14.pdf
-be encoded using recursive calls? I think yes: 
-! i_m <= N_m ... ! i_1 <= N_1
-Oloop[i_1,..,i_m](x:T) :=
-    let (r:T,cont:bool) = O[i_1,..,i_m](x) in
-    if cont then
-      let r' = Oloop[i_1+1,i_2,..,i_m](r) in
-        return(r')
-      else
-        end
-    else
-      return(r)
-
-let r:T = loop O[M_1,..,M_m](M') in P else P'
-encoded as
-let r:T = Oloop[M_1,..,M_m](M') in P else P'
-Just blocks instead of running P' when i_1 > N_1.
-)
-Oracles can be made private using newOracle.
-
-It requires relatively few changes to the game transformations,
-I think, at least as a first step. (It is more work if we want
-to remain precise on data passed to the oracle call.)
-The main new transformations are
-- inlining of an oracle call.
-- its inverse, which can be implemented by asking the use to give
-the next game and performing inlining on it to check that we get
-the previous game.
-
-* Other ideas to solve the same problem:
-   - Allow more game transformations on unexpanded games
+6.1)  Allow more game transformations on unexpanded games
       (e.g. remove_assign, SArename, crypto). That would allow
       applying possibly several rom + GDH without expanding the game, and then
       expand the game afterwards, when some cases have been removed
@@ -855,7 +750,7 @@ then C'[x1...xn] is independent.
       - expand [should allow partial expansion guided by the user]
       - success [equivalence queries]
 
-   - Have an indifferentiability toolbox:
+6.2) Have an indifferentiability toolbox:
       - Oracles with disjoint domains => independent oracles
       - Concatenation of independent oracles => single oracle
       - Truncation of random oracle
@@ -868,6 +763,117 @@ then C'[x1...xn] is independent.
       Combined with the previous idea, that should solve most cases!
       In particular, it solves the case of ROMs in sequence that was
       problematic for the previous idea.
+
+6.3) allow calls to oracles inside the code.
+That allows sharing in branches of tests by calling a common
+oracle, and other forms of sharing as well
+(among code that does not come from different branches of tests).
+Plus it allows to deal with loops by using recursive calls
+to oracles.
+Oracles can be made private using newOracle.
+
+To facilitate (or even enable) inlining, we should restrict
+the allowed calls and slightly modify the semantics of the call.
+The structure must be:
+
+... (any code, with replications ! i_m <= N_m ... ! i_{n+1} <= N_{n+1} )
+((... (any code) let r = O(M1...Mk) in P else P')
+|(! i_n <= N_n ... ! i_1 <= N_1 O(x1...xk) := ...))
+
+The indices of O are not specified at the call to O.
+The call to O calls O[i_m,...,i_{n+1},i_n,...,i_1]
+for the values of i_m,...,i_{n+1} at the caller and any available
+value of i_n,...,i_1.
+The replications ! i_n <= N_n ... ! i_1 <= N_1 are those that occur
+above O without any oracle definition between the replication and
+the definition of O.
+There must be no oracle between the parallel composition
+and the definition of O. (Otherwise, a call to those intermediate
+oracles would be required before being able to call O.)
+We could restrict ourselves to n=1. (A single replication
+between the parallel composition and the definition of O.)
+
+For recursive calls, we must allow the call to O to be inside O itself:
+
+... (any code, with replications ! i_m <= N_m ... ! i_{n+1} <= N_{n+1} )
+! i_n <= N_n ... ! i_1 <= N_1
+O(x1...xk) := ... (any code) let r = O(M1...Mk) in P else P'
+
+The replications ! i_n <= N_n ... ! i_1 <= N_1 are those that occur
+above O without any oracle definition between the replication and
+the definition of O. There must be at least one such replication
+for the call to be allowed, otherwise we are sure that O is
+consumed when we try to perform the recursive call.
+As above, the call to O calls O[i_m,...,i_{n+1},i_n,...,i_1]
+for the values of i_m,...,i_{n+1} at the caller and any available
+value of i_n,...,i_1.
+
+When I perform a call to oracle O:
+- O must have a single definition.
+- Let ! i_n <= N_n ... ! i_1 <= N_1 be the replications that occur
+above O without any oracle definition between the replication and
+the definition of O.
+- The caller must be under the last return of an oracle (if any)
+above the definition of O.
+- Let ! i_m <= N_m ... ! i_{n+1} <= N_{n+1} be the replications that occur
+above O *with* an oracle definition between the replication and
+the definition of O.
+- The call to O calls O[i_m,...,i_{n+1},i_n,...,i_1]
+for the values of i_m,...,i_{n+1} at the caller and any available
+value of i_n,...,i_1.
+
+(Can the "loop" construct of
+https://bblanche.gitlabpages.inria.fr/publications/CadeBlanchetJCS14.pdf
+be encoded using recursive calls? I think yes. Here using calls with explicit
+indices: 
+! i_m <= N_m ... ! i_1 <= N_1
+Oloop[i_1,..,i_m](x:T) :=
+    let (r:T,cont:bool) = O[i_1,..,i_m](x) in
+    if cont then
+      let r' = Oloop[i_1+1,i_2,..,i_m](r) in
+        return(r')
+      else
+        end
+    else
+      return(r)
+
+let r:T = loop O[M_1,..,M_m](M') in P else P'
+encoded as
+let r:T = Oloop[M_1,..,M_m](M') in P else P'
+Just blocks instead of running P' when i_1 > N_1.
+
+Using calls with implicit indices:
+
+! i_m <= N_m ... ! i_1 <= N_1
+Oloop[i_1,..,i_m](x:T) :=
+    let (r:T,cont:bool) = O(x) in
+    if cont then
+      let r' = Oloop(r) in
+        return(r')
+      else
+        end
+    else
+      return(r)
+|
+O[i_1,..,i_m](x:T) := ...
+
+let r:T = loop O[M_1,..,M_m](M') in P else P'
+encoded as
+let r:T = Oloop(M') in P else P'
+Here, the indices of the calls to O may not be in the same
+order as those with the "loop" construct, but these indices
+should not matter.
+)
+
+It requires relatively few changes to the game transformations,
+I think, at least as a first step. (It is more work if we want
+to remain precise on data passed to the oracle call.)
+The main new transformations are
+- inlining of an oracle call.
+- its inverse, which can be implemented by asking the use to give
+the next game and performing inlining on it to check that we get
+the previous game.
+
 
 7) More generally, allow some reordering of instructions:
 - move "let"s up, when that reduces the number of occurrences of
@@ -1186,6 +1192,13 @@ to make it work automatically.
 2013Airbus/computatinonal_revised/arinc823-secret-key.KEY_SECRECY.ORIGINAL.cv
 when I add the commented out code in check_distinct.ml,
    to use elsefind facts.
+
+examples/wireguard:
+  - allow the adversary compromise S_i and E_i in some sessions;
+  only sessions in which E_i is not compromised are secure. Some for E_r.
+  - model a bad random number generator for E_i/E_r. That would be done
+  by receiving E_i/E_r from the network, rather than by leaking them.
+  (incompatible with the previous extension)
 
 18) Support for loops and mutable state.
 This allows support for stateful crypto primitives.
@@ -6439,3 +6452,64 @@ command, which yields two games by guessing the branch.
    occur in G1 and G2. However, I could reuse the same
    events several times.
 DONE 19/5/2022
+
+Improve counting for CDH/GDH/DDH without RSR: count the number of used
+DH pairs (i,j) instead of taking the maximum na*nb.
+The number of DH pairs is often linear in the number of sessions
+(because each session uses a constant number of DH pairs),
+while na.nb will be quadratic if there are ephemerals on both sides.
+[tried in branch 2022.07.crypto_count_vars]
+==> NO, that would be wrong!
+But in Wireguard, we can improve the probability when ephemerals
+are compromised just by not applying GDH to the compromised ephemerals.
+When we do not know yet whether we are going to compromise the static
+key or the ephemerals for one participant, to get the best probability,
+we should guess what we are going to compromise and use one proof
+or the other accordingly.
+Done using guess_branch in examplesnd/WG.ANSSI/WG.25519.AB-BA.replay_prot.cv
+
+Sometimes, the size of the game tends to explode. To avoid that, we
+could use constructs that allow comon continuations for several
+branches:
+
+begin
+   find ....
+
+end;
+P
+
+This is equivalent to plugging P instead of yield at the end of 
+all branches of the inner process.
+Same thing for "if" and "let pat = M in P else P'"
+(The case "let x = M in P" in fact has a single continuation.)
+Do we want to add the continuation to the contructs "find", "if",
+"let", or to have a generic construct "begin P end; P'"?
+The latter may be better.
+
+In fact, I think the generic construct should be a "merge"
+instruction, similar to a phi-function in SSA.
+* Can be displayed by showing "l: P" in one branch
+and "continue l" or "goto l" in the other branches that
+have the same continuation.
+* New transformations:
+   - Push the merge forward, distinguishing cases further,
+   or even remove it completely.
+* Effect on the game transformations:
+   - Collection of true facts: store the true in the merge
+      instruction for each branch. At the last branch,
+      compute the intersection of true facts and analyze the
+      continuation with that information.
+   - Simplify: as above.
+   - Expand: have a mode in which merge instructions are
+      used to avoid duplicating code in expansion.
+   - Crypto: almost no change, I think; the change is in expand.
+   - RemoveAssign: if the variable x on which we remove assignments
+      is used in the continuation (without array access), then
+      it must have the same definition in all branches that
+      have the same continuation.
+      Otherwise, I need to push the merge after the usage of x first.
+   - SA rename: when the SArenamed variable x is defined
+      in several merged branches, it must not be used in the
+      continuation after the merge.
+      Otherwise, I need to push the merge after the usage of x first.
+ABANDONED (see 6) above for better ideas)
