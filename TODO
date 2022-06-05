@@ -874,6 +874,12 @@ The main new transformations are
 the next game and performing inlining on it to check that we get
 the previous game.
 
+For loops and recursive calls, a key transformation will be
+the hybrid argument. It can be guided manually by giving
+a parameterized game G(n) and an interval n \in [min,max].
+CryptoVerif then needs to show that the current game is
+indistinguishable from G(min) and that G(n) ~ G(n+1).
+The game at the end of the hybrid argument is G(max).
 
 7) More generally, allow some reordering of instructions:
 - move "let"s up, when that reduces the number of occurrences of
