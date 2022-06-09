@@ -1,0 +1,36 @@
+(* Cannot merge the branches of find because a condition aborts *)
+
+param N, N'.
+
+event e1.
+event e2.
+
+query event(e1) ==> false.
+query event(e2) ==> false.
+
+
+channel start, c.
+
+
+
+proof {
+  merge_branches;
+  success
+  }
+
+process
+	(! N in(c, x: bitstring); yield) |
+	(! N'  in(c, y: bitstring); yield) |
+
+	in(start, ());
+	find i <= N suchthat defined(x[i]) && event_abort e1 then
+	    out(c, false)
+	orfind j <= N' suchthat defined(y[j]) && event_abort e2 then
+	    out(c, false)
+	else
+	    out(c, false)
+
+(* EXPECTED
+RESULT Could not prove event(e2) ==> false; event(e1) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

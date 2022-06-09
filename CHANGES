@@ -35,6 +35,8 @@ Version
   collision statements.
 - Allow nested comments in the input file. All comments must be closed.
   CryptoVerif will raise an error otherwise.
+- Fixed bug in merging of branches: branches of find cannot be merged when
+  one of them may abort.
 - Fixed probability for OW_trapdoor_perm_RSR.
 - Fixed internal error due to a forgotten game before focus command.
 - Fixed internal error LetEqual terms should have a variable in the left-hand side

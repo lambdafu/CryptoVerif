@@ -1136,7 +1136,8 @@ let can_merge_all_branches_store_arrays eq_test above_p_facts true_facts l0 p3 =
     Array_ref.exclude_array_ref_def_list in_scope def_list;
     Array_ref.exclude_array_ref_term in_scope t1) l0;
   List.for_all (fun (_, def_list, t1, p2) ->
-    equal_store_arrays eq_test true_facts p2 p3) l0
+    (not (Terms.may_abort t1)) &&
+    (equal_store_arrays eq_test true_facts p2 p3)) l0
 
 (* was called from transf_simplify 
 let can_merge_all_branches eq_test above_p_facts true_facts l0 p3 =
@@ -1306,7 +1307,7 @@ let merge_find_branches proc_display proc_subst proc_rename proc_equal proc_merg
 	  
 	  (* choose one of branches_to_merge as target branch (the one that 
 	     uses target_var as new_def_conditions_to_rename, if any; otherwise
-	     just take one branch as random) *)
+	     just take one branch at random) *)
 	  let (target_new_def, ((target_bl, target_def_list, target_t, target_p) as target_branch)) =
 	    try
 	      List.find (fun (new_def,_) -> 
