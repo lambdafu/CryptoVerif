@@ -908,12 +908,12 @@ let rec simplify_term_w_find cur_array true_facts t =
       (* Expand find in branch of find when both finds are "unique"
 	 TO DO I could perform several of these transformations in a single step,
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
-      let l0', t3' = 
+      let new_find = 
 	if (!Settings.unique_branch_reorg) &&
 	  (Terms.is_unique_no_abort l0 find_info) then
 	  try
 	  let rec expand_find seen = function
-	      [] -> l0, t3
+	      [] -> None
 	    | (((bl, def_list, t', t2) as br1)::r) ->
 		match t2.t_desc with
 		  FindE(l3, t4, find_info') when Terms.is_unique_no_abort l3 find_info' -> 
@@ -923,27 +923,22 @@ let rec simplify_term_w_find cur_array true_facts t =
 		    List.iter (fun b ->
 		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
 		    *)
-
-		    let result = 
-		      (List.rev_append seen ((List.concat (List.map (generate_branches br1) l3)) @ r)),
-		      (Terms.build_term_type t3.t_type (FindE([bl, def_list, t', t4], t3, Unique)))
-		    in
+		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
+		    let l0' = List.rev_append seen (expanded_branches @ r) in
+		    let t3' = Terms.build_term_type t3.t_type (FindE([bl, def_list, t', t4], t3, Unique)) in
+		    Settings.changed := true;
 		    current_pass_transfos := (SFindinFindBranch(pp,DTerm t2)) :: (!current_pass_transfos);
-		    result
+		    Some (Terms.build_term t (FindE(l0', t3', Unique)))
 		| _ -> expand_find (br1::seen) r
 	  in
 	  expand_find [] l0
-	  with CannotExpand -> l0,t3
+	  with CannotExpand -> None
 	else
-	  l0, t3
+	  None
       in
-      if l0' != l0 then
-	begin
-	  Settings.changed := true;
-	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.build_term t (FindE(l0', t3', find_info))
-	end
-      else
+      match new_find with
+      | Some t' -> t'
+      | None -> 
 
       match l0 with
 	[] ->
@@ -1513,36 +1508,32 @@ and simplify_oprocess cur_array dep_info true_facts p =
       (* Expand find in branch of find when both finds are "unique"
 	 TO DO I could perform several of these transformations in a single step,
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
-      let l0', p2' = 
+      let new_find = 
 	if (!Settings.unique_branch_reorg) && (Terms.is_unique_no_abort l0 find_info) then
 	  try
 	  let rec expand_find seen = function
-	      [] -> l0, p2
+	      [] -> None
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		match p1.p_desc with
 		  Find(l3, p3, find_info') when Terms.is_unique_no_abort l3 find_info' ->
 		    List.iter (fun (b,_) ->
 		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
-		    let result = 
-		      (List.rev_append seen ((List.concat (List.map (generate_branches br1) l3)) @ r)),
-		      (Terms.oproc_from_desc (Find([bl, def_list, t, p3], p2, Unique)))
-		    in
+		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
+		    let l0' = List.rev_append seen (expanded_branches @ r) in
+		    let p2' = Terms.oproc_from_desc (Find([bl, def_list, t, p3], p2, Unique)) in
+		    Settings.changed := true;
 		    current_pass_transfos := (SFindinFindBranch(pp,DProcess p1)) :: (!current_pass_transfos);
-		    result
+		    Some (Terms.oproc_from_desc (Find(l0', p2', Unique)))
 		| _ -> expand_find (br1::seen) r
 	  in
 	  expand_find [] l0
-	  with CannotExpand -> l0, p2
+	  with CannotExpand -> None
 	else
-	  l0, p2
+	  None
       in
-      if l0' != l0 then
-	begin
-	  Settings.changed := true;
-	  let find_info = Unique.is_unique l0' find_info in
-	  Terms.oproc_from_desc (Find(l0', p2', find_info))
-	end
-      else
+      match new_find with
+      | Some p' -> p'
+      | None -> 
 
       match l0 with
 	[] ->

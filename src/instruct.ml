@@ -240,12 +240,20 @@ let compos_ins_updater a b = match a, b with
 | x, None -> x
 | Some f1, Some f2 -> Some (fun t -> List.concat (List.map f2 (f1 t)))
 
+let update_for_transformed_game = function
+  | Simplify(collector, l) ->
+      (* [collector] becomes invalid as soon as the game is transformed *)
+      Simplify(None, l)
+  | i -> i
+      
 let apply_ins_updater ins_up i =
+  let i = update_for_transformed_game i in
   match ins_up with
     None -> [i]
   | Some f -> f i
 
 let apply_ins_updater_list ins_up l =
+  let l = List.map update_for_transformed_game l in
   match ins_up with
     None -> l
   | Some f -> List.concat (List.map f l)
@@ -1607,7 +1615,7 @@ let help() =
   "(can be used alone or with a specifier of the transformation; see the manual)\n" ^
   "simplify                     : simplify the game\n" ^
   "simplify coll_elim <locations> : simplify the game, allowing collision elimination at <locations> (variables, types, occurrences)\n" ^
-  "all_simplify                 : remove_assign useless, simplify, move all\n" ^
+  "all_simplify                 : remove_assign useless, simplify, move all, merge_branches\n" ^
   "insert_event <ident> <occ>   : insert an event <ident> at occurrence <occ>\n" ^
   "insert <occ> <ins>           : insert instruction <ins> at occurrence <occ>\n" ^
   "replace <occ> <term>         : replace term at occurrence <occ> with <term> (when equal)\n" ^
