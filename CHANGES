@@ -1,7 +1,7 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
-Version
+Version 2.06
 
 - Allow saving and showing executed interactive commands
   (command-line option -ocommands, interactive commands show_commands
