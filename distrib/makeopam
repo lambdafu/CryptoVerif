@@ -1,0 +1,22 @@
+#!/bin/sh
+
+VERSION=$1
+OPAMREPDIR=$HOME/repos
+CRYPTOVERIFDISTRIBDIR=$PWD/../website/copy
+CRYPTOVERIFOPAMDIR=$PWD
+
+cd $OPAMREPDIR
+# git clone git@github.com:bruno-blanchet/opam-repository.git
+cd opam-repository/packages/
+
+# CryptoVerif package
+mkdir -p cryptoverif/cryptoverif.$VERSION
+CHECKSUM=$(md5sum $CRYPTOVERIFDISTRIBDIR/cryptoverif$VERSION.tar.gz | awk '{print $1;}')
+sed s/CHECKSUM/$CHECKSUM/g\;s/VERSION/$VERSION/g $CRYPTOVERIFOPAMDIR/cryptoverif.opam.orig > cryptoverif/cryptoverif.$VERSION/opam
+git add cryptoverif/cryptoverif.$VERSION
+
+git commit -m "added Cryptoverif version $VERSION"
+git push origin HEAD:add-pkg-cryptoverif.$VERSION
+cd $CRYPTOVERIFOPAMDIR
+
+

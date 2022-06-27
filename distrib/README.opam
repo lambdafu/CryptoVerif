@@ -26,5 +26,24 @@ opam publish "http://cryptoverif.inria.fr/cryptoverif$VERSION.tar.gz" cryptoveri
 Follow pull-request on Github; modify the opam file and repeat
 opam-publish if needed.
 
+-----------------------------------------------------------------
+How to make an opam package for CryptoVerif by hand
+
+a. Go to https://github.com/ocaml/opam-repository and hit the Fork button on the top right corner (you may be asked to login or register)
+
+b. 
+
+cd $HOME/repos
+git clone git@github.com:bruno-blanchet/opam-repository.git
+
+cd $HOME/CryptoVerif/distrib
+./makeopam $VERSION
+
+[Note: I am not sure if I need to fork and clone for every new
+version, or if I can reuse an old fork.]
+
+c. Back to the web interface, refresh, hit the Pull request button, check your changes and confirm;
+d. Wait for feedback!
+
 
 
