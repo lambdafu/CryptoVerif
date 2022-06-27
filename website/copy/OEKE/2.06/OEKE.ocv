@@ -1,0 +1,256 @@
+(* One-Encryption Key Exchange
+
+   The guidance has been revised to obtain a more precise probability:
+   (NU + NS)/|passwd| + (qH0 + qH1)pCDH(time...) + O(t_A^2)/|hash1| + O(t_A^2)/|G|,
+   where t_A is the runtime of the adversary
+   This is optimal except for the constants in O(t_A^2).
+
+   The hash, encryption, and decryption queries are performed by the adversary,
+   so qH0, qH1, qE, qD \in O(t_A).
+
+   NP is the number of sessions of the protocol the adversary passively observes,
+   NP << t_A
+
+   NS and NU are the number of sessions of the server/user the adversary
+   actively interferes with. NS, NU << NP.
+
+   |Z| = |G| = p-1 where the Diffie-Hellman group has prime order p.
+   (G excludes the neutral element, Z excludes 0.) *)
+
+(* Proof indications *)
+
+proof {
+allowed_collisions noninteractive^2/large;
+   (* Allow eliminating collisions of probability q^2 / |Z|, q^2 / |G|, q^2 / |hash1|,
+   where q is a number of queries (qH0, qH1, qE, qD, NS, NU, NP):
+   |G|, |Z|, |hash1| are considered to be large
+   q^3/|G| or q/|passwd| are not allowed.
+
+   Since q \in O(t_A) and |Z| = |G|, we will get terms for probabilities of collisions
+   O(t_A^2)/|hash1| + O(t_A^2)/|G|.
+
+   *)
+success; (* proof of event(acceptU(x,X,y,Ystar,a,k,u)) && event(acceptU(x,X,y,Ystar,a,k',u')) ==> u = u' *)
+show_game;
+insert after "OH(" "let concat(x01,x02,x03,x04,x05) = x1 in"; (* just after OH(..) := *)
+crypto rom(h0);
+insert after "OH_1" "let concat(x11,x12,x13,x14,x15) = x1_1 in"; (* just after OH_1(..):= *)
+crypto rom(h1);
+show_game;
+insert after "OS2" "find j <= NU suchthat defined(X[j]) && X[j] = X_s then else find jh <= qH1 suchthat defined(x11[jh], x12[jh], x13[jh], x14[jh], r_6[jh]) && (U = x11[jh]) && (S = x12[jh]) && (X_s = x13[jh]) && (Y = x14[jh]) && (auth_s = r_6[jh]) then event_abort Auth"; (* just after OS2(..):= *)
+simplify;
+crypto icm(enc);
+show_game;
+insert_event Encrypt after "pw0 = ke\\["; (* beginning of the branch "find ... && (pw0 = ke[..]) then .." in OC2 *)
+show_game;
+(* This part is done manually to improve the CDH term of the probability;
+   otherwise, it could be done by "auto" *)
+crypto group_to_exp_strict(exp) *;
+show_game;	    
+(* We rewrite the "find" at the beginning of OH_1, to capture exactly the
+conditions that can be eliminated by CDH. 
+- We replace K_u, K_s, Kp with their values exp(g, mult(x[i],y[j])) for some exponents x,y. (If you like, you can have CryptoVerif do that in the "find" at the beginning of OH_1 by running 
+  remove_assign binder K_u;
+  remove_assign binder K_s;
+  remove_assign binder Kp;
+but it is not really necessary as long as you use the values of K_u, K_s, Kp in the rewritten condition inserted below.)
+- Instead of returning some r_i[...], we execute event_abort cdh. We will later
+show that this event cannot happen using CDH.
+- Hence we do not need to require the definition r_i[...]
+- Furthermore, we also do not require the definition of K_u[...] (or K_u_i[...] if you ran "remove_assign binder K_u") and of indices u_i[...], we replace them by a fresh index we look for using "find".
+- Therefore, the condition can be true as soon as the exponents have been computed and the arguments of the hash query are well chosen: the conditions are of the form: 
+i,j suchthat defined(x[i], y[j]) && (x14 = exp(g, x[i])) && (x13 = exp(g, y[j])) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x[i], y[j])))
+for some exponents x,y. That allows eliminating similar conditions in the rest of the game.
+- We test x15 = exp(g, mult(x[i], y[j])) as last condition, so that the test is executed only when x13 and x14 are the right public keys. CryptoVerif then realizes that the test is made for a single i,j for each hash query.
+ *)
+insert before "find \\[unique\\] u_23 "
+  "          find i7 <= NU, i8 <= NU suchthat defined(x[i7], X[i7], x_3[i8]) && (x14 = exp(g, x_3[i8])) && (x13 = X[i7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_3[i8], x[i7]))) then
+            event_abort cdh
+          orfind i7 <= NU, i9 <= qD suchthat defined(x[i7], X[i7], x_2[i9]) && (x14 = exp(g, x_2[i9])) && (x13 = X[i7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_2[i9], x[i7]))) then
+            event_abort cdh
+          orfind i7 <= NU, i10 <= NS suchthat defined(x[i7], y[i10], X[i7], Y[i10]) && (x14 = Y[i10]) && (x13 = X[i7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(y[i10], x[i7]))) then
+            event_abort cdh
+          orfind i7 <= NU, i11 <= NP suchthat defined(x[i7], yp[i11], X[i7], Yp[i11]) && (x14 = Yp[i11]) && (x13 = X[i7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(yp[i11], x[i7]))) then
+            event_abort cdh
+          orfind i6 <= NP suchthat defined(yp[i6], xp[i6], Xp[i6], Yp[i6]) && (x14 = Yp[i6]) && (x13 = Xp[i6]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(xp[i6], yp[i6]))) then
+            event_abort cdh";
+(* We rewrite the "find" at the beginning of OH in a similar way *)
+insert before "find \\[unique\\] u_7 "
+  "          find i19 <= NU, i20 <= NU suchthat defined(X[i19], x[i19], x_3[i20]) && (x04 = exp(g, x_3[i20])) && (x03 = X[i19]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_3[i20], x[i19]))) then
+            event_abort cdh
+          orfind i17 <= NU, i21 <= qD suchthat defined(X[i17], x[i17], x_2[i21]) && (x04 = exp(g, x_2[i21])) && (x03 = X[i17]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_2[i21], x[i17]))) then
+            event_abort cdh
+          orfind i15 <= NU, i22 <= NS suchthat defined(X[i15], Y[i22], x[i15], y[i22]) && (x04 = Y[i22]) && (x03 = X[i15]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(y[i22], x[i15]))) then
+            event_abort cdh
+          orfind i13 <= NU, i23 <= NP suchthat defined(X[i13], Yp[i23], x[i13], yp[i23]) && (x04 = Yp[i23]) && (x03 = X[i13]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[i23], x[i13]))) then
+            event_abort cdh";
+simplify;
+success; (* Prove secrecy and authentication, the probabilities of events cdh, Auth, Encrypt are still to bound. However, the probabilities that follow will not be multiplied by 2 for secrecy *)
+crypto cdh(exp);
+crypto exp'_to_group(exp) *;
+SArename Y_u;
+(* End of the part done manually to improve the CDH term *)
+show_game;
+move array X_5; (* variable chosen at the end of OC2 and not used immediately *)
+show_game;
+merge_arrays X_1 Y_1;
+merge_branches;
+move array X_2; (* variable chosen in OP and not used immediately *)
+(*show_game;
+merge_arrays X_1 Y_...;
+merge_branches;*)
+move array X_4; (* variable chosen in OS1 and not used immediately *)
+(*show_game;
+merge_arrays X_1 Y_1;*)
+show_game;
+insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_6[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_6[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
+simplify;
+merge_branches;
+allowed_collisions noninteractive^2/large, small/password;
+(* Allow eliminating collisions with probability 
+   (NU + NS)/|passwd| since NU and NS are small and |passwd| is of size password.
+   These collisions are not eliminated automatically because |passwd| is too small,
+   they need to be explicitly requested by simplify coll_elim(variables: pw0) below.
+ *)
+simplify coll_elim(variables: pw0);
+success
+}
+
+(* Parameter and type declarations *)
+
+param NU, NS [small].
+param NP [passive].
+
+type Z [large, bounded].
+type G [large, bounded].
+type passwd [password, bounded].
+
+type hash0 [fixed].
+type hash1 [fixed,large].
+type host [bounded].
+
+(* Computational Diffie-Hellman *)
+
+expand DH_good_group(G, Z, g, exp, exp', mult).
+proba pCDH.
+letproba pZero = 0.
+expand CDH_RSR(G, Z, g, exp, exp', mult, pCDH, pZero).
+
+(* Ideal cipher model *)
+
+type cipherkey [fixed].
+
+expand ICM_cipher(cipherkey, passwd, G, enc, dec, enc_dec_oracle, qE, qD).
+
+(* Hash functions in the random oracle model *)
+
+type hashkey [fixed].
+
+fun concat(host, host, G, G, G): bitstring [data].
+
+expand ROM_hash(hashkey, bitstring, hash0, h0, hashoracle0, qH0).
+
+expand ROM_hash_large(hashkey, bitstring, hash1, h1, hashoracle1, qH1).
+
+(* Host names *)
+
+const U : host.
+const S : host.
+
+(* Queries *)
+
+query secret sk_u.
+query secret sk_s.
+
+event termS(host, G, host, G, hash1, hash0).
+event acceptU(host, G, host, G, hash1, hash0, NU).
+
+query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0, u <= NU;
+	inj-event(termS(x,X,y,Ystar,a,k)) ==> inj-event(acceptU(x,X,y,Ystar,a,k,u))
+	public_vars sk_u, sk_s.
+query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0, k':hash0, u <= NU, u' <= NU;
+	event(acceptU(x,X,y,Ystar,a,k,u)) && event(acceptU(x,X,y,Ystar,a,k',u')) ==> u = u'
+	public_vars sk_u, sk_s.
+
+(* Client *)
+
+let processU(hk0: hashkey, hk1: hashkey, ck: cipherkey, pw: passwd) =
+	foreach iU <= NU do 
+	OC1() :=
+	x <-R Z;
+	X <- exp(g,x);
+	return(U, X);
+	OC2(=S, Ystar_u: G) :=
+	Y_u <- dec(ck, Ystar_u, pw);
+	K_u <- exp(Y_u, x);
+	auth_u <- h1(hk1,concat(U,S,X,Y_u,K_u));
+	sk_u: hash0 <- h0(hk0,concat(U,S,X,Y_u,K_u));
+	event acceptU(U, X, S, Ystar_u, auth_u, sk_u, iU);
+	return(auth_u).
+
+(* Server *)
+
+let processS(hk0: hashkey, hk1: hashkey, ck: cipherkey, pw: passwd) =
+	foreach iS <= NS do 
+	OS1(=U, X_s: G) :=
+	y <-R Z;
+	Y <- exp(g,y);
+	Ystar <- enc(ck, Y, pw);
+	return(S, Ystar);
+	OS2(auth_s: hash1) :=
+	K_s <- exp(X_s, y);
+	if auth_s = h1(hk1,concat(U,S,X_s,Y,K_s)) then
+	sk_s: hash0 <- h0(hk0,concat(U,S,X_s,Y,K_s));
+	event termS(U, X_s, S, Ystar, auth_s, sk_s);
+	return().
+
+(* Sessions that are subject only to a passive attack.
+   We send a transcript of the session *)
+
+let processPassive(hk0: hashkey, hk1: hashkey, ck: cipherkey, pw: passwd) =
+	foreach iP <= NP do 
+	OP() :=
+	xp <-R Z;
+	Xp <- exp(g, xp);
+	yp <-R Z;
+	Yp <- exp(g, yp);
+	Kp <- exp(g, mult(xp,yp));
+	Ystarp <- enc(ck, Yp, pw);
+	authp <- h1(hk1, concat(U, S, Xp, Yp, Kp));
+	sk_p: hash0 <- h0(hk0, concat(U, S, Xp, Yp, Kp));
+	return(U, Xp, S, Ystarp, authp).
+
+process 
+	Ostart() :=
+	hk0 <-R hashkey;
+	hk1 <-R hashkey;
+	ck <-R cipherkey;
+	pw0 <-R passwd;
+	return;
+	(run processU(hk0, hk1, ck, pw0) |
+	 run processS(hk0, hk1, ck, pw0) |
+	 run processPassive(hk0, hk1, ck, pw0) | 
+	 run enc_dec_oracle(ck) | run hashoracle0(hk0) | run hashoracle1(hk1))
+
+(* Results
+
+I can overapproximate the probabilities as follows:
+Proved 
+event(acceptU(x,X,y,Ystar,a,k,u)) && event(acceptU(x,X,y,Ystar,a,k',u')) ==> u = u'
+with public variables sk_u, sk_s up to probability NU^2/2|G|
+
+Proved
+inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k,u) 
+with public variables sk_u, sk_s up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2q^2 / |G| + (qH1^2+NS) / |hash1| 
+Proved secrecy of sk_s && sk_u up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 4q^2 / |G| + (qH1^2+2NS) / |hash1| 
+where q = qE + qD + qH0 + qH1 + 3(NS + NU + NP) = O(t_A). 
+(NS,NU,NP are typically much less than qE,qD,qH0,qH1, so q is about qE + qD + qH0 + qH1)
+*)
+
+
+(* EXPECTED
+All queries proved.
+1.900s (user 1.884s + system 0.016s), max rss 45796K
+END *)
