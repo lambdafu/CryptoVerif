@@ -18,8 +18,7 @@ function download()
 <H1>CryptoVerif binary release under the CeCILL-B license</H1>
 
 Copyright ENS, CNRS, INRIA, 
-contributors: <A HREF="http://prosecco.gforge.inria.fr/personal/bblanche/">Bruno Blanchet<A> and
-<A HREF="http://www.di.ens.fr/~cade/">David Cadé</A>
+contributors: <A HREF="https://bblanche.gitlabpages.inria.fr/">Bruno Blanchet<A> and David Cadé
 <P>
 <b>You are about to download a free software under the CeCILL-B license.
 You acknowledge that you have read and understood this license, and

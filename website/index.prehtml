@@ -10,7 +10,7 @@
 
 <H3>Project leader:</H3>
 
-<A HREF="http://prosecco.gforge.inria.fr/personal/bblanche/">Bruno Blanchet</A>
+<A HREF="https://bblanche.gitlabpages.inria.fr/">Bruno Blanchet</A>
 
 <H3>Project participant:</H3>
 
@@ -18,7 +18,7 @@
 
 <H3>Former participant:</H3>
 
-<A HREF="http://prosecco.gforge.inria.fr/personal/dcade/">David Cadé</A>
+David Cadé
 
 <HR>
 
@@ -73,10 +73,10 @@ Examples of application:
 <LI><A HREF="FDH">security proof of the FDH signature scheme</A> (with David Pointcheval)
 <LI><A HREF="kerberos">Kerberos</A> (with Aaron D. Jaggard, Andre Scedrov, and Joe-Kai Tsay)
 <LI><A HREF="OEKE/">OEKE, One Encrypted Key Exchange</A> 
-<LI><A HREF="http://prosecco.inria.fr/personal/bblanche/publications/CadeBlanchetJoWUA13.html">SSH</A> (with David Cadé; scripts in subdirectory implementation/ssh of the CryptoVerif distribution)
+<LI><A HREF="https://bblanche.gitlabpages.inria.fr/publications/CadeBlanchetJoWUA13.html">SSH</A> (with David Cadé; scripts in subdirectory implementation/ssh of the CryptoVerif distribution)
 <LI><A HREF="https://github.com/Inria-Prosecco/proscript-messaging">Signal</A> (a.k.a. TextSecure, with Nadim Kobeissi and Karthikeyan Bhargavan)
 <LI><A HREF="https://github.com/inria-prosecco/reftls">TLS 1.3 Draft 18</A> (with Karthikeyan Bhargavan and Nadim Kobeissi)
-<LI><A HREF="http://prosecco.inria.fr/personal/bblanche/arinc823/">ARINC 823 avionic protocols</A>
+<LI><A HREF="https://bblanche.gitlabpages.inria.fr/arinc823/">ARINC 823 avionic protocols</A>
 <LI><A HREF="WireGuard">WireGuard</A> VPN protocol (with Benjamin Lipp and Karthikeyan Bhargavan)
 </UL>
 The files provided in the web pages above may correspond to older versions of CryptoVerif.

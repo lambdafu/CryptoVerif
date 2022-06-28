@@ -32,8 +32,8 @@ function newpage()
 <BODY>
 <H1 class="title">CryptoVerif source release under the CeCILL-B license</H1>
 
-Cryptographic protocol verifier, version VERSIONN, copyright ENS, CNRS, INRIA, by <A HREF="../index-eng.html">Bruno Blanchet</A> and
-<A HREF="http://www.di.ens.fr/~cade/">David Cadé</A>, 2005-YEAR.
+Cryptographic protocol verifier, version VERSIONN, copyright ENS, CNRS, INRIA, by <A HREF="https://bblanche.gitlabpages.inria.fr/index-eng.html">Bruno Blanchet</A> and
+David Cadé, 2005-YEAR.
 <P>
 This software can be used to prove secrecy and authentication
 properties of cryptographic protocols, in the computational model.
@@ -1059,7 +1059,7 @@ follow the French law.)
 which I have read and understood" onclick="newpage()">
 
 <HR>
-<A HREF="http://prosecco.gforge.inria.fr/personal/bblanche/">Bruno Blanchet</A><br>
+<A HREF="https://bblanche.gitlabpages.inria.fr/">Bruno Blanchet</A><br>
 Address:<br>
 <address>
   Inria<br>
