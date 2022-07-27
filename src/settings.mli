@@ -186,6 +186,11 @@ val equivs : equiv_gen list ref
 val get_query_status : ((query * game) * proof_t ref) -> proof_t
 val get_public_vars : cur_queries_t -> binder list
 val occurs_in_queries : binder -> cur_queries_t -> bool
+
+(* [event_occurs_in_queries f queries] returns true when the events [f]
+   must be preserved in game transformations, that is, when [f] occurs
+   in active queries. All events are preserved when we prove 
+   indistinguishability. *)
 val event_occurs_in_queries : funsymb -> cur_queries_t -> bool
 
 (* Set when a game is modified *)

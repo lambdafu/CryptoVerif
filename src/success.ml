@@ -554,10 +554,49 @@ let check_secrecy_memo collector b l =
 
 (* [check_equivalence state game] checks indistinguishability *)
 
+let check_active mess g =
+  List.for_all (fun ((q,g),poptref) ->
+    if !poptref = Inactive then
+      begin
+	print_string "Query "; Display.display_query3 q;
+	print_string " is inactive"; print_string mess;
+	print_string ". You should prove it.";
+	print_newline();
+	false
+      end
+    else true
+	) g.current_queries
+
+let check_included mess1 g1 mess2 g2 =
+  List.for_all (function
+    | (QEquivalence _,_),_ ->
+	(* The equivalence query is present only on one side, and that's normal *)
+	true
+    | ((q,g),poptref) ->
+	if (!poptref = ToProve) && not (List.exists (fun ((q',g'), poptref') ->
+	  !poptref' = ToProve && Terms.equal_query q q'
+	    ) g2.current_queries) then
+	  begin
+	    print_string "Query "; Display.display_query3 q;
+	    print_string " is still to prove"; print_string mess1;
+	    print_string ", but not"; print_string mess2; print_string ".";
+	    print_newline();
+	    false
+	  end
+	else true
+	    ) g1.current_queries
+    
 let check_equivalence collector state game =
   (* The adversary may always win *)
   Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
-  Transf_merge.equal_games game state.game
+  let (r, proba) = Transf_merge.equal_games game state.game in
+  if r &&
+    (check_active "" game) &&
+    (check_active " on the other side" state.game) &&
+    (check_included " on this side" game " on the other side" state.game) &&
+    (check_included " on the other side" state.game " on this side" game)
+  then (true, proba)
+  else (false, [])
       
 (* [check_query q] proves the query [q]. 
    It returns [(true, proba)] when [q] holds up to probability [proba].
@@ -684,7 +723,16 @@ let is_success collector state =
   let vcounter = Terms.get_var_num_state() in
   let event_accu = ref [] in
   Improved_def.improved_def_game (Some event_accu) true g;
-  let (proved_queries, all_proved) = check_query_list collector (!event_accu) state g.current_queries in
+  (* Check equivalence queries last, so that, if another query (unreachability 
+     of some event) can be proved, it is already proved when we check the 
+     equivalence query. For that, we put the equivalence queries first,
+     because [check_query_list] checks queries in the reverse order
+     of the list *)
+  let (equiv_queries, other_queries) = List.partition (function
+    | (QEquivalence _,_),_ -> true
+    | _ -> false) g.current_queries in
+  let queries = equiv_queries @ other_queries in
+  let (proved_queries, all_proved) = check_query_list collector (!event_accu) state queries in
   update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];

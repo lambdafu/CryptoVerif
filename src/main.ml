@@ -171,6 +171,8 @@ let anal_file s0 =
 	      game_number = -1;
 	      current_queries = [] }
 	  in
+          (*We put this query to make sure that events are preserved in [initial_expand_simplify]*)
+	  final_game.current_queries <- [(AbsentQuery,final_game), ref ToProve];
 	  let final_state =
 	    { game = final_game;
 	      prev_state = None;
@@ -179,6 +181,15 @@ let anal_file s0 =
           let final_state_after_minimal_transfos =
             Instruct.initial_expand_simplify final_state
           in
+	  let rec remove_absent_query state =
+            state.game.current_queries <-
+               List.filter (function ((AbsentQuery,_),_) -> false | _ -> true)
+		 state.game.current_queries;
+            match state.prev_state with
+              None -> ()
+            | Some(_,_,_,s') -> remove_absent_query s'
+	  in
+	  remove_absent_query final_state_after_minimal_transfos;
 	  (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars, true)])
     in
     let p = Terms.move_occ_process p in

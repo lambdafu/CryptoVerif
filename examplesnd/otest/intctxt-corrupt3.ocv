@@ -1,3 +1,9 @@
+(* The proof fails because the query event(bad)==>false is still to prove in one
+   (and only one) of the two sequences of games used to prove
+   the equivalence. It is easy to make the proof succeed,
+   by calling success on the RHS, to prove the query 
+   event(bad)==>false before proving the indistinguishability. *)
+
 def INT_CTXT_sym_enc_no_corrupt(key, cleartext, ciphertext, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Advintctxt) { 
 
 param N, N'.
@@ -54,9 +60,18 @@ start_from_other_end;
 insert before "return(bottom)" "if dec(y_1, k) <> bottom then event_abort distinguish else if true = false then event_abort bad else ";
 simplify;
 start_from_other_end;
-success; (* Proves equivalence; event(distinguish) ==> false remains to prove *)
+success (* Games are indistinguishable; 
+   however, query event(bad)==>false is still to prove in one
+   (and only one) of the two sequences of games used to prove
+   the equivalence, so the proof fails. 
+   event(distinguish) ==> false remains to prove *)
+
+(* To make the proof work: instead of start_from_other_end; success, do: 
+success; (* indisdistinguishability is proved;
+	    event(distinguish) ==> false remains to prove *)
 success simplify; (* Remove compromise *)
 auto (* Use ciphertext integrity and conclude *)
+*)
 }
 
 
@@ -76,6 +91,6 @@ query_equiv(int_ctxt_corrupt(enc))
 	      Ocorrupt() := let corrupt: bool = true in return(k))
 
 (* EXPECTED
-All queries proved.
+RESULT Could not prove indistinguishability between game 1 and game 2.
 0.036s (user 0.036s + system 0.000s), max rss 16656K
 END *)

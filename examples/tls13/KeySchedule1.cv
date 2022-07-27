@@ -15,15 +15,6 @@
   log_1 -> derive-secret(es, client_ets, log_1)
         || derive-secret(es, eems, log_1)  *)
 
-(* Proof indications *)
-
-proof {
-      auto;
-      show_game;
-      SArename r_2;
-      auto
-      }
-
 
 type extracted [large, fixed].
 type key [large, fixed].

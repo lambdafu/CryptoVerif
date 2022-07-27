@@ -1,0 +1,16 @@
+(* The event [e] must be preserved, so the 2 processes are 
+distinguishable. *)
+
+channel c.
+
+event e.
+
+equivalence
+   in(c, x: bitstring); out(c, x)
+
+   in(c, x: bitstring); event e; out(c,x)
+
+(* EXPECTED
+RESULT Could not prove indistinguishability between game 1 and game 2.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

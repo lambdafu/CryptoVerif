@@ -6,15 +6,6 @@ and
   log_7 -> derive-secret(ms, resumption_ms, log_7)
 are indistinguishable from independent random functions. *)
 
-(* Proof indications *)
-
-proof {
-      auto;
-      show_game;
-      SArename r_3;
-      auto
-      }
-
 
 type extracted [large, fixed].
 type key [large, fixed].

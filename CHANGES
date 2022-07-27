@@ -1,6 +1,11 @@
 This file summarizes the most important changes between versions
 of the cryptographic protocol verifier.
 
+Version
+
+- Fixed bug: events were not preserved in the initial transformation of
+  the RHS in equivalence proofs.
+
 Version 2.06
 
 - Allow saving and showing executed interactive commands
