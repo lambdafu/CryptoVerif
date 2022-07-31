@@ -234,8 +234,9 @@ let same_nb_branch ?show_diff_reason occ occ' l0 l0' =
     end
 
 let same_unique ?show_diff_reason occ occ' l0 find_info l0' find_info' =
-  if (Unique.is_unique l0 find_info = Unique.is_unique l0' find_info')
-     (* TO DO change this test if find_info structure becomes richer *)
+  if (Terms.equal_find_info
+	(Terms.is_unique (Some (!whole_game)) l0 find_info)
+	(Terms.is_unique (Some (!whole_game)) l0' find_info'))
   then true
   else
     begin
@@ -1136,7 +1137,7 @@ let can_merge_all_branches_store_arrays eq_test above_p_facts true_facts l0 p3 =
     Array_ref.exclude_array_ref_def_list in_scope def_list;
     Array_ref.exclude_array_ref_term in_scope t1) l0;
   List.for_all (fun (_, def_list, t1, p2) ->
-    (not (Terms.may_abort t1)) &&
+    (not (Terms.may_abort_counted (Some (!whole_game)) t1)) &&
     (equal_store_arrays eq_test true_facts p2 p3)) l0
 
 (* was called from transf_simplify 
@@ -2002,7 +2003,7 @@ let rec collect_merges_find_cond cur_array t =
       collect_merges_find_cond cur_array t3;
       let true_facts = Facts.get_facts_at (DTerm t) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
-      if Terms.is_unique_no_abort l0 find_info then
+      if Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info then
 	begin
 	  try
 	    List.iter (fun ((bl, def_list, t1, t2) as br) ->
@@ -2025,7 +2026,7 @@ let rec collect_merges_find_cond cur_array t =
 	  with Contradiction ->
 	    ()
 	end
-      else
+      else if Terms.is_not_unique_to_prove find_info then
 	begin
 	  try
 	    all_branches_var_list := [];
@@ -2108,7 +2109,7 @@ and collect_merges_o cur_array p =
       collect_merges_o cur_array p3;
       let true_facts = Facts.get_facts_at (DProcess p) in
       let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) true_facts in
-      if Terms.is_unique_no_abort l0 find_info then
+      if Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info then
 	begin
 	  try
 	    List.iter (fun ((bl, def_list, t1, p2) as br) ->
@@ -2131,7 +2132,7 @@ and collect_merges_o cur_array p =
 	  with Contradiction -> 
 	    ()
 	end
-      else
+      else if Terms.is_not_unique_to_prove find_info then
 	begin
 	  try 
 	    all_branches_var_list := [];

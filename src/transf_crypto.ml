@@ -3868,7 +3868,7 @@ let do_crypto_transform p =
     if !Settings.use_known_equalities_crypto then
       begin
 	let r = Terms.move_occ_process r in
-	Def.build_def_process None r;
+	Def.build_def_process (Some(!whole_game)) None r;
 	Incompatible.build_compatible_defs r;
 	let r' = update_def_list_simplif r in
 	Def.empty_def_process r;

@@ -135,6 +135,8 @@ let empty_def_member l =
    to a variable defined in a term.
    *)
 
+let whole_game = ref None
+    
 let find_list_to_elsefind accu l =
   List.fold_left (fun accu (_, (_,efl)) ->
     List.fold_left (fun (fact_accu, else_find_accu) (bl, def_list, t1) ->
@@ -225,11 +227,17 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       ignore(def_term event_accu cur_array above_node' true_facts'' def_vars elsefind_facts' t3);
       above_node'
   | FindE(l0,t3,find_info) ->
-      let l0_with_info = Info_from_term.add_info_find false l0 in
+      begin
+	match event_accu, find_info with
+	| Some accu, UniqueToProve f ->
+	    accu := (Terms.event_term t.t_occ f cur_array, DTerm t) :: (!accu)
+	| _ -> ()
+      end;
+      let l0_with_info = Info_from_term.add_info_find (!whole_game) false l0 in
       let (true_facts_else, elsefind_facts_else) = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0_with_info
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (!whole_game) l0 find_info in
       let rec find_l seen = function
 	  [] -> ()
 	| (((bl,def_list,t1,t2), (info_then, info_else)) as cur_branch)::l ->
@@ -327,10 +335,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	match event_accu with
 	  None -> ()
 	| Some accu ->
-	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	    let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
-	    let t' = Terms.build_term_type_occ Settings.t_bool t.t_occ (FunApp(f, [idx])) in
-	    accu := (t', DTerm t) :: (!accu)
+	    accu := (Terms.event_term t.t_occ f cur_array, DTerm t) :: (!accu)
       end;
       above_node
   | EventE(t1,p) ->
@@ -468,10 +473,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	match event_accu with
 	  None -> ()
 	| Some accu -> 
-	    let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-	    let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
-	    let t = Terms.build_term_type_occ Settings.t_bool p'.p_occ (FunApp(f, [idx])) in
-	    accu := (t, DProcess p') :: (!accu)
+	    accu := (Terms.event_term p'.p_occ f cur_array, DProcess p') :: (!accu)
       end;
       ([],[])
   | Restr(b,p) ->
@@ -504,14 +506,20 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       (Terms.intersect (==) fut_binders1 fut_binders2, 
        Terms.intersect Terms.equal_terms fut_true_facts1 fut_true_facts2)
   | Find(l0,p2,find_info) ->
-      let l0_with_info = Info_from_term.add_info_find false l0 in
+      begin
+	match event_accu, find_info with
+	| Some accu, UniqueToProve f  -> 
+	    accu := (Terms.event_term p'.p_occ f cur_array, DProcess p') :: (!accu)
+	| _ -> ()
+      end;
+      let l0_with_info = Info_from_term.add_info_find (!whole_game) false l0 in
       let (true_facts', elsefind_facts') = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0_with_info
       in
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu cur_array above_node true_facts' def_vars elsefind_facts' p2
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (!whole_game) l0 find_info in
       let rec find_l seen = function
 	  [] -> (fut_binders2, fut_true_facts2)
 	| (((bl,def_list,t,p1), (info_then, info_else)) as cur_branch)::l ->
@@ -651,7 +659,8 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
   p'.p_facts <- Some (cur_array, true_facts, elsefind_facts, def_vars, fut_true_facts, fut_binders, above_node);
   result
 
-let build_def_process event_accu p =
+let build_def_process g_opt event_accu p =
+  whole_game := g_opt;
   empty_def_process p;
   let st_node = { above_node = None; 
 		  binders = []; 
@@ -662,7 +671,8 @@ let build_def_process event_accu p =
 		  definition = DNone;
 		  definition_success = DNone } 
   in
-  def_process event_accu [] st_node [] [] p
+  def_process event_accu [] st_node [] [] p;
+  whole_game := None
 
 let rec build_def_fungroup cur_array above_node = function
   | ReplRestr(repl_opt, restr, funlist) ->

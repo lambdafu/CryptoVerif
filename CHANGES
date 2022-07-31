@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow proving [unique] after some game transformations.
+- As a consequence, removed setting allowUnprovedUnique.
 - Fixed bug: events were not preserved in the initial transformation of
   the RHS in equivalence proofs.
 

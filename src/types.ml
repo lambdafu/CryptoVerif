@@ -85,11 +85,11 @@ type table = { tblname : string;
 type find_info =
     Nothing
   | Unique
-  | UniqueToProve (* Used when a find[unique] is inserted by the command "insert". CryptoVerif must prove that the find is really unique, the find_info becomes Unique when the proof is done. *)
+  | UniqueToProve of funsymb (* Used when a find[unique] is inserted by the command "insert". CryptoVerif must prove that the find is really unique, the find_info becomes Unique when the proof is done. *)
 
 (* terms *)
 
-type binder = { sname : string;
+and binder = { sname : string;
                 vname : int;
 		   (* The name of a variable consists of two elements:
 		      sname is a string, vname is an integer, the full name
@@ -208,6 +208,7 @@ and funcats =
   | Or
   | And
   | Event (* Function symbols for events *)
+  | NonUniqueEvent (* Function symbols for non-unique events *)
   | SepLetFun (* Function symbols defined by letfun, and that can 
 		 be implemented as a separate functon (no find, array access,
 		 out of scope access) *)
@@ -676,8 +677,7 @@ and usage_change =
 
 and detailed_instruct =
     DExpandGetInsert of table
-  | DProveUnique
-  | DProveUniqueFailed
+  | DProveUnique of program_point
   | DExpandIfFind of simplify_ins list
   | DSimplify of simplify_ins list
   | DGlobalDepAnal of binder * coll_elim_t list
@@ -840,7 +840,7 @@ type impl_info = impl_letfun list * impl_process list
       
 type final_process =
     SingleProcess of inputprocess
-  | Equivalence of inputprocess * inputprocess * binder list(*public variables*)
+  | Equivalence of inputprocess * inputprocess * query list(*non-unique queries in 1st process*) * query list(*non-unique queries in 2nd process*) * binder list(*public variables*)
   
 type ri_mul_t =
   term list * (repl_index list * probaf) option

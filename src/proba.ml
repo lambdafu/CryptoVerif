@@ -459,7 +459,7 @@ let find_proba = ref Zero
 
 let add_proba_find cur_array l0 find_info =
   if (!Settings.ignore_small_times) <= 0 &&
-    not (Terms.is_unique_no_abort l0 find_info) then
+    not (Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info) then
     begin
       find_proba := Polynom.p_add
 	   (Polynom.p_mul (Polynom.p_prod (List.map (fun ri -> card ri.ri_type) cur_array), EpsFind),

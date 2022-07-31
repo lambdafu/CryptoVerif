@@ -1,21 +1,6 @@
 open Types
 open Parsing_helper
 
-(* [is_unique l0' find_info] returns Unique when a [find] is unique,
-   that is, at runtime, there is always a single possible branch 
-   and a single possible value of the indices:
-   either it is marked [Unique] in the [find_info],
-   or it has a single branch with no index.
-   [l0'] contains the branches of the considered [find]. *)
-
-let is_unique l0' find_info =
-  match l0' with
-    [([],_,_,_)] -> Unique
-  | _ ->
-      match find_info with
-      | UniqueToProve -> Nothing
-      | _ -> find_info
-
 (* [infer_unique g cur_array simp_facts def_vars dep_info current_history l0' find_info]
    tries to prove that there is single possible choice in the find with
    branches [l0'], and if so it returns the modified [find_info] equal to
@@ -31,7 +16,7 @@ let is_unique l0' find_info =
 
 let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
   let l0' = List.map (fun (bl, def_list1, t1, _) ->
-    let (sure_facts, defined_vars, _) = Info_from_term.def_vars_and_facts_from_term g.expanded true t1 in
+    let (sure_facts, defined_vars, _) = Info_from_term.def_vars_and_facts_from_term (Some g) g.expanded true t1 in
     (bl, defined_vars @ def_list1, sure_facts)
       ) l0
   in
@@ -86,49 +71,45 @@ let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
 
 let whole_game = ref Terms.empty_game
 let initial = ref false
-let transfo_done = ref None
+let transfo_done = ref []
     
 let prove_unique1 pp l0 find_info ext =
-  if find_info = UniqueToProve then
-    let proved() =
+  match Terms.is_unique (Some (!whole_game)) l0 find_info with
+  | (UniqueToProve e) as find_info' ->
       begin
-	match !transfo_done with
-	| None -> transfo_done := Some DProveUnique
-	| _ -> ()
-      end;
-      Unique
-    in
-    try 
-      let cur_array =
-	match Incompatible.get_facts pp with
-	| Some(cur_array,_,_,_,_,_,_) -> cur_array
-	| None -> failwith "(missing information, should not happen)"
-      in
-      let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
-      let def_vars = Facts.get_def_vars_at pp in
-      let current_history = Facts.get_initial_history pp in 
-      if prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
-	proved()
-      else
-	failwith ""
-    with
-    | Failure comment -> 
-	if !initial then
-	  if !Settings.allow_unproved_unique then
-	    begin
-	      input_warning ("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment^". It is your responsability to make sure that it is really unique.") ext;
-	      transfo_done := Some DProveUniqueFailed;
-	      Unique
-	    end
+	let proved() =
+	  (*TODO when we insert a find[unique], the program point pp
+	    in fact refers to a game that is not displayed*)
+	  transfo_done :=  (DProveUnique pp) ::(!transfo_done);
+	  Unique
+	in
+	try 
+	  let cur_array =
+	    match Incompatible.get_facts pp with
+	    | Some(cur_array,_,_,_,_,_,_) -> cur_array
+	    | None -> failwith "(missing information, should not happen)"
+	  in
+	  let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
+	  let def_vars = Facts.get_def_vars_at pp in
+	  let current_history = Facts.get_initial_history pp in 
+	  if prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
+	    proved()
 	  else
-	    raise (Error("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment, ext))
-	else
-	  raise (Error("You inserted a find[unique] but I could not prove that it is really unique"^comment, ext))
-    | Contradiction ->
-	(* The find[unique] is unreachable, I can consider it unique without problem *)
-	proved()
-  else
-    find_info
+	    failwith ""
+	with
+	| Failure comment ->
+	    begin
+	      if !initial then
+		input_warning ("The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique"^comment^". I will try to prove it unique later.") ext
+	      else
+		input_warning ("You inserted a find[unique] or the initial game contains a find[unique] or get[unique] but I could not prove yet that it is really unique"^comment^". I will try to prove it unique later.") ext
+	    end;
+	    find_info'
+	| Contradiction ->
+	    (* The find[unique] is unreachable, I can consider it unique without problem *)
+	    proved()
+      end;
+  | find_info -> find_info
 	
 let rec prove_uniquet t =
   match t.t_desc with
@@ -218,7 +199,7 @@ let prove_unique_game initial_game g =
   let g_proc = Terms.get_process g in
   whole_game := g;
   initial := initial_game;
-  transfo_done := None;
+  transfo_done := [];
   Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_game None true g;
   Depanal.reset [] g;
@@ -226,7 +207,7 @@ let prove_unique_game initial_game g =
     Array_ref.cleanup_array_ref();
     Improved_def.empty_improved_def_game true g;
     whole_game := Terms.empty_game;
-    transfo_done := None
+    transfo_done := []
   in
   let p' =
     try
@@ -239,21 +220,24 @@ let prove_unique_game initial_game g =
   let transfos = !transfo_done in
   cleanup();
   match transfos with
-  | None -> (g, [], [])
-  | Some t ->
+  | [] -> (g, [], [])
+  | _ ->
       Settings.changed := true;
-      (g', Depanal.final_add_proba(), if initial_game then [t] else [])
+      (g', Depanal.final_add_proba(), transfos)
     
 let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
-  if not (!Settings.infer_unique) then
-    (is_unique l0' find_info, false)
-  else
-    match is_unique l0' find_info with
-    | Unique -> (Unique, false)
-    | UniqueToProve
-    | Nothing ->
-       if prove_unique g cur_array simp_facts def_vars dep_info node l0' then
-         (Unique, true)
-       else
-         (Nothing, false)
+  let prove() =
+    if prove_unique g cur_array simp_facts def_vars dep_info node l0' then
+      (Unique, true)
+    else
+      (find_info, false)
+  in
+  match Terms.is_unique (Some g) l0' find_info with
+  | Unique -> (Unique, false)
+  | UniqueToProve _ -> prove()
+  | Nothing ->
+      if !Settings.infer_unique then
+	prove()
+      else
+	(find_info, false)
          

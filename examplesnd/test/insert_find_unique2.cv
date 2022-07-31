@@ -6,14 +6,19 @@ param N.
 channel c,d.
 
 proof {
-      insert after "in(d" "find[unique] j<=N suchthat defined(x[j]) && x[j] = y then"
+      insert after "in(d" "find[unique] j<=N suchthat defined(x[j]) && x[j] = y then";
+      auto
       }
 
+event e.
+query event(e) ==> false.
+
 process
-	(!N in(c,x: bitstring); out(c,x))
+	(!N in(c,x: bitstring); event e; out(c,x))
 	|
 	(in(d,y:bitstring); out(d,y))
 
 (* EXPECTED
+RESULT Could not prove event(e) ==> false.
 0.080s (user 0.080s + system 0.000s), max rss 15876K
 END *)

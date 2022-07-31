@@ -161,7 +161,7 @@ let get_event queries (s, ext_s) =
 	    raise Not_found;
 	  (* When the events has been introduced in the other side of the equivalence and it has not been introduced yet on the current side, I reuse the event symbol. Hence the same events can be introduced on both sides *)
 	  (f, true)
-      | _ -> Parsing_helper.internal_error "There should be at most one equivalence query to prove"
+      | _ -> Parsing_helper.internal_error "insert_event: There should be at most one equivalence query to prove"
     with Not_found ->
       let s' = Terms.fresh_id s in
       if s' <> s then

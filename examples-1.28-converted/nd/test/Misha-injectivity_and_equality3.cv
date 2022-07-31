@@ -1,12 +1,6 @@
-proof {
-      show_game occ;
-      replace 18 "x";
-      auto
-}
-
 channel c.
 
-type nonce [fixed,large].
+type nonce [fixed].
 
 fun f(nonce): bitstring [data].
 equation forall x: nonce, x': nonce;
@@ -32,14 +26,6 @@ event finish(g(x'))
 
 
 (*
-     in(c, ());
-     new x: nonce;
-     event start(x);
-     out(c, x);
-     in(c, x': nonce);
-     if (x = g(x')) then
-     event finish(g(x'))
-
 In order to prove the correspondence finish(y) ==> start(y),
 it sees that when finish(y) is executed, we have
 y = g(x'), x = g(x') and start(x). In order to prove start(y)

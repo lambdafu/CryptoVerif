@@ -101,7 +101,7 @@ type process_paren =
 let display_find_info = function
   | Nothing -> ()
   | Unique -> print_string "[\\kwf{unique}]\\ "
-  | UniqueToProve -> print_string "[\\kwf{unique?}]\\ "
+  | UniqueToProve e -> print_id "[\\kwf{unique?" e.f_name "}]\\ " 
 	
 let rec display_var b tl =
       let tl = 
@@ -195,11 +195,11 @@ and display_term t =
   | FunApp(f,l) ->
       begin
 	match f.f_cat with
-	  Std | GuessCst | SepLetFun | Tuple | Event -> 
+	  Std | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent -> 
 	    print_id "\\kwf{" f.f_name "}";
 	    (* Event functions have replication indexes added at first argument
                Do not display it *)
-	    let l = if f.f_cat == Event then List.tl l else l in
+	    let l = if f.f_cat == Event || f.f_cat == NonUniqueEvent then List.tl l else l in
 	    if (l != []) || (f.f_cat == Tuple) then
 	      begin
 		print_string "(";
@@ -347,7 +347,7 @@ and display_term_paren infix_paren process_paren t =
   let put_paren =
     match t.t_desc with
       Var _ | ReplIndex _ 
-    | FunApp({ f_cat = Std | GuessCst | SepLetFun | Tuple | Event },_) -> false
+    | FunApp({ f_cat = Std | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent },_) -> false
     | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
 	begin
 	  match infix_paren' with
@@ -1727,10 +1727,10 @@ let display_detailed_ins = function
       print_string "\\quad -- Expand get/insert for table $";
       display_table t;
       print_string "$\\\\\n"
-  | DProveUnique ->
-      print_string "\\quad -- Proved that [unique] annotations are correct\\\\\n";
-  | DProveUniqueFailed ->
-      print_string "\\quad -- Failed to prove that [unique] annotations are correct\\\\\n";
+  | DProveUnique p ->
+      print_string "\\quad -- Proved that [unique] annotation at ";
+      print_occ (Incompatible.occ_from_pp p);
+      print_string " is correct\\\\\n";
   | DExpandIfFind(l) ->
       print_string "\\quad -- Expand if/find/let\\\\\n";
       List.iter display_simplif_step (List.rev l)
@@ -1954,28 +1954,32 @@ let display_state s =
   print_string "\\end{tabbing}\n";
 
   (* Display the probabilities of proved queries *)
-  List.iter (fun (q,poptref) ->
-    if Display.is_full_poptref poptref then
-      begin
-	let (proba_info,s') = Display.get_proved poptref in
-        let p'' = compute_proba q proba_info s' in
-	if has_assume p'' then
-	  begin
-	    print_string "RESULT Using unchecked commands, shown ";
-	    poptref := ToProve
-	  end
-	else
-          print_string "RESULT Proved ";
-        display_query q;
-	if p'' != [] then
-	  begin
-	    print_string " up to probability $";
-	    display_proba_set 0 p'';
-	    print_string "$"
-	  end;
-	print_string "\\\\\n"
-      end
-    ) initial_queries;
+  let (non_unique_initial_queries, other_initial_queries) =
+    List.partition Terms.is_nonunique_event_query initial_queries
+  in
+  if List.for_all (fun (q,poptref) -> Display.is_full_poptref poptref) non_unique_initial_queries then
+    List.iter (fun (q,poptref) ->
+      if Display.is_full_poptref poptref then
+	begin
+	  let (proba_info,s') = Display.get_proved poptref in
+          let p'' = compute_proba q proba_info s' in
+	  if has_assume p'' then
+	    begin
+	      print_string "RESULT Using unchecked commands, shown ";
+	      poptref := ToProve
+	    end
+	  else
+            print_string "RESULT Proved ";
+          display_query q;
+	  if p'' != [] then
+	    begin
+	      print_string " up to probability $";
+	      display_proba_set 0 p'';
+	      print_string "$"
+	    end;
+	  print_string "\\\\\n"
+	end
+	  ) other_initial_queries;
 
   (* Display the runtimes *)
   let rec display_times() = 

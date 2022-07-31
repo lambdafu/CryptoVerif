@@ -81,6 +81,7 @@ out(c, dummy);
 ((
   ! i_1 <= N
   in(c[i_1], (ab_1: bitstring, F8: mkey));
+  event PwdAccept(ab_1, PwdPwEntry(F8));
   out(c[i_1], Dbinsert(PwdpwdDb, ab_1, PwdPwEntry(F8)))
 ) | (
   ! i_2 <= N

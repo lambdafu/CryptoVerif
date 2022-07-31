@@ -1,13 +1,5 @@
 open Types
 
-(* [is_unique l0' find_info] returns Unique when a [find] is unique,
-   that is, at runtime, there is always a single possible branch 
-   and a single possible value of the indices:
-   either it is marked [Unique] in the [find_info],
-   or it has a single branch with no index.
-   [l0'] contains the branches of the considered [find]. *)
-val is_unique : 'a findbranch list -> find_info -> find_info
-
 (* [infer_unique g cur_array simp_facts def_vars dep_info current_history l0' find_info]
    tries to prove that there is single possible choice in the find with
    branches [l0'], and if so it returns the modified [find_info] equal to

@@ -69,6 +69,7 @@ proof {
   crypto gdh(exp_div_k) [variables: sk -> a, z_1 -> b . ];
   crypto switch_exp(exp_div_k);
   crypto prf(Expand) r;
+  success;
   out_game "l.out.cv";
 
   start_from_other_end;

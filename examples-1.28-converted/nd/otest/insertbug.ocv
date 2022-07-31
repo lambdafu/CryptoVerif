@@ -3,14 +3,14 @@ insert 9 "let concat(x1,x2,x3,x4,x4) = h1x in";
 binds x4 twice, it should be rejected.
 Now it causes:
 Internal error: Same binder may be defined several times
-
+Fixed
 *)
 
 (* Proof indications *)
 
 proof {
 show_game occ;
-insert 9 "let concat(x1,x2,x3,x4,x4) = h1x in";
+insert after "OH1" "let concat(x1,x2,x3,x4,x4) = h1x in";
 crypto h1;
 show_game
 }
@@ -50,7 +50,7 @@ process
 	Ostart() :=
 hk1 <-R hashkey;
 sk_s <-R hash0;
-return();
+return(sk_s);
 foreach iH1 <= qH1 do
 OH1(h1x: bitstring) :=
 return(h1(hk1, h1x))

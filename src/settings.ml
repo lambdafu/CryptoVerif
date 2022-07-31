@@ -106,8 +106,6 @@ let max_iter_removeuselessassign = ref 10
 
 let detect_incompatible_defined_cond = ref true
 
-let allow_unproved_unique = ref false
-    
 let psize_NONINTERACTIVE = 80 (* Eg. an attacker can make at most 2^80 hash computations *)
 let psize_PASSIVE = 30
 let psize_DEFAULT = psize_PASSIVE
@@ -290,7 +288,6 @@ let do_set p v =
   | "debugCorresp", _ -> parse_bool v debug_corresp
   | "debugAdvLoses", _ -> parse_bool v debug_event_adv_loses
   | "forgetOldGames", _ -> parse_bool v forget_old_games
-  | "allowUnprovedUnique", _ -> parse_bool v allow_unproved_unique
   | _ -> raise Not_found
 
 
@@ -546,25 +543,33 @@ let get_inverse f n =
 
 let get_query_status (_, poptref) =
   !poptref
-      
-let get_public_vars queries =
-  let public_vars = ref [] in
+
+let add_pub_vars_q public_vars q =
   let add_pub_vars pub_vars =
     List.iter (fun b ->
       if not (List.memq b (!public_vars)) then
 	public_vars := b :: (!public_vars)
 			      ) pub_vars
   in
+  match q with
+  | QSecret (b',pub_vars,onesession) ->
+      add_pub_vars (b'::pub_vars)
+  | QEventQ (_,_,pub_vars)
+  | QEquivalence(_,pub_vars,_)
+  | QEquivalenceFinal(_,pub_vars) ->
+      add_pub_vars pub_vars
+  | AbsentQuery -> ()
+	
+let get_public_vars0 queries =
+  let public_vars = ref [] in
+  List.iter (add_pub_vars_q public_vars) queries;  
+  !public_vars
+
+let get_public_vars queries =
+  let public_vars = ref [] in
   List.iter (function 
     | q when get_query_status q != ToProve -> () (* I ignore already proved and inactive queries *)
-    | (QSecret (b',pub_vars,onesession),_),_ ->
-	add_pub_vars (b'::pub_vars)
-    | (QEventQ (_,_,pub_vars),_),_
-    | (QEquivalence(_,pub_vars,_),_),_ 
-    | (QEquivalenceFinal(_,pub_vars),_),_ ->
-	add_pub_vars pub_vars
-    | (AbsentQuery,_),_ -> ()) queries;
-  
+    | (q,_),_ -> add_pub_vars_q public_vars q) queries;
   !public_vars
     
 let occurs_in_queries b q = List.memq b (get_public_vars q)

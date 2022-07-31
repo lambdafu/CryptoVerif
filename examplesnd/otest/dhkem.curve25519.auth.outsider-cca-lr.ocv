@@ -33,6 +33,7 @@ proof {
      It distinguishes a case in which the call to Extract is the same in Odecap as a previous call in Oencap,
      because the public keys are equivalent (in curve25519) *)
   insert before "dh_3: GG_t" "find [unique] ri26 <= Nenc, ri27 <= N suchthat defined(enc_8[ri26, ri27], z_5[ri26, ri27], sk[i1_6[ri26, ri27]], sk[ri27]) && (pow_k(pk_S) = pow_k(subGtoG(exp_div_k(g_k, sk[ri27])))) && (sk = sk[i1_6[ri26, ri27]]) && (pow_k(pkE_3) = pow_k(subGtoG(exp_div_k(g_k, z_5[ri26, ri27])))) then";
+  success; (* the find is proved [unique] *)
   out_game "l4.out.cv";
   out_game "l4occ.out.cv" occ;
   replace 418 "eae_prk[ri26,ri27]";   (* Reuse the result of the previous call to Extract *)

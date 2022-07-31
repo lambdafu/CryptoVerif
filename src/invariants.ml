@@ -519,7 +519,7 @@ let global_inv g =
   whole_game := g;
   let _ = inv1 [] p in
   Array_ref.array_ref_process p;
-  Def.build_def_process None p;
+  Def.build_def_process (Some g) None p;
   inv [] p;
   Array_ref.cleanup_array_ref();
   whole_game := Terms.empty_game;

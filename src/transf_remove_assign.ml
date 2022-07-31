@@ -486,7 +486,7 @@ let remove_assignments remove_set g =
   queries := g.current_queries;
   done_sa_rename := [];
   done_transfos := [];
-  Def.build_def_process None p;
+  Def.build_def_process (Some g) None p;
   if !Terms.current_bound_vars != [] then
     Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
   Array_ref.array_ref_process p;

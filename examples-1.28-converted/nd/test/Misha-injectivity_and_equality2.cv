@@ -1,6 +1,6 @@
 channel c.
 
-type nonce [fixed].
+type nonce [fixed,large].
 
 fun f(nonce): bitstring [data].
 equation forall x: nonce, x': nonce;

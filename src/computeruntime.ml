@@ -172,9 +172,7 @@ let rec time_for_term_in_context t (args, il, ik, repl_lhs, indices_exp) =
     targs
   else
     let eqindexty = List.map (fun brepl -> Settings.t_interv(*brepl.btype*)) repl_lhs in
-    let tupleargs = 
-      Terms.app (Settings.get_tuple_fun (List.map (fun t -> t.t_type) args)) args
-    in
+    let tupleargs = Terms.app_tuple args in
     let t_context = 
       if (!Settings.front_end) == Settings.Oracles then
 	Add(Add(Add(Mul (Cst (float_of_int (ik*il)), ActTime(AFunApp(Settings.f_plus), [])),
@@ -219,7 +217,7 @@ and time_term t =
       if (!Settings.ignore_small_times)>1 && 
 	((f==Settings.f_and) || (f==Settings.f_or) || (f==Settings.f_not) ||
 	(f==Settings.empty_tuple) ||
-	(f.f_cat == Event) ||
+	(f.f_cat == Event) || (f.f_cat == NonUniqueEvent) ||
 	 ((l == []) && (Terms.equal_terms t (Stringmap.cst_for_type (snd f.f_type)))))
       then
 	(* Ignore &&, ||, not, (), events, cst_ty 

@@ -17,10 +17,6 @@ param N3.
 type nonce [large,fixed].
 type passwd [large,fixed].
 
-proof {
-show_game
-}
-
 (* Queries *)
 
 query secret M [cv_onesession].
@@ -45,6 +41,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of M.
+All queries proved.
 0.016s (user 0.012s + system 0.004s), max rss 10452K
 END *)

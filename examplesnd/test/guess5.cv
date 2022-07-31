@@ -13,7 +13,7 @@ The proof is as follows: *)
 proof {
   guess iA;
   crypto ind_cca2(enc) rkB;
-  insert 646 "find i <= NA suchthat defined(k_4[i],m2[i]) && m = m2[i] then";
+  insert before "let injbot(concat1(k_2" "find i <= NA suchthat defined(k_4[i],m2[i]) && m = m2[i] then";
   simplify
 }
 
@@ -170,16 +170,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
 0.176s (user 0.172s + system 0.004s), max rss 19160K
-END *)
-
-(* EXPECTPV
-RESULT secret keyA is true.
-RESULT inj-event(fullB(A,k_2,x)) ==> inj-event(fullA(B,k_2,x)) public_vars keyA is false.
-RESULT (query encoded as inj-event(fullB(A,k_2,x)) ==> inj-event(fullA(B,k_2,x)))
-RESULT (but event(fullB(A,k_2,x)) ==> event(fullA(B,k_2,x)) is true.)
-RESULT event(fullB(A,k_2,x)) ==> event(fullA(B,k_2,x)) public_vars keyA is true.
-RESULT event(fullB(A,k_2,x)) && event(fullA(B,k',x)) ==> k_2 = k' public_vars keyA is true.
-0.192s (user 0.180s + system 0.012s), max rss 14400K
 END *)

@@ -148,13 +148,24 @@ val exists_suboproc :
   (pattern -> bool) -> (inputprocess -> bool) -> process -> bool
 
 val may_abort : term -> bool
+val may_abort_counted : game option -> term -> bool
+
+(* [is_unique g_opt l0' find_info] returns Unique when a [find] is unique,
+   that is, at runtime, there is always a single possible branch 
+   and a single possible value of the indices:
+   either it is marked [Unique] in the [find_info],
+   or it has a single branch with no index.
+   [l0'] contains the branches of the considered [find]. *)
+val is_unique : game option -> 'a findbranch list -> find_info -> find_info
 
 (* [is_unique_no_abort l0 find_info] returns true when the find is unique 
    and its conditions do not abort 
    [l0] contains the branches of the considered [find]. *)
-val is_unique_no_abort : 'a findbranch list -> find_info -> bool
+val is_unique_no_abort : game option -> 'a findbranch list -> find_info -> bool
 
-val other_abort : funsymb -> term -> bool
+val is_not_unique_to_prove : find_info -> bool
+    
+val other_abort : game option -> funsymb -> term -> bool
     
 val equal_lists : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
 val equal_lists_sets : ('a -> 'a -> bool) -> 'a list -> 'a list -> bool
@@ -163,7 +174,8 @@ val equal_query_any_pubvars : query -> query -> bool
 val equal_query : query -> query -> bool
 val equal_instruct : instruct -> instruct -> bool
 val add_eq : instruct -> instruct list -> instruct list
-
+val equal_find_info : find_info -> find_info -> bool
+    
 val type_for_param : param -> typet
 val param_from_type : typet -> param
 
@@ -205,6 +217,8 @@ val get_process : game -> inputprocess
 val build_transformed_game : ?expanded: bool -> inputprocess -> game -> game
                    
 val app : funsymb -> term list -> term
+val app_tuple : term list -> term
+val event_term : int -> funsymb -> repl_index list -> term
 val merge_types : typet -> typet -> typet
 
 val is_repl_index : repl_index -> term -> bool
@@ -257,10 +271,13 @@ val set_def : binder list -> program_point -> program_point ->
   def_node option -> def_node
     
 val create_event : string -> typet list -> funsymb
+val create_nonunique_event : unit -> funsymb
 val e_adv_loses : unit -> funsymb
 val e_bad_guess : unit -> funsymb
 val build_event_query : funsymb -> binder list -> query
 val is_event_query : funsymb -> (query * game) * 'a -> bool
+val is_nonunique_event_query : (query * game) * 'a -> bool
+val get_nonunique_event_query : (query * game) * 'a -> funsymb option
     
 (* Copy a term, process, ..., substituting variables with their links.
    The substitution is performed in different ways, depending on

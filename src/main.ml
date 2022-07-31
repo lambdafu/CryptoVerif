@@ -162,7 +162,7 @@ let anal_file s0 =
     let (p, queries) = 
       match final_p with
       | SingleProcess p' -> (p', queries)
-      | Equivalence(p1,p2,pub_vars) ->
+      | Equivalence(p1,p2,q1,q2,pub_vars) ->
 	  let p2 = Terms.move_occ_process p2 in
           Check.check_def_process_main p2;
 	  let final_game =
@@ -171,15 +171,16 @@ let anal_file s0 =
 	      game_number = -1;
 	      current_queries = [] }
 	  in
-          (*We put this query to make sure that events are preserved in [initial_expand_simplify]*)
-	  final_game.current_queries <- [(AbsentQuery,final_game), ref ToProve];
+          (*We put AbsentQuery to make sure that events are preserved in [initial_expand_simplify]*)
+	  final_game.current_queries <-
+	     ((AbsentQuery,final_game), ref ToProve)::(List.map (fun q -> ((q,final_game), ref ToProve)) q2);
 	  let final_state =
 	    { game = final_game;
 	      prev_state = None;
 	      tag = None }
 	  in
           let final_state_after_minimal_transfos =
-            Instruct.initial_expand_simplify final_state
+            Instruct.initial_expand_simplify_success final_state
           in
 	  let rec remove_absent_query state =
             state.game.current_queries <-
@@ -190,7 +191,7 @@ let anal_file s0 =
             | Some(_,_,_,s') -> remove_absent_query s'
 	  in
 	  remove_absent_query final_state_after_minimal_transfos;
-	  (p1, [QEquivalence (final_state_after_minimal_transfos, pub_vars, true)])
+	  (p1, (QEquivalence (final_state_after_minimal_transfos, pub_vars, true))::q1)
     in
     let p = Terms.move_occ_process p in
     Check.check_def_process_main p;
@@ -203,11 +204,13 @@ let anal_file s0 =
 		    expanded = false;
 		    game_number = 1;
 		    current_queries = [] } in
-          let queries =
-            if queries == [] then 
-	      [(AbsentQuery,g), ref ToProve]
+          let queries = List.map (fun q -> ((q,g), ref ToProve)) queries in
+	  let queries =
+            if List.for_all Terms.is_nonunique_event_query queries then 
+	      ((AbsentQuery,g), ref ToProve)::queries
             else
-	      List.map (fun q -> ((q,g), ref ToProve)) queries in
+	      queries
+	  in
 	  g.current_queries <- queries;
           Settings.equivs := equivs;
           
@@ -235,6 +238,7 @@ let anal_file s0 =
   | Parsing_helper.Error(s, ext) ->
       Parsing_helper.input_error s ext
   | e ->
+      Printexc.print_backtrace stdout;
       Parsing_helper.internal_error (Printexc.to_string e)
 
 let _ =

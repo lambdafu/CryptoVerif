@@ -139,7 +139,7 @@ and check_def_oprocess defined_refs p =
 (* - Main checking function for processes *)
 
 let check_def_process_main p =
-  Def.build_def_process None p;
+  Def.build_def_process None None p;
   check_def_process [] p;
   Def.empty_def_process p
 

@@ -95,8 +95,6 @@ val max_iter_removeuselessassign : int ref
 
 val detect_incompatible_defined_cond : bool ref
 
-val allow_unproved_unique : bool ref
-    
 val do_set : string -> Ptree.pval -> unit
 
 (* Parameter sizes *)
@@ -184,6 +182,7 @@ val get_inverse : funsymb -> int -> funsymb
 val equivs : equiv_gen list ref
 
 val get_query_status : ((query * game) * proof_t ref) -> proof_t
+val get_public_vars0 : query list -> binder list
 val get_public_vars : cur_queries_t -> binder list
 val occurs_in_queries : binder -> cur_queries_t -> bool
 

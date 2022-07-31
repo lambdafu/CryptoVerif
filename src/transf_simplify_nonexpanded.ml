@@ -175,7 +175,7 @@ let main g =
   current_pass_transfos := [];
   Proba.reset [] g;
   let g_proc = Terms.get_process g in
-  Def.build_def_process None g_proc;
+  Def.build_def_process (Some g) None g_proc;
   let p' = simplify_process g_proc in
   let simplif_transfos = 
     if (!current_pass_transfos) != [] then

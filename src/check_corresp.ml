@@ -587,10 +587,60 @@ let is_event_false = function
   | [inj, { t_desc = FunApp(f,l) }], QTerm tfalse, _ ->
       Terms.is_false tfalse &&
       (not inj) &&
-      (f.f_cat == Event)
+      ((f.f_cat == Event) || (f.f_cat == NonUniqueEvent))
   | _ -> false
 
+(* [get_event_false q] returns [Some f] when the query [q] is of the
+   form [event(f) ==> false]. Otherwise, it returns [None]. *)
 
+let get_event_false = function
+  | [inj, { t_desc = FunApp(f,[idx]) }], QTerm tfalse, _ ->
+      if Terms.is_false tfalse &&
+	(not inj) &&
+	((f.f_cat == Event) || (f.f_cat == NonUniqueEvent)) then Some f else None
+  | _ -> None
+
+(* [optim_non_unique q] tries to quickly prove or fail to prove
+   a query [event(f) ==> false], in particular when [f] is a
+   non-unique event. It returns [Some r] when the quick evaluation worked,
+   and [None] when the detailed proof should be performed. *)
+	
+let optim_non_unique collector event_accu ((t1,t2,pub_vars) as q) =
+  match get_event_false q with
+  | Some f ->
+      begin
+	try 
+	  let (one_t1', one_end_pp) =
+	    List.find (fun (t1',end_pp) ->
+	      match t1'.t_desc with
+	      | FunApp(f',_) -> f' == f
+	      | _ -> Parsing_helper.internal_error "event expected in check_corresp") event_accu
+	  in
+	  (* Event [f] occurs in the game *)
+	  if (f.f_cat == NonUniqueEvent) && (collector == None) then
+	    begin
+	      (* Event [f] is a non-unique event, we stop the proof here,
+		 considering that it fails.
+                 The detailed proof is done in module [Unique]. *)
+	      print_string "Proof of ";
+	      Display.display_query3 (QEventQ(t1,t2,pub_vars));
+	      print_string (" failed:\n  Found event "^f.f_name^" at ");
+	      print_int one_t1'.t_occ;
+	      print_newline();
+	      Some (false, [])
+	    end
+	  else
+	    (* Do the detailed proof *)
+	    None
+	with Not_found ->
+	  (* Event [f] does not occur in the game, the query is proved *)
+	  Some (true, [])
+      end
+  | None ->
+      (* Do the detailed proof *)
+      None
+	
+	
 (* [collect_facts_list collector event_accu next_f tl] collects 
    the facts that hold when [tl] is true and calls [next_f] on 
    the collected facts *)
@@ -754,7 +804,7 @@ let collect_facts_list collector event_accu next_f tl =
    executed. From the program point, we can recover the facts that hold,
    the variables that are defined, etc.) *)
       
-let check_corresp collector event_accu (t1,t2,pub_vars) g =
+let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
   Terms.auto_cleanup (fun () ->
 (* Dependency collision must be deactivated, because otherwise
    it may consider the equality between t1 and t1' below as an unlikely
@@ -766,6 +816,11 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
       print_string "Trying to prove ";
       Display.display_query (QEventQ(t1,t2,pub_vars), g)
     end;
+
+  match optim_non_unique collector event_accu q with
+  | Some r -> r
+  | None -> 
+	
   Depanal.reset [] g;
   let vars_t1 = ref [] in
   List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
@@ -816,7 +871,7 @@ let check_corresp collector event_accu (t1,t2,pub_vars) g =
                      and use the elsefind facts at the event e.
                      We already used the elsefind facts in case of event_abort e, 
 		     so we do not redo it in this case. *)
-		  if is_event_false (t1, t2, pub_vars) then
+		  if is_event_false q then
 		    match collector_pp' with
 		    | [new_end_sid, end_pp] ->
 			if is_event_abort_pp end_pp then

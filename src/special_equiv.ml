@@ -266,9 +266,7 @@ let simplify_newl_dep (forall, restrl, t1) =
   let out_term =
     match restrl with
     | [restr] -> Terms.term_from_binder restr
-    | _ ->
-	let tuple_restr = Settings.get_tuple_fun (List.map (fun b -> b.btype) restrl) in
-	Terms.app tuple_restr (List.map Terms.term_from_binder restrl)
+    | _ -> Terms.app_tuple (List.map Terms.term_from_binder restrl)
   in
   let pout_t1 = Terms.oproc_from_desc (Output((c,[]), t1, Terms.iproc_from_desc Nil)) in
   let pin_forall = Terms.iproc_from_desc

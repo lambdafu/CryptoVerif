@@ -172,7 +172,7 @@ process
 
 
 (* EXPECTED
-Error: The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique
-xtime: error in child process (status : 2)
+RESULT Could not prove event(non_unique_1) ==> false with public variables keyA; event(non_unique) ==> false with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
 END *)
 

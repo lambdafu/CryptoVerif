@@ -142,6 +142,7 @@ let collisions = ref ([]: collision list)
 let equivalences = ref ([]: equiv_gen list)
 let queries_parse = ref ([]: Ptree.query list)
 let proof = ref (None : Ptree.command list option)
+let non_unique_events = ref ([] : funsymb list)
 
 let implementation = ref ([]: Ptree.impl list)
 let impl_roles = ref StringMap.empty
@@ -1171,7 +1172,9 @@ let parse_unique construct opt =
     if s = "unique" then
       find_info :=
 	 if !unique_to_prove then
-	   UniqueToProve
+	   let e = Terms.create_nonunique_event() in
+	   non_unique_events := e :: (!non_unique_events);
+	   UniqueToProve e
 	 else
 	   Unique
     else
@@ -1179,6 +1182,12 @@ let parse_unique construct opt =
         ) opt;
   !find_info
 
+let queries_for_unique queries =
+  let pub_vars = Settings.get_public_vars0 queries in
+  let u_queries =
+    List.map (fun e -> Terms.build_event_query e pub_vars) (!non_unique_events)
+  in
+  u_queries @ queries
     
 let rec check_term defined_refs_opt cur_array env prog = function
     PIdent (s, ext), ext2 ->
@@ -4070,16 +4079,21 @@ let rec check_all (l,p) =
 	  | [] -> []
 	in
 	(!statements, !collisions, !equivalences,
-	 remove_dup ql, !proof, (get_impl ()), final_p)
+	 queries_for_unique (remove_dup ql), !proof, (get_impl ()), final_p)
     | PEquivalence(p1,p2,pub_vars) ->
 	if (!queries_parse) != [] then
 	  raise_user_error "Queries are incompatible with equivalence";
 	if !Settings.get_implementation then
 	  raise_user_error "Implementation is incompatible with equivalence";
 	let p1' = check_process_full p1 in
+	let nu1 = !non_unique_events in
+	non_unique_events := [];
 	let p2' = check_process_full p2 in
+	let nu2 = !non_unique_events in
 	let pub_vars' =  get_qpubvars pub_vars in
-	let final_p = Equivalence(p1', p2', pub_vars') in
+	let q1 = List.map (fun e -> Terms.build_event_query e pub_vars') nu1 in
+	let q2 = List.map (fun e -> Terms.build_event_query e pub_vars') nu2 in
+	let final_p = Equivalence(p1', p2', q1, q2, pub_vars') in
 	(!statements, !collisions, !equivalences,
 	 [], !proof, ([],[]), final_p)
     | PQueryEquiv equiv_statement ->

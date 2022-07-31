@@ -704,7 +704,11 @@ let rec check_find_cond defined_refs cur_array env = function
   | PFindE(l0,t3,opt), ext ->
       let find_info =
 	match opt with
-	  ["unique",_] -> has_unique_to_prove := true; UniqueToProve
+	  ["unique",_] ->
+	    let e = Terms.create_nonunique_event () in
+	    has_unique_to_prove := true;
+	    new_queries := e ::(!new_queries);
+	    UniqueToProve e
 	| [] -> Nothing
 	| _ ->
 	    raise (Error("The only option allowed for find is unique", ext))
@@ -788,7 +792,11 @@ let rec insert_rec ((p', def) as r) (ins, ext) env defined_refs cur_array =
   | PFind(l0, rest, opt) ->
       let find_info =
 	match opt with
-	  ["unique",_] -> has_unique_to_prove := true; UniqueToProve
+	  ["unique",_] ->
+	    let e = Terms.create_nonunique_event () in
+	    has_unique_to_prove := true;
+	    new_queries := e ::(!new_queries);
+	    UniqueToProve e
 	| [] -> Nothing
 	| _ ->
 	    raise (Error("The only option allowed for find is unique", ext))
@@ -974,6 +982,17 @@ let insert_instruct occ ext_o s ext_s g =
     begin
       Settings.changed := true;
       let g' = Terms.build_transformed_game p' g in
+      (* Add the queries for the inserted event_abort and find[unique] *)
+      let pub_vars = Settings.get_public_vars g.current_queries in
+      let q_new = 
+	List.map (fun f ->
+	  let query = Terms.build_event_query f pub_vars in
+	  ((query, g'), ref ToProve)
+	    ) queries_to_add
+      in
+      g'.current_queries <- q_new @
+	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
+
       let (g'', proba', done_transfos') = Transf_auto_sa_rename.auto_sa_rename g' in
       let (g''', proba'', done_transfos'') = 
 	if !has_unique_to_prove then
@@ -984,17 +1003,16 @@ let insert_instruct occ ext_o s ext_s g =
 	else
 	  (g'', [], [])
       in
-      (* Add the queries for the inserted event_abort *)
-      let q_new, proba = List.split
-	  (List.map (fun f ->
-	    let pub_vars = Settings.get_public_vars g.current_queries in
-	    let query = Terms.build_event_query f pub_vars in
-	    let q_proof = ref ToProve in
-	    ((query, g'''), q_proof), (SetEvent(f, g''', pub_vars, q_proof))
-	      ) queries_to_add)
+      (* Update the game in which the query should be proved: it is g'''
+	 (g' will not be displayed)
+	 If the query is an old one, make sure it is physically preserved.
+	 (Important for Success.update_full_proof) *)
+      g'''.current_queries <- List.map (fun (((q,q_g),q_proof) as q0) ->
+	if q_g == g' then ((q,g'''),q_proof) else q0) g'''.current_queries;
+      let proba =
+	List.map2 (fun f (_,q_proof) ->
+	  SetEvent(f, g''', pub_vars, q_proof)) queries_to_add q_new
       in
-      g'''.current_queries <- q_new @
-	 (List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries);
       (g''', proba'' @ proba' @ proba, done_transfos'' @ done_transfos' @  [DInsertInstruct(s, occ)])
     end
      

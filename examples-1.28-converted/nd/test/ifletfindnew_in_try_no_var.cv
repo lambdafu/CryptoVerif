@@ -48,7 +48,7 @@ out(hret, ());
   in(c1[i_1], (m: hash, m': hash, a: bool, b: bool));
   find j_4 = j_5 <= N suchthat defined(m'[j_5]) && f(m'[j_5], m') then
     new s: hash;
-    out(c2[i_1], true)
+    out(c2[i_1], s)
   else
     out(c2[i_1], false)
 ) | (

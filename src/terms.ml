@@ -334,40 +334,6 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
       (List.exists f_term tl) || (f p)
 
 	
-(* Check if a term may abort *)
-
-let rec may_abort t =
-  match t.t_desc with
-  | EventAbortE _ -> true
-  | _ -> exists_subterm may_abort (fun br -> false) may_abort_pat t
-
-and may_abort_pat pat =
-  exists_subpat may_abort may_abort_pat pat
-
-(* [is_unique_no_abort l0 find_info] returns true when the find is unique 
-   and its conditions do not abort *)
-
-let is_unique_no_abort l0 find_info =
-  (match l0 with
-  | [([],_,_,_)] -> true
-  | _ -> find_info == Unique) &&
-  not (List.exists (fun (bl, def_list, t1, _) ->
-    may_abort t1) l0)
-
-(* Check if a term may abort by an event other than [f] *)
-
-let other_abort f t =
-  let rec aux t =
-    match t.t_desc with
-    | EventAbortE f' -> f' != f
-    | _ -> exists_subterm aux (fun br -> false) aux_pat t
-
-  and aux_pat pat =
-    exists_subpat aux aux_pat pat
-
-  in
-  aux t
-    
 (* Create an interval type from a parameter *)
 
 module ParamHash =
@@ -503,6 +469,14 @@ let is_args_at_creation b l =
 let app f l =
   build_term_type (snd f.f_type) (FunApp(f,l)) 
 
+let app_tuple l =
+  let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) l) in
+  app f l
+
+let event_term occ f cur_array =
+  let idx = app_tuple (List.map term_from_repl_index cur_array) in
+  build_term_type_occ Settings.t_bool occ (FunApp(f, [idx]))
+    
 let merge_types t1 t2 =
   if t1 == Settings.t_any then t2 else
   if t2 == Settings.t_any then t1 else
@@ -815,6 +789,13 @@ let equal_instruct i1 i2 =
 let add_eq a l =
   if List.exists (equal_instruct a) l then l else a::l
 
+let equal_find_info f1 f2 =
+  match f1, f2 with
+  | Unique, Unique
+  | Nothing, Nothing -> true
+  | UniqueToProve e1, UniqueToProve e2 -> e1 == e2
+  | _ -> false
+							
 (* [compute_inv try_no_var reduced (f, inv, n) t] returns a term equal to 
    [inv(t)]. 
    [(f, inv,n)] is supposed to be a group, with product [f],
@@ -1286,7 +1267,7 @@ and simp_equal_terms1 simp_facts normalize_root t1 t2 =
 	(equal_def_lists def_list def_list') && 
 	(simp_equal_terms simp_facts true t1 t1') && (simp_equal_terms simp_facts true t2 t2')) l l') && 
       (simp_equal_terms simp_facts true t3 t3') &&
-      (find_info == find_info')
+      (equal_find_info find_info find_info')
   | LetE(pat, t1, t2, topt), LetE(pat', t1', t2', topt') ->
       (equal_pats simp_facts pat pat') &&
       (simp_equal_terms simp_facts true t1 t1') &&
@@ -1516,7 +1497,7 @@ let rec synt_equal_terms t1 t2 =
 	(equal_def_lists def_list def_list') && 
 	(synt_equal_terms t1 t1') && (synt_equal_terms t2 t2')) l l') && 
       (synt_equal_terms t3 t3') &&
-      (find_info == find_info')
+      (equal_find_info find_info find_info')
   | LetE(pat, t1, t2, topt), LetE(pat', t1', t2', topt') ->
       (synt_equal_pats pat pat') &&
       (synt_equal_terms t1 t1') &&
@@ -1849,6 +1830,12 @@ let create_event s tyl =
     (* Add a bitstring argument to store the current indices *)
     (Settings.t_bitstring :: tyl, Settings.t_bool)
     Event 
+    
+let create_nonunique_event() =
+  Settings.create_fun (fresh_id "non_unique")
+    (* Add a bitstring argument to store the current indices *)
+    ([Settings.t_bitstring], Settings.t_bool)
+    NonUniqueEvent 
     
 let e_adv_loses =
   let event_set = ref None in
@@ -2963,11 +2950,119 @@ let build_event_query f pub_vars =
   let t = app f [idx] in
   QEventQ([false, t], QTerm (make_false()), pub_vars)
 
+(* Test if a query is event(f) ==> false public_vars ... *)
+    
 let is_event_query f' ((q,_),_) =
   match q with
   | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
       f' == f && is_false t_false
   | _ -> false
+
+let is_nonunique_event_query ((q,_),_) =
+  match q with
+  | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
+      f.f_cat == NonUniqueEvent && is_false t_false
+  | _ -> false
+
+let get_nonunique_event_query ((q,_),_) =
+  match q with
+  | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
+      if f.f_cat == NonUniqueEvent && is_false t_false then
+	Some f
+      else
+	None
+  | _ -> None
+	
+(* [is_unique l0' find_info] returns Unique when a [find] is unique,
+   that is, at runtime, there is always a single possible branch 
+   and a single possible value of the indices:
+   either it is marked [Unique] in the [find_info],
+   or it has a single branch with no index.
+   [l0'] contains the branches of the considered [find]. *)
+
+let is_unique g_opt l0' find_info =
+  match l0' with
+    [([],_,_,_)] -> Unique
+  | _ ->
+      match find_info, g_opt with
+      | UniqueToProve e, Some g ->
+	  if List.exists (fun (((_,_),poptref) as q) ->
+	    (!poptref == ToProve) && (is_event_query e q)
+	      ) g.current_queries then
+	    find_info
+	  else
+	    (* The event [e] is not to prove, we can consider the [find] as unique *)
+	    Unique
+      | _ -> find_info
+
+(* Check if a term may abort *)
+
+let rec may_abort t =
+  let rec aux_t t =
+    match t.t_desc with
+    | EventAbortE _ -> true
+    | FindE(l0,t3,find_info) ->
+	((find_info != Nothing) &&
+	 (match l0 with
+	 | [([],_,_,_)] -> (* there is unique choice (one branch, no index),
+	     so that find never aborts even if it is marked [unique] *) false
+	 | _ -> true)) ||
+	(exists_subterm aux_t (fun br -> false) aux_pat t)
+    | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
+
+  and aux_pat pat =
+    exists_subpat aux_t aux_pat pat
+
+  in
+  aux_t t
+
+let rec may_abort_counted g_opt t =
+  let rec aux_t t =
+    match t.t_desc with
+    | EventAbortE _ -> true
+    | FindE(l0,t3,find_info) ->
+	(match is_unique g_opt l0 find_info with
+	| UniqueToProve _ -> true
+	| _ -> false) ||
+	  (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
+
+  and aux_pat pat =
+    exists_subpat aux_t aux_pat pat
+
+  in
+  aux_t t    
+    
+(* Check if a term may abort by an event other than [f] *)
+
+let other_abort g_opt f t =
+  let rec aux_t t =
+    match t.t_desc with
+    | EventAbortE f' -> f' != f
+    | FindE(l0,t3,find_info) ->
+	(match is_unique g_opt l0 find_info with
+	| UniqueToProve f' -> f' != f
+	| _ -> false) ||
+	  (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
+
+  and aux_pat pat =
+    exists_subpat aux_t aux_pat pat
+
+  in
+  aux_t t
+    
+(* [is_unique_no_abort l0 find_info] returns true when the find is unique 
+   and its conditions do not abort *)
+
+let is_unique_no_abort g_opt l0 find_info =
+  (is_unique g_opt l0 find_info == Unique) &&
+  not (List.exists (fun (bl, def_list, t1, _) ->
+    may_abort_counted g_opt t1) l0)
+
+let is_not_unique_to_prove = function
+  | Unique | Nothing -> true
+  | UniqueToProve _ -> false
     
 (* Functions used for updating elsefind facts when a new variable
    is defined.

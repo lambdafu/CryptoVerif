@@ -394,7 +394,7 @@ let sa_rename b0 g =
 	Proba.reset [] g;
 	Settings.changed := true;
 	let p' = Terms.move_occ_process p' in 
-	Def.build_def_process None p';
+	Def.build_def_process (Some g) None p';
 	Incompatible.build_compatible_defs p';
 	let p'' = ren_out_process b0 p' in
 	let new_names = !image_name_list in

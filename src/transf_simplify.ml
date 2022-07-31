@@ -845,13 +845,27 @@ let rec simplify_term_w_find cur_array true_facts t =
 
   | FindE(l0,t3,find_info) -> 
       begin
-	match t3.t_desc with
-	| EventAbortE f when List.for_all (fun (_,_,t,t2) ->
-	    match t2.t_desc with
-	    | EventAbortE f' -> f == f' && not (Terms.other_abort f t)
-	    | _ -> false) l0 ->
-		t3
+      let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
+      let (find_info, change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0 find_info in
+      if change then
+        begin
+	  Settings.changed := true;
+	  current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
+        end;
+
+      match t3.t_desc with
+      | EventAbortE f when
+	(List.for_all (fun (_,_,t,t2) ->
+	  match t2.t_desc with
+	  | EventAbortE f' -> f == f' && not (Terms.other_abort (Some (!whole_game)) f t)
+	  | _ -> false) l0) &&
+	(match find_info with
+	| Unique | Nothing -> true
+	| UniqueToProve f' -> f == f') ->
+	    t3
 	| _ -> 
+
       (* Expand find in conditions of find when the inner find is "unique".
 	 The outer find is unique after transformation if and only if it
 	 was unique before transformation. *)
@@ -863,9 +877,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      [] -> []
 	    | (((bl, def_list, t', t2) as br1)::r) ->
 		let r' = expand_find r in
-		if Terms.may_abort t' then br1::r' else
+		if Terms.may_abort_counted (Some (!whole_game)) t' then br1::r' else
 		match t'.t_desc with
-		  FindE(l2, t4, find_info') when Terms.is_false t4 && (Unique.is_unique l2 find_info' == Unique) ->
+		  FindE(l2, t4, find_info') when Terms.is_false t4 && (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t5, t6) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -897,7 +911,7 @@ let rec simplify_term_w_find cur_array true_facts t =
       if (!done_expand) then
 	begin
 	  Settings.changed := true;
-	  let find_info = Unique.is_unique l0' find_info in
+	  let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
 	  (* This transformation may reorder elements in the list of successful
 	     branches and indices of find, hence we need to add eps_find. *)
 	  Proba.add_proba_find cur_array l0' find_info;
@@ -910,13 +924,13 @@ let rec simplify_term_w_find cur_array true_facts t =
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
       let new_find = 
 	if (!Settings.unique_branch_reorg) &&
-	  (Terms.is_unique_no_abort l0 find_info) then
+	  (Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info) then
 	  try
 	  let rec expand_find seen = function
 	      [] -> None
 	    | (((bl, def_list, t', t2) as br1)::r) ->
 		match t2.t_desc with
-		  FindE(l3, t4, find_info') when Terms.is_unique_no_abort l3 find_info' -> 
+		  FindE(l3, t4, find_info') when Terms.is_unique_no_abort (Some(!whole_game)) l3 find_info' -> 
 		    (* bl is defined in a condition of find, so these variables
 		       will be SArenamed by auto_sa_rename. This SArename advice is
 		       therefore not necessary. 
@@ -950,9 +964,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	  simplify_term_w_find cur_array true_facts (Terms.build_term_at t (TestE(t1,t2,t3)))
       |	_ ->
       try
-      let l0_with_info = Info_from_term.add_else_info_find (!whole_game).expanded l0 in
-      let def_vars = Facts.get_def_vars_at pp in
-      let current_history = Facts.get_initial_history pp in 
+      let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) (!whole_game).expanded l0 in
       let t3' = 
 	try
 	  simplify_term_w_find cur_array (Facts.add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars true_facts l0_with_info) t3
@@ -966,7 +978,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Stringmap.cst_for_type t3.t_type
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
       let rec simplify_findl seen = function
 	  [] -> []
 	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
@@ -1003,7 +1015,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
 		    let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
-                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term (!whole_game).expanded true t1' in
+                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t1' in
 		   let then_node = Facts.get_initial_history (DTerm t2) in
                    let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
                    let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
@@ -1130,7 +1142,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
-		  if (unique_no_abort || (List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*))) && 
+		  if (unique_no_abort ||
+		       ((Terms.is_not_unique_to_prove find_info) && (* the transformation is incorrect with UniqueToProve, even if there is a single branch: that branch may have several successful choices, and the find would abort in this case *)
+		        (List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*)))) && 
 		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
@@ -1193,13 +1207,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    t3'
 	  end
 	else
-	  let (find_info', change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array DepAnal2.init) current_history l0' find_info in
-          if change then
-            begin
-	      Settings.changed := true;
-	      current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
-            end;
-	  Terms.build_term t (FindE(l0', t3',find_info'))
+	  Terms.build_term t (FindE(l0', t3',find_info))
       with OneBranchTerm(find_branch) ->
 	match find_branch with
 	  ([],[],t1,t2) -> 
@@ -1442,17 +1450,30 @@ and simplify_oprocess cur_array dep_info true_facts p =
       end
   | Find(l0, p2, find_info) ->
       begin
-	match p2.p_desc with
-	| EventAbort f when List.for_all (fun (_,_,t,p1) ->
-	    match p1.p_desc with
-	    | EventAbort f' -> f == f' && not (Terms.other_abort f t)
-	    | _ -> false) l0 ->
-		p2
-	| _ -> 
       match dep_info_list' with
 	[] -> Parsing_helper.internal_error "Non empty dep_info_list' needed"
       |	dep_info_else :: dep_info_branches ->
 
+      let def_vars = Facts.get_def_vars_at pp in
+      let current_history = Facts.get_initial_history pp in 
+      let (find_info, change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0 find_info in
+      if change then
+        begin
+	  Settings.changed := true;
+	  current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
+        end;
+
+      match p2.p_desc with
+      | EventAbort f when
+	(List.for_all (fun (_,_,t,p1) ->
+	  match p1.p_desc with
+	  | EventAbort f' -> f == f' && not (Terms.other_abort (Some (!whole_game)) f t)
+	  | _ -> false) l0) &&
+	(match find_info with
+	| Unique | Nothing -> true
+	| UniqueToProve f' -> f == f') ->
+	    p2
+	| _ -> 
       (* Expand find in conditions of find when the inner find is "unique"
 	 The outer find is unique after transformation iff it is unique before transformation *)
       let done_expand = ref false in
@@ -1462,10 +1483,10 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  let rec expand_find = function
 	      [] -> []
 	    | (((bl, def_list, t, p1) as br1)::r) ->
-		let r' = expand_find r in 
-		if Terms.may_abort t then br1::r' else
+		let r' = expand_find r in
+		if Terms.may_abort_counted (Some (!whole_game)) t then br1::r' else
 		match t.t_desc with
-		  FindE(l2, t2, find_info') when Terms.is_false t2 && (Unique.is_unique l2 find_info' == Unique) ->
+		  FindE(l2, t2, find_info') when Terms.is_false t2 && (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t3, t4) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -1497,7 +1518,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
       if (!done_expand) then
 	begin
 	  Settings.changed := true;
-	  let find_info = Unique.is_unique l0' find_info in
+	  let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
 	  (* This transformation may reorder elements in the list of successful
 	     branches and indices of find, hence we need to add eps_find. *)
 	  Proba.add_proba_find cur_array l0' find_info;
@@ -1509,13 +1530,13 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	 TO DO I could perform several of these transformations in a single step,
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
       let new_find = 
-	if (!Settings.unique_branch_reorg) && (Terms.is_unique_no_abort l0 find_info) then
+	if (!Settings.unique_branch_reorg) && (Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info) then
 	  try
 	  let rec expand_find seen = function
 	      [] -> None
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		match p1.p_desc with
-		  Find(l3, p3, find_info') when Terms.is_unique_no_abort l3 find_info' ->
+		  Find(l3, p3, find_info') when Terms.is_unique_no_abort (Some(!whole_game)) l3 find_info' ->
 		    List.iter (fun (b,_) ->
 		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
 		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
@@ -1545,9 +1566,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc_at p' (Test(t1,p1,p2)))
       |	_ ->
       try
-      let l0_with_info = Info_from_term.add_else_info_find (!whole_game).expanded l0 in
-      let def_vars = Facts.get_def_vars_at pp in
-      let current_history = Facts.get_initial_history pp in 
+      let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) (!whole_game).expanded l0 in
       let p2' = 
 	if p2.p_desc == Yield then Terms.oproc_from_desc Yield else
 	try
@@ -1557,7 +1576,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
       let rec simplify_findl seen dep_info_l1 l1 = 
 	match (dep_info_l1,l1) with
 	  [],[] -> []
@@ -1595,7 +1614,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
 		    let t' = simplify_term_w_find cur_array_cond true_facts_t t in
-                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term (!whole_game).expanded true t' in
+                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t' in
 		    let then_node = Facts.get_initial_history (DProcess p1) in
                     let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
                     let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
@@ -1728,7 +1747,9 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
-		  if (unique_no_abort || (List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*))) && 
+		  if (unique_no_abort ||
+		       ((Terms.is_not_unique_to_prove find_info) && (* the transformation is incorrect with UniqueToProve, even if there is a single branch: that branch may have several successful choices, and the find would abort in this case *)
+			(List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*)))) && 
 		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
@@ -1793,22 +1814,20 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  end
 	else
 	  begin
-	    if (p2'.p_desc == Yield) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
-		) l0') then
+	    if (p2'.p_desc == Yield) &&
+	      (List.for_all (fun (bl,_,t,p1) ->
+		(p1.p_desc == Yield) && (not (Terms.may_abort_counted (Some(!whole_game)) t)) &&
+		(not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
+		  ) l0') &&
+	      (Terms.is_not_unique_to_prove find_info)
+	    then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let (find_info', change) = Unique.infer_unique (!whole_game) cur_array true_facts def_vars (dependency_anal cur_array dep_info) current_history l0' find_info in
-              if change then
-                begin
-	          Settings.changed := true;
-	          current_pass_transfos := (SFindInferUnique(pp)) :: (!current_pass_transfos)
-                end;
-	      Terms.oproc_from_desc (Find(l0', p2', find_info'))
+	      Terms.oproc_from_desc (Find(l0', p2', find_info))
 	  end
       with OneBranchProcess(find_branch) ->
 	match find_branch with

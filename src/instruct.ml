@@ -535,6 +535,37 @@ let expand state =
     execute_display_advise Expand state
   else
     state
+
+exception End of state
+exception EndSuccess of state
+
+let basic_success collector state =
+  Settings.advise := [];
+  let (proved_queries, is_done) = Success.is_success collector state in
+  let state' = 
+    if proved_queries != [] then
+      { game = state.game;
+	prev_state = Some (Proof proved_queries, [], [], state);
+        tag = None }
+    else
+      state
+  in
+  if is_done then
+    begin
+      if has_inactive state' then
+	begin
+          (* undo until focus/guess_branch when there is an inactive query *)
+	  (undo_find_inactive state', proved_queries != [], is_done)
+	end
+      else
+	raise (EndSuccess state')
+    end
+  else
+    (state', proved_queries != [], is_done)
+
+let basic_success_state state =
+  let (state', _,_) = basic_success None state in
+  state'
       
 let simplify state =
   state
@@ -556,6 +587,11 @@ let initial_expand_simplify state =
   |> execute_display_advise SimplifyNonexpanded
   |> expand
   |> simplify
+
+let initial_expand_simplify_success state =
+  state
+  |> initial_expand_simplify
+  |> basic_success_state
 
 let display_failure_reasons failure_reasons =
   if failure_reasons == [] then
@@ -711,17 +747,8 @@ let rec execute_any_crypto_rec continue state = function
 	      CSuccess state' -> continue (CSuccess state')
 	    | CFailure l' -> continue (CFailure (l @ l'))) state equivs
 
-let rec issuccess_with_advise collector state = 
-  Settings.advise := [];
-  let (proved_queries, is_done) = Success.is_success collector state in
-  let state' = 
-    if proved_queries != [] then
-      { game = state.game;
-	prev_state = Some (Proof proved_queries, [], [], state);
-        tag = None }
-    else
-      state
-  in
+let rec issuccess_with_advise collector state =
+  let (state', query_proved, is_done) = basic_success collector state in
   if is_done || (collector != None) then
     (* We do not apply advice when doing [success simplify].
        The goal is to simplify the game by removing useless code,
@@ -760,7 +787,7 @@ let rec issuccess_with_advise collector state =
       else
 	(state', false)
     in
-    if (state'' == state') && (proved_queries == []) && (is_done'' == false) then
+    if (state'' == state') && (not query_proved) && (not is_done'') then
       (state, false) (* Forget useless changes *)
     else
       (state'', is_done'')
@@ -851,24 +878,15 @@ let rec insert_sort sorted = function
       (* Insert a into sorted' *)
       insert_elem a sorted'
 
-(* [execute_any_crypto_rec1 state] returns
-   - [CSuccess state'] when the proof of all properties succeeded.
-   - [CFailure ...] otherwise
+(* [execute_any_crypto_rec1 state] 
+   - raises [EndSuccess state'] when the proof of all properties succeeded.
+   - returns [state'] otherwise
    The proof is not displayed. *)
 let rec execute_any_crypto_rec1 interactive state =
   try 
     let (state', is_done) =  issuccess_with_advise None state in
-    if is_done then
-      begin
-	if has_inactive state' then
-	  begin
-            (* undo until focus/guess_branch when there is an inactive query *)
-	    let state'' = undo_find_inactive state' in
-	    execute_any_crypto_rec1 interactive state''
-	  end
-	else
-	  (CSuccess state', state)
-      end
+    if is_done (* all active queries proved, but inactive query remains *) then
+      execute_any_crypto_rec1 interactive state'
     else
       let equiv_list = insert_sort [] (!Settings.equivs) in
       let rec apply_equivs = function
@@ -881,7 +899,7 @@ let rec execute_any_crypto_rec1 interactive state =
 	       raise Backtrack
 	     end
 	   else
-	     (CFailure [], state')
+	     state'
         | lequiv::rest_equivs ->
 	   execute_any_crypto_rec (function
 	       | CSuccess state'' -> execute_any_crypto_rec1 interactive state''
@@ -901,36 +919,29 @@ let rec execute_any_crypto_rec1 interactive state =
      if interactive then
        begin
          print_string "Stopped. Restarting from last crypto transformation.\n";
-         (CFailure [], state)
+         state
        end
      else
        raise Sys.Break
 
-(* [execute_any_crypto state] returns
-   - [CSuccess state'] when the proof of all properties succeeded.
-   - [CFailure ...] otherwise
-   The proof is displayed in case [CFailure] and not displayed in case [CSuccess]. *)
+(* [execute_any_crypto state] 
+   - raises [EndSuccess state'] when the proof of all properties succeeded.
+   - returns [()] otherwise
+   The proof is displayed in case [()] and not displayed in case [EndSuccess]. *)
 let execute_any_crypto state =
   (* For the automatic proof strategy, we always use auto_expand and auto_advice *)
   Settings.auto_expand := true;
   Settings.auto_advice := true;
   (* Always begin with find/if/let expansion *)
   try
-    let (res, state') = execute_any_crypto_rec1 false (initial_expand_simplify state) in
-    begin
-      match res with
-	CFailure _ -> 
-	  print_string "===================== Proof starts =======================\n";
-	  flush stdout;
-	  display_state true state'
-      |	CSuccess _ -> ()
-    end;
-    res
+    let state' = execute_any_crypto_rec1 false (initial_expand_simplify state) in
+    print_string "===================== Proof starts =======================\n";
+    flush stdout;
+    display_state true state'
   with Backtrack ->
     print_string "===================== Proof starts =======================\n";
     flush stdout;
-    display_state true state;
-    CFailure []
+    display_state true state
 	    
 (* Interactive prover *)
 
@@ -1105,9 +1116,6 @@ let interpret_occ state occ_exp =
   | POccInt(occ) ->
       occ
 
-
-exception End of state
-exception EndSuccess of state
 
 let add accu b =
   let s = Display.binder_to_string b in
@@ -1757,15 +1765,7 @@ let success_command do_simplify state =
   in
   let (state', is_done) = issuccess_with_advise collector state in
   if is_done then
-    begin
-      if has_inactive state' then
-	begin
-          (* undo until focus/guess_branch when there is an inactive query *)
-	  undo_find_inactive state'
-	end
-      else
-	raise (EndSuccess state')
-    end
+    state'
   else
     begin
       print_string "Sorry, the following queries remain unproved:\n";
@@ -1944,7 +1944,14 @@ let rec interpret_command interactive state = function
         | Some(_,_,_,s') -> remove_eq_query s'
       in
       let rec add_query q state =
-        state.game.current_queries <- q :: state.game.current_queries;
+	begin
+	  match state.game.current_queries with
+	  | q' :: _ when q' == q -> ()
+		(* The case above is needed to avoid adding [q] several times
+                   when several states contain the same game. That can happen
+                   with the [success] command. *)
+	  | _ -> state.game.current_queries <- q :: state.game.current_queries;
+	end;
         match state.prev_state with
           None -> ()
         | Some(_,_,_,s') -> add_query q s'
@@ -1965,7 +1972,7 @@ let rec interpret_command interactive state = function
             add_query new_equivalence_q state_other_end;
             state_other_end
         | _ ->
-            Parsing_helper.internal_error "There should be at most one equivalence query to prove"
+            Parsing_helper.internal_error "start_from_other_end: There should be at most one equivalence query to prove"
       end
   | CQuit ->
       raise (End state)
@@ -2006,12 +2013,10 @@ let rec interpret_command interactive state = function
 	Settings.auto_expand := true;
 	Settings.auto_advice := true;
 	try
-	  let (res, state') = execute_any_crypto_rec1 true state in
+	  let state' = execute_any_crypto_rec1 true state in
 	  Settings.auto_expand := old_auto_expand;
 	  Settings.auto_advice := old_auto_advice;
-	  match res with
-	    CFailure l -> state'
-	  | CSuccess state' -> raise (EndSuccess state')
+	  state'
 	with Backtrack ->
 	  Settings.auto_expand := old_auto_expand;
 	  Settings.auto_advice := old_auto_advice;
@@ -2162,7 +2167,7 @@ let rec interpret_command interactive state = function
       let state' = restart state in 
       begin
 	match state'.game.proc with
-	| RealProcess _ -> initial_expand_simplify state'
+	| RealProcess _ -> initial_expand_simplify_success state'
 	| Forgotten _ ->
 	    raise (Error("Cannot restart: game no longer in memory", ext))
       end
@@ -2254,16 +2259,19 @@ let do_proof proof state =
       with Sys_error s ->
 	Parsing_helper.user_error ("Cannot open file " ^ fname ^ ": " ^ s)
     end;
-  let r = 
-    match proof with
-      Some pr -> execute_proofinfo pr (initial_expand_simplify state)
-    | None ->
-	if !Settings.interactive_mode then
-	  try
-	    interactive_loop (initial_expand_simplify state)
-	  with EndSuccess s -> CSuccess s
-	else
-	  execute_any_crypto state
+  let r =
+    try
+      match proof with
+	Some pr -> execute_proofinfo pr (initial_expand_simplify_success state)
+      | None ->
+	  if !Settings.interactive_mode then
+	    interactive_loop (initial_expand_simplify_success state)
+	  else
+	    begin
+	      execute_any_crypto state;
+	      CFailure []
+	    end
+    with EndSuccess s -> CSuccess s
   in
   begin
     match r with

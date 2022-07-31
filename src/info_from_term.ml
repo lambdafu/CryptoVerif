@@ -9,77 +9,79 @@ open Types
    context = fun term -> C[term]
 *)
 
-let rec pseudo_expand_term t context =
-  let pseudo_expand_term_rec t =
-    pseudo_expand_term t context
-  in
-  match t.t_desc with
-    Var(b,l) ->
-      pseudo_expand_term_list l
-	(fun li ->
-	  context (Terms.build_term t (Var(b,li))))
-  | ReplIndex _ -> context t
+let local_final_pseudo_expand g_opt t =
+
+  let rec pseudo_expand_term t context =
+    let pseudo_expand_term_rec t =
+      pseudo_expand_term t context
+    in
+    match t.t_desc with
+      Var(b,l) ->
+	pseudo_expand_term_list l
+	  (fun li ->
+	    context (Terms.build_term t (Var(b,li))))
+    | ReplIndex _ -> context t
     (* optimize the expansion of && and ||:
        when the first argument is false (resp. true), 
        I do not need to compute the other one. *)
-  | FunApp(f, [t1;t2]) when f == Settings.f_and ->
-     pseudo_expand_term t1 (fun t1' ->
-         if Terms.is_false t1' && not (Terms.may_abort t2) then
+    | FunApp(f, [t1;t2]) when f == Settings.f_and ->
+	pseudo_expand_term t1 (fun t1' ->
+          if Terms.is_false t1' && not (Terms.may_abort_counted g_opt t2) then
            (* If [t2] may abort, the following optimization is not sound,
               as [false && event_abort e] aborts. 
-	      Similar observation for other calls to [Terms.may_abort] below. *)
-           context t1'
-         else if Terms.is_true t1' then
-           pseudo_expand_term_rec t2
-         else
-	   pseudo_expand_term t2 (fun t2' ->
-               if Terms.is_false t2' && not (Terms.may_abort t1') then
-                 context t2'
-               else if Terms.is_true t2' then
-                 context t1'
-               else
-	         context (Terms.build_term t (FunApp(f,[t1';t2'])))))
-  | FunApp(f, [t1;t2]) when f == Settings.f_or ->
-     pseudo_expand_term t1 (fun t1' ->
-         if Terms.is_true t1' && not (Terms.may_abort t2) then
-           context t1'
-         else if Terms.is_false t1' then
-           pseudo_expand_term_rec t2
-         else
-	   pseudo_expand_term t2 (fun t2' ->
-               if Terms.is_true t2' && not (Terms.may_abort t1') then
-                 context t2'
-               else if Terms.is_false t2' then
-                 context t1'
-               else
-	         context (Terms.build_term t (FunApp(f,[t1';t2'])))))
-  | FunApp(f,l) ->
-      pseudo_expand_term_list l
-	(fun li ->
-	  context (Terms.build_term t (FunApp(f,li))))
-  | TestE(t1,t2,t3) ->
-      pseudo_expand_term t1
-	(fun t1i ->
-	  let t2' = pseudo_expand_term_rec t2 in
-	  let t3' = pseudo_expand_term_rec t3 in
-	  Terms.build_term_type (Terms.merge_types t2'.t_type t3'.t_type) (TestE(t1i, t2', t3')))
-  | LetE(pat, t1, t2, topt) ->
-      pseudo_expand_term t1 (fun t1i ->
-	pseudo_expand_pat pat (fun pati ->
-	  let t2' = pseudo_expand_term_rec t2 in
-	  let topt', ty =
-	    match topt with
-	    | None -> None, t2'.t_type
-	    | Some t3 ->
-		let t3' = pseudo_expand_term_rec t3 in
-		Some t3', Terms.merge_types t2'.t_type t3'.t_type
-	  in
-	  Terms.build_term_type ty (LetE(pati, t1i, t2', topt'))))
-  | FindE(l0, t3, find_info) ->
-      let rec expand_cond_find_list l context =
-	match l with
-	  [] -> context []
-	| ((bl, def_list, t1, t2)::restl) ->
+	      Similar observation for other calls to [Terms.may_abort_counted] below. *)
+            context t1'
+          else if Terms.is_true t1' then
+            pseudo_expand_term_rec t2
+          else
+	    pseudo_expand_term t2 (fun t2' ->
+              if Terms.is_false t2' && not (Terms.may_abort_counted g_opt t1') then
+                context t2'
+              else if Terms.is_true t2' then
+                context t1'
+              else
+	        context (Terms.build_term t (FunApp(f,[t1';t2'])))))
+    | FunApp(f, [t1;t2]) when f == Settings.f_or ->
+	pseudo_expand_term t1 (fun t1' ->
+          if Terms.is_true t1' && not (Terms.may_abort_counted g_opt t2) then
+            context t1'
+          else if Terms.is_false t1' then
+            pseudo_expand_term_rec t2
+          else
+	    pseudo_expand_term t2 (fun t2' ->
+              if Terms.is_true t2' && not (Terms.may_abort_counted g_opt t1') then
+                context t2'
+              else if Terms.is_false t2' then
+                context t1'
+              else
+	        context (Terms.build_term t (FunApp(f,[t1';t2'])))))
+    | FunApp(f,l) ->
+	pseudo_expand_term_list l
+	  (fun li ->
+	    context (Terms.build_term t (FunApp(f,li))))
+    | TestE(t1,t2,t3) ->
+	pseudo_expand_term t1
+	  (fun t1i ->
+	    let t2' = pseudo_expand_term_rec t2 in
+	    let t3' = pseudo_expand_term_rec t3 in
+	    Terms.build_term_type (Terms.merge_types t2'.t_type t3'.t_type) (TestE(t1i, t2', t3')))
+    | LetE(pat, t1, t2, topt) ->
+	pseudo_expand_term t1 (fun t1i ->
+	  pseudo_expand_pat pat (fun pati ->
+	    let t2' = pseudo_expand_term_rec t2 in
+	    let topt', ty =
+	      match topt with
+	      | None -> None, t2'.t_type
+	      | Some t3 ->
+		  let t3' = pseudo_expand_term_rec t3 in
+		  Some t3', Terms.merge_types t2'.t_type t3'.t_type
+	    in
+	    Terms.build_term_type ty (LetE(pati, t1i, t2', topt'))))
+    | FindE(l0, t3, find_info) ->
+	let rec expand_cond_find_list l context =
+	  match l with
+	    [] -> context []
+	  | ((bl, def_list, t1, t2)::restl) ->
                   (* I move something outside a condition of
                      "find" only when bl and def_list are empty.  
                      I could be more precise, I would need to
@@ -89,62 +91,62 @@ let rec pseudo_expand_term t context =
                      "defined" condition---otherwise, some variable
                      accesses may not be defined after the
                      transformation *)
-            if bl != [] || def_list != [] || Terms.may_abort t1 then
-	      expand_cond_find_list restl (fun li ->
-		context ((bl, def_list, local_final_pseudo_expand t1, t2)::li))
-	    else
-	      pseudo_expand_term t1 (fun t1i ->
+              if bl != [] || def_list != [] || Terms.may_abort t1 then
 		expand_cond_find_list restl (fun li ->
-		  context ((bl, def_list, t1i, t2)::li)))
-      in
-      expand_cond_find_list l0 (fun l1i ->
-	let l0' = List.map (fun (bl, def_list, t1, t2) ->
-	  (bl, def_list, t1, pseudo_expand_term_rec t2)) l0 in
-	let t3' = pseudo_expand_term_rec t3 in
-	let rec get_type = function
-	    [] -> t3'.t_type
-	  | (_,_,_,t2')::rest ->
-	      Terms.merge_types t2'.t_type (get_type rest)
+		  context ((bl, def_list, pseudo_expand_term t1 (fun t -> t), t2)::li))
+	      else
+		pseudo_expand_term t1 (fun t1i ->
+		  expand_cond_find_list restl (fun li ->
+		    context ((bl, def_list, t1i, t2)::li)))
 	in
-	Terms.build_term_type (get_type l0') (FindE(l0', t3',find_info)))
-  | ResE(b, t1) ->
-      let t1' = pseudo_expand_term_rec t1 in
-      Terms.build_term_type t1'.t_type (ResE(b, t1'))
-  | EventAbortE f ->
-      Terms.build_term_type t.t_type (EventAbortE f)
-  | EventE _ | InsertE _ ->
-      Parsing_helper.internal_error "Events and insert should not occur in conditions of find"
-  | GetE _ ->
+	expand_cond_find_list l0 (fun l1i ->
+	  let l0' = List.map (fun (bl, def_list, t1, t2) ->
+	    (bl, def_list, t1, pseudo_expand_term_rec t2)) l0 in
+	  let t3' = pseudo_expand_term_rec t3 in
+	  let rec get_type = function
+	      [] -> t3'.t_type
+	    | (_,_,_,t2')::rest ->
+		Terms.merge_types t2'.t_type (get_type rest)
+	  in
+	  Terms.build_term_type (get_type l0') (FindE(l0', t3',find_info)))
+    | ResE(b, t1) ->
+	let t1' = pseudo_expand_term_rec t1 in
+	Terms.build_term_type t1'.t_type (ResE(b, t1'))
+    | EventAbortE f ->
+	Terms.build_term_type t.t_type (EventAbortE f)
+    | EventE _ | InsertE _ ->
+	Parsing_helper.internal_error "Events and insert should not occur in conditions of find"
+    | GetE _ ->
       (* We do not expand GetE, since anyway it will be ignored by [extract_sure] *)
-      context t
+	context t
 
-and pseudo_expand_term_list l context =
-  match l with
-    [] -> context []
-  | (a::l) -> 
-      pseudo_expand_term a (fun a' ->
-	pseudo_expand_term_list l (fun l' ->
-	  context (a'::l')))
+  and pseudo_expand_term_list l context =
+    match l with
+      [] -> context []
+    | (a::l) -> 
+	pseudo_expand_term a (fun a' ->
+	  pseudo_expand_term_list l (fun l' ->
+	    context (a'::l')))
 
-and pseudo_expand_pat pat context =
-  match pat with
-    PatVar b -> context (PatVar b)
-  | PatTuple (ft,l) ->
-      pseudo_expand_pat_list l (fun li ->
-	context (PatTuple (ft,li)))
-  | PatEqual t ->
-      pseudo_expand_term t (fun ti ->
-	context (PatEqual ti))
+  and pseudo_expand_pat pat context =
+    match pat with
+      PatVar b -> context (PatVar b)
+    | PatTuple (ft,l) ->
+	pseudo_expand_pat_list l (fun li ->
+	  context (PatTuple (ft,li)))
+    | PatEqual t ->
+	pseudo_expand_term t (fun ti ->
+	  context (PatEqual ti))
 
-and pseudo_expand_pat_list l context =
-  match l with
-    [] -> context []
-  | (a::l) -> 
-      pseudo_expand_pat a (fun a' ->
-	pseudo_expand_pat_list l (fun l' ->
-	  context (a'::l')))
-	
-and local_final_pseudo_expand t =
+  and pseudo_expand_pat_list l context =
+    match l with
+      [] -> context []
+    | (a::l) -> 
+	pseudo_expand_pat a (fun a' ->
+	  pseudo_expand_pat_list l (fun l' ->
+	    context (a'::l')))
+	  
+  in
   pseudo_expand_term t (fun t -> t)
 
 (* Extract elsefind facts from a branch of find *)
@@ -326,40 +328,40 @@ let rec extract_efl_exp t =
 
 (* Extract both the elsefind facts for when the else branch is taken *)
 
-let rec extract_efl t =
+let rec extract_efl g_opt t =
   match t.t_desc with
   | _ when Terms.is_false t ->
      []
   | _ when Terms.is_true t ->
      [([],[],[])]
   | FunApp(f, [t1; t2]) when f == Settings.f_and ->
-      make_and_efl (extract_efl t1) (extract_efl t2)
+      make_and_efl (extract_efl g_opt t1) (extract_efl g_opt t2)
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
-      make_or_efl (extract_efl t1) (extract_efl t2)
+      make_or_efl (extract_efl g_opt t1) (extract_efl g_opt t2)
   | _ ->
-      let t' = local_final_pseudo_expand t in
+      let t' = local_final_pseudo_expand g_opt t in
       extract_efl_exp t'
 
 let final_extract_efl ris def_list efl =
   List.map (fun (bl1, def_list1, t1') ->
     ris @ bl1, Terms.union_binderref def_list def_list1, Terms.make_and_list t1') efl
     
-let else_info_from_find_branch expanded (bl, def_list, t1, _) =
+let else_info_from_find_branch g_opt expanded (bl, def_list, t1, _) =
   (* [t1] must be expanded *)
   let ris = List.map snd bl in
   if Terms.check_simple_term t1 then
     [(ris,def_list,t1)]
   else
     if !Settings.max_efl > 0 then
-      let extract_fun = if expanded then extract_efl_exp else extract_efl in
+      let extract_fun = if expanded then extract_efl_exp else extract_efl g_opt in
       final_extract_efl ris def_list (extract_fun t1)
     else
       []
 
 
-let add_else_info_find expanded l0 =
+let add_else_info_find g_opt expanded l0 =
   List.map (fun br ->
-    (br, else_info_from_find_branch expanded br)
+    (br, else_info_from_find_branch g_opt expanded br)
       ) l0
 
 let extract_efl_exp t =
@@ -471,18 +473,18 @@ let filter_sure_ri ri_list f =
    approximation: t implies the sure facts. If we take the negation,
    the approximation will be in the wrong direction.*)
     
-(* [extract_sure_exp in_find t] derives facts implied by [t]. Applies when [t] is expanded *)
+(* [extract_sure_exp g_opt in_find t] derives facts implied by [t]. Applies when [t] is expanded *)
                     
-let rec extract_sure_exp in_find t =
+let rec extract_sure_exp g_opt in_find t =
   match t.t_desc with
   | _ when Terms.is_false t ->
      None
   | _ when Terms.is_true t ->
      Some []
   | FunApp(f, [t1; t2]) when f == Settings.f_and ->
-     make_and_sure (extract_sure_exp in_find t1) (extract_sure_exp in_find t2)
+     make_and_sure (extract_sure_exp g_opt in_find t1) (extract_sure_exp g_opt in_find t2)
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
-      make_or_sure (extract_sure_exp in_find t1) (extract_sure_exp in_find t2)
+      make_or_sure (extract_sure_exp g_opt in_find t1) (extract_sure_exp g_opt in_find t2)
   (* TO DO should I simplify [not t] before computing the sure facts,
      to get a more precise result? *)
   | Var _ | FunApp _ ->
@@ -491,8 +493,8 @@ let rec extract_sure_exp in_find t =
   | ReplIndex _ -> Some [FTerm t]
   | TestE(t1, t2, t3) ->
      (* Since [t] is expanded, [t1] is a simple term *)
-     let f2 = extract_sure_exp in_find t2 in
-     let f3 = extract_sure_exp in_find t3 in
+     let f2 = extract_sure_exp g_opt in_find t2 in
+     let f3 = extract_sure_exp g_opt in_find t3 in
      make_or_sure (make_and_sure (Some [FTerm t1]) f2)
                  (make_and_sure (Some [FTerm (Terms.make_not t1)]) f3)
   | FindE(l0,t3,_) ->
@@ -500,14 +502,14 @@ let rec extract_sure_exp in_find t =
 	make_and_sure_list 
 	  (List.map (function ((bl, def_list, _, _) as br) ->
 	    if in_find then
-	      let efl = else_info_from_find_branch true br in
+	      let efl = else_info_from_find_branch g_opt true br in
 	      Some (List.map (fun (bl, def_list, t) ->
 		if bl == [] && def_list == [] then
 		  FTerm (Terms.make_not t)
 		else
 		  FElseFind(bl, def_list, t)) efl)
 	    else if bl == [] && def_list == [] then
-	      let efl = else_info_from_find_branch true br in
+	      let efl = else_info_from_find_branch g_opt true br in
 	      Some (List.map (fun (_, _, t) -> FTerm (Terms.make_not t))
 		      (List.filter (fun (bl, def_list, t) ->
 			bl == [] && def_list == []) efl))
@@ -515,14 +517,14 @@ let rec extract_sure_exp in_find t =
 	      Some []
 	      ) l0)
       in
-     let f3 = make_and_sure else_find_sure (extract_sure_exp in_find t3) in
+     let f3 = make_and_sure else_find_sure (extract_sure_exp g_opt in_find t3) in
      let f0 =
        make_or_sure_list
          (List.map (fun (bl,def_list,t1,t2) ->
 	   let vars = List.map fst bl in
 	   let repl_indices = List.map snd bl in
-           let f1 = filter_sure_ri repl_indices (extract_sure_exp in_find t1) in
-           let f2 = filter_sure vars (extract_sure_exp in_find t2) in
+           let f1 = filter_sure_ri repl_indices (extract_sure_exp g_opt in_find t1) in
+           let f2 = filter_sure vars (extract_sure_exp g_opt in_find t2) in
            let accu = ref [] in
 	   List.iter (Terms.close_def_subterm accu) def_list;
 	   let def_list_subterms = !accu in
@@ -541,11 +543,11 @@ let rec extract_sure_exp in_find t =
 	   (* Assumes there is no array access to [b], which is true
               when [t] is in a condition of find. *)
 	   let t2' = Terms.copy_term (OneSubst(b, t1, ref false)) t2 in
-	   extract_sure_exp in_find t2'
+	   extract_sure_exp g_opt in_find t2'
 	| _ ->
 	    let vars = Terms.vars_from_pat [] pat in
 	    let assign_sure = filter_sure vars (Some [FTerm (Terms.make_equal (Terms.term_from_pat pat) t1)]) in
-	    let f2 = filter_sure vars (extract_sure_exp in_find t2) in
+	    let f2 = filter_sure vars (extract_sure_exp g_opt in_find t2) in
 	    let in_branch_sure = make_and_sure assign_sure f2 in
 	    begin
 	      match pat with
@@ -553,7 +555,7 @@ let rec extract_sure_exp in_find t =
 	      | _ ->
 		  match topt with
 		    Some t3 ->
-		      let f3 = extract_sure_exp in_find t3 in
+		      let f3 = extract_sure_exp g_opt in_find t3 in
 		      let else_branch_sure =
 			try
 			  make_and_sure (Some [FTerm (Terms.make_for_all_diff (Terms.gen_term_from_pat pat) t1)]) f3
@@ -564,7 +566,7 @@ let rec extract_sure_exp in_find t =
 	    end
       end
   | ResE (b,t) ->
-     filter_sure [b] (extract_sure_exp in_find t)
+     filter_sure [b] (extract_sure_exp g_opt in_find t)
   | EventAbortE _ | GetE _ ->
      (* Considering that [EventAbort e] implies false would not be correct
 	in transf_expand.ml and transf_simplify.ml, because it leads to 
@@ -578,26 +580,26 @@ let rec extract_sure_exp in_find t =
   | EventE(_,t) | InsertE(_,_,t) ->
       if in_find then
 	Parsing_helper.internal_error "extract_sure_exp: event, insert should not occur in conditions of find";
-      extract_sure_exp in_find t
+      extract_sure_exp g_opt in_find t
 
-(* [extract_sure in_find t] derives a logical formula in disjunctive
+(* [extract_sure g_opt in_find t] derives a logical formula in disjunctive
    normal form that is implied by [t] *)
 
-let rec extract_sure in_find t =
+let rec extract_sure g_opt in_find t =
   match t.t_desc with
   | _ when Terms.is_false t ->
      None
   | _ when Terms.is_true t ->
      Some []
   | FunApp(f, [t1; t2]) when f == Settings.f_and ->
-     make_and_sure (extract_sure in_find t1) (extract_sure in_find t2)
+     make_and_sure (extract_sure g_opt in_find t1) (extract_sure g_opt in_find t2)
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
-     make_or_sure (extract_sure in_find t1) (extract_sure in_find t2)
+     make_or_sure (extract_sure g_opt in_find t1) (extract_sure g_opt in_find t2)
   | _ ->
-      let t' = local_final_pseudo_expand t in
-      extract_sure_exp in_find t'
+      let t' = local_final_pseudo_expand g_opt t in
+      extract_sure_exp g_opt in_find t'
       
-(* [def_vars_and_facts_from_term expanded in_find t] extracts a list of defined 
+(* [def_vars_and_facts_from_term g_opt expanded in_find t] extracts a list of defined 
    variables and a list of facts implied by [t]
 
    [expanded] is true when [t] is for sure already expanded.
@@ -627,61 +629,61 @@ let final_extract_sure = function
   | None ->
       ([Terms.make_false()], [], [])
     
-let def_vars_and_facts_from_term expanded in_find t =
+let def_vars_and_facts_from_term g_opt expanded in_find t =
   if Terms.check_simple_term t then
     ([t],[],[])
   else
-    let extract_fun = if expanded then extract_sure_exp else extract_sure in
+    let extract_fun = if expanded then extract_sure_exp g_opt else extract_sure g_opt in
     final_extract_sure (extract_fun in_find t)
 
 (* Extract both the sure facts when the then branch is taken and
    the elsefind facts for when the else branch is taken *)
 
-let rec extract_sure_efl t =
+let rec extract_sure_efl g_opt t =
   match t.t_desc with
   | _ when Terms.is_false t ->
      None, []
   | _ when Terms.is_true t ->
      Some [], [([],[],[])]
   | FunApp(f, [t1; t2]) when f == Settings.f_and ->
-      let (sure1, efl1) = extract_sure_efl t1 in
-      let (sure2, efl2) = extract_sure_efl t2 in
+      let (sure1, efl1) = extract_sure_efl g_opt t1 in
+      let (sure2, efl2) = extract_sure_efl g_opt t2 in
       make_and_sure sure1 sure2,
       make_and_efl efl1 efl2
   | FunApp(f, [t1; t2]) when f == Settings.f_or ->
-      let (sure1, efl1) = extract_sure_efl t1 in
-      let (sure2, efl2) = extract_sure_efl t2 in
+      let (sure1, efl1) = extract_sure_efl g_opt t1 in
+      let (sure2, efl2) = extract_sure_efl g_opt t2 in
       make_or_sure sure1 sure2,
       make_or_efl efl1 efl2
   | _ ->
-      let t' = local_final_pseudo_expand t in
-      extract_sure_exp true t',
+      let t' = local_final_pseudo_expand g_opt t in
+      extract_sure_exp g_opt true t',
       extract_efl_exp t'
 
-(* [info_from_find_branch expanded br] returns a pair of
+(* [info_from_find_branch g_opt expanded br] returns a pair of
    information certainly true when the condition of find in the branch [br]
    succeeds (facts, defined variables, elsefind facts)
    and information certainly true when this condition fails
    (elsefind facts) *) 
 
-let info_from_find_branch expanded (bl, def_list, t1, _) =
+let info_from_find_branch g_opt expanded (bl, def_list, t1, _) =
   let ris = List.map snd bl in
   if Terms.check_simple_term t1 then
     ([t1],[],[]), [(ris,def_list,t1)]
   else
     let (sure1, efl1) =
       if expanded then
-        extract_sure_exp true t1,
+        extract_sure_exp g_opt true t1,
         extract_efl_exp t1
       else
-	extract_sure_efl t1 
+	extract_sure_efl g_opt t1 
     in
     (final_extract_sure sure1,
      final_extract_efl ris def_list efl1)
 
-(* [add_info_find expanded l0] adds information collected 
+(* [add_info_find expanded g_opt l0] adds information collected 
    by [info_from_find_branch] to each branch of find in [l0] *)
-let add_info_find expanded l0 =
+let add_info_find g_opt expanded l0 =
   List.map (fun br ->
-    (br, info_from_find_branch expanded br)
+    (br, info_from_find_branch g_opt expanded br)
       ) l0

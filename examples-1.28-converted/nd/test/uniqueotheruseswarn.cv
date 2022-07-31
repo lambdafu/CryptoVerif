@@ -66,6 +66,6 @@ out(c0, pk);
 
 
 (* EXPECTED
-Error: The initial game contains a find[unique] or get[unique] but I could not prove that it is really unique
-xtime: error in child process (status : 2)
+RESULT Could not prove event(non_unique) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
 END *)

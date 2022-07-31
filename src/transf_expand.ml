@@ -247,7 +247,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_term_if rec_simplif pp cur_array true_facts t1 t2 t3
   | _ ->
-      let l0_with_info = Info_from_term.add_else_info_find true l0 in
+      let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) true l0 in
     try
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
@@ -264,7 +264,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Stringmap.cst_for_type t3.t_type
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
       let rec simplify_findl seen = function
 	  [] -> []
 	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
@@ -300,7 +300,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
 		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term true true t1 in
+                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t1 in
 		    let then_node = Facts.get_initial_history (DTerm t2) in
                     let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
                     let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
@@ -380,7 +380,9 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
-		  if (unique_no_abort || (List.length l0 = 1 (* there is a single branch, and its condition is a simple term, so it does not abort*))) &&
+		  if (unique_no_abort ||
+		       ((Terms.is_not_unique_to_prove find_info) && (* the transformation is incorrect with UniqueToProve, even if there is a single branch: that branch may have several successful choices, and the find would abort in this case *)
+		        (List.length l0 = 1 (* there is a single branch, and its condition is a simple term, so it does not abort*)))) &&
 		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to b t2') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
@@ -441,7 +443,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    t3'
 	  end
 	else
-	  let find_info = Unique.is_unique l0' find_info in
+	  let find_info = Terms.is_unique (Some (!whole_game)) l0' find_info in
 	  let rec get_type = function
 	      [] -> t3'.t_type
 	    | (_,_,_,t2')::rest ->
@@ -502,16 +504,16 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
        I do not need to compute the other one. *)
   | FunApp(f, [t1;t2]) when f == Settings.f_and ->
      pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
-         if Terms.is_false t1' && not (Terms.may_abort t2) then
+         if Terms.is_false t1' && not (Terms.may_abort_counted (Some (!whole_game)) t2) then
            (* If [t2] may abort, the following optimization is not sound,
               as [false && event_abort e] aborts. 
-	      Similar observation for other calls to [Terms.may_abort] below. *)
+	      Similar observation for other calls to [Terms.may_abort_counted] below. *)
            context cur_array true_facts t1'
          else if Terms.is_true t1' then
            pseudo_expand_term_rec cur_array true_facts t2
          else
 	   pseudo_expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
-               if Terms.is_false t2' && not (Terms.may_abort t1') then
+               if Terms.is_false t2' && not (Terms.may_abort_counted (Some (!whole_game)) t1') then
                  context cur_array true_facts t2'
                else if Terms.is_true t2' then
                  context cur_array true_facts t1'
@@ -519,13 +521,13 @@ let rec pseudo_expand_term (cur_array: Types.repl_index list) true_facts t conte
 	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
   | FunApp(f, [t1;t2]) when f == Settings.f_or ->
      pseudo_expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
-         if Terms.is_true t1' && not (Terms.may_abort t2) then
+         if Terms.is_true t1' && not (Terms.may_abort_counted (Some (!whole_game)) t2) then
            context cur_array true_facts t1'
          else if Terms.is_false t1' then
            pseudo_expand_term_rec cur_array true_facts t2
          else
 	   pseudo_expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
-               if Terms.is_true t2' && not (Terms.may_abort t1') then
+               if Terms.is_true t2' && not (Terms.may_abort_counted (Some (!whole_game)) t1') then
                  context cur_array true_facts t2'
                else if Terms.is_false t2' then
                  context cur_array true_facts t1'
@@ -783,7 +785,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_if rec_simplif pp cur_array true_facts t1 p1 p2
   | _ ->
-      let l0_with_info = Info_from_term.add_else_info_find true l0 in
+      let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) true l0 in
     try
       let def_vars = Facts.get_def_vars_at pp in
       let current_history = Facts.get_initial_history pp in 
@@ -796,7 +798,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let unique_no_abort = Terms.is_unique_no_abort l0 find_info in
+      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
       let rec simplify_findl seen l1 = 
 	match l1 with
 	  [] -> []
@@ -833,7 +835,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		    let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
 		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
 		| _ -> 
-                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term true true t in
+                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t in
 		    let then_node = Facts.get_initial_history (get_pp p1) in
                     let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
                     let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
@@ -914,7 +916,9 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		  (* If the find has a single branch, which always succeeds, and the
 	             indices defined by the find are not used, we can remove
 	             the find, keeping only its then branch *)
-		  if (unique_no_abort || (List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*))) &&
+		  if (unique_no_abort ||
+		       ((Terms.is_not_unique_to_prove find_info) && (* the transformation is incorrect with UniqueToProve, even if there is a single branch: that branch may have several successful choices, and the find would abort in this case *)
+		        (List.length l0 = 1(* there is a single branch, and its condition is a simple term, so it does not abort*)))) &&
 		    (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries || Terms.refers_to_oprocess b p1') (List.map fst bl'))) then
 		    begin
 		      let def_list4 = Facts.filter_deflist_indices bl' def_list3 in
@@ -978,16 +982,21 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	  end
 	else
 	  begin
-	    if (p2'.p_desc == Yield) && (List.for_all (fun (bl,_,t,p1) ->
-	      (p1.p_desc == Yield) && (not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
-		) l0') then
+	    if (p2'.p_desc == Yield) &&
+	      (List.for_all (fun (bl,_,t,p1) ->
+		(p1.p_desc == Yield) &&
+		(not (Terms.may_abort_counted (Some(!whole_game)) t)) &&
+		(not (List.exists (fun b -> Array_ref.has_array_ref_q b (!whole_game).current_queries) (List.map fst bl)))
+		  ) l0') &&
+	      (Terms.is_not_unique_to_prove find_info)
+	    then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindRemoved(pp)) :: (!current_pass_transfos);
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      let find_info = Unique.is_unique l0' find_info in
+	      let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
 	      Terms.oproc_from_desc (Find(l0', p2', find_info))
 	  end
       with OneBranchProcess(find_branch) ->
@@ -1045,13 +1054,13 @@ let rec expand_term cur_array true_facts t context =
        I do not need to compute the other one. *)
   | FunApp(f, [t1;t2]) when f == Settings.f_and ->
      expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
-         if Terms.is_false t1' && not (Terms.may_abort t2) then
+         if Terms.is_false t1' && not (Terms.may_abort_counted (Some (!whole_game)) t2) then
            context cur_array true_facts t1'
          else if Terms.is_true t1' then
            expand_term_rec cur_array true_facts t2
          else
 	   expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
-               if Terms.is_false t2' && not (Terms.may_abort t1') then
+               if Terms.is_false t2' && not (Terms.may_abort_counted (Some (!whole_game)) t1') then
                  context cur_array true_facts t2'
                else if Terms.is_true t2' then
                  context cur_array true_facts t1'
@@ -1059,13 +1068,13 @@ let rec expand_term cur_array true_facts t context =
 	         context cur_array true_facts (Terms.build_term t (FunApp(f,[t1';t2'])))))
   | FunApp(f, [t1;t2]) when f == Settings.f_or ->
      expand_term cur_array true_facts t1 (fun cur_array true_facts t1' ->
-         if Terms.is_true t1' && not (Terms.may_abort t2) then
+         if Terms.is_true t1' && not (Terms.may_abort_counted (Some (!whole_game)) t2) then
            context cur_array true_facts t1'
          else if Terms.is_false t1' then
            expand_term_rec cur_array true_facts t2
          else
 	   expand_term cur_array true_facts t2 (fun cur_array true_facts t2' ->
-               if Terms.is_true t2' && not (Terms.may_abort t1') then
+               if Terms.is_true t2' && not (Terms.may_abort_counted (Some (!whole_game)) t1') then
                  context cur_array true_facts t2'
                else if Terms.is_false t2' then
                  context cur_array true_facts t1'

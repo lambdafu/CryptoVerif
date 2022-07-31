@@ -76,8 +76,7 @@ let put_out cur_array c t =
     if !Settings.front_end = Settings.Channels then
       t
     else
-      let f = Settings.get_tuple_fun [t.t_type] in
-      Terms.app f [t]
+      Terms.app_tuple [t]
   in
   Terms.oproc_from_desc (Output(out_ch, t', nil_p))
     
@@ -221,52 +220,61 @@ let eqmembers_to_process bad_event lhs rhs =
     eqfungroup_to_process bad_event [] fg_lhs fg_rhs) lhs rhs)
 
 
-let rec get_events_term accu t =
+let rec get_events_term accu nuaccu t =
   match t.t_desc with
   | Var(_,l) | FunApp(_,l) ->
-      List.iter (get_events_term accu) l
+      List.iter (get_events_term accu nuaccu) l
   | ReplIndex _ -> ()
   | EventAbortE f ->
       if not (List.memq f (!accu)) then
 	accu := f :: (!accu)
   | TestE(t1,t2,t3) ->
-      get_events_term accu t1;
-      get_events_term accu t2;
-      get_events_term accu t3
-  | FindE(l0,t,_) ->
-      get_events_term accu t;
-      List.iter (fun (_,_,t1,t2) ->
-	get_events_term accu t1;
-	get_events_term accu t2
+      get_events_term accu nuaccu t1;
+      get_events_term accu nuaccu t2;
+      get_events_term accu nuaccu t3
+  | FindE(l0,t3,find_info) ->
+      begin
+	match find_info with
+	| Unique -> assert false
+	| UniqueToProve f ->
+	    if not (List.memq f (!nuaccu)) then
+	      nuaccu := f :: (!nuaccu)
+	| _ -> ()
+      end;
+      get_events_term accu nuaccu t3;
+      List.iter (fun (bl,def_list,t1,t2) ->
+	get_events_term accu nuaccu t1;
+	get_events_term accu nuaccu t2
 	  ) l0
   | LetE(pat,t1,t2,topt) ->
-      get_events_pat accu pat;
-      get_events_term accu t1;
-      get_events_term accu t2;
+      get_events_pat accu nuaccu pat;
+      get_events_term accu nuaccu t1;
+      get_events_term accu nuaccu t2;
       begin
 	match topt with
 	| None -> ()
-	| Some t3 -> get_events_term accu t3
+	| Some t3 -> get_events_term accu nuaccu t3
       end
   | ResE(_,t) ->
-      get_events_term accu t
+      get_events_term accu nuaccu t
   | EventE _ | InsertE _ | GetE _ ->
       assert false
 
-and get_events_pat accu = function
+and get_events_pat accu nuaccu = function
   | PatVar _ -> ()
   | PatTuple(_,l) ->
-      List.iter (get_events_pat accu) l
+      List.iter (get_events_pat accu nuaccu) l
   | PatEqual t ->
-      get_events_term accu t
+      get_events_term accu nuaccu t
 	
-let rec get_events_fungroup accu = function
-  | Fun(_,_,t,_) -> get_events_term accu t
-  | ReplRestr(_,_,fglist) ->
-      List.iter (get_events_fungroup accu) fglist
+let rec get_events_fungroup accu nuaccu = function
+  | Fun(ch,arg_list,t,opt) ->
+      get_events_term accu nuaccu t
+  | ReplRestr(repl_opt,restr,fglist) ->
+      List.iter (get_events_fungroup accu nuaccu) fglist
     
-let rec get_events_member accu m =
-  List.iter (fun (fg,_) -> get_events_fungroup accu fg) m
+let rec get_events_member accu nuaccu m =
+  List.iter (fun (fg,opt) -> get_events_fungroup accu nuaccu fg) m
 
     
 let equiv_to_process equiv =
@@ -275,14 +283,17 @@ let equiv_to_process equiv =
       Parsing_helper.internal_error "query_equiv should always provide an explicit equivalence"
   | Some(lhs, rhs, _, opt) ->
       member_record_channels lhs;
+      let events = ref [] in
+      let nuevents = ref [] in
+      get_events_member events nuevents rhs;
       match opt with
       | Decisional ->
-	  let events = ref [] in
-	  get_events_member events rhs;
 	  Settings.events_to_ignore_lhs := (!events);
 	  let ch_struct = member_build_ch_struct lhs in
 	  ([], Equivalence(eqmember_to_process ch_struct lhs,
-			   eqmember_to_process ch_struct rhs, []))
+			   eqmember_to_process ch_struct rhs,
+			   [], List.map (fun e -> Terms.build_event_query e []) (!nuevents),
+			   []))
       | Computational ->
 	  let bad_event = Terms.create_event (Terms.fresh_id "distinguish") [] in
 	  let query = Terms.build_event_query bad_event [] in
@@ -293,4 +304,5 @@ let equiv_to_process equiv =
 		build_mapping lhs rhs;
 		rename_vars_member lhs))
 	  in
-	  ([query], SingleProcess(eqmembers_to_process bad_event lhs' rhs))
+	  (query :: (List.map (fun e -> Terms.build_event_query e []) (!nuevents)),
+	   SingleProcess(eqmembers_to_process bad_event lhs' rhs))

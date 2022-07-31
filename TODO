@@ -2,8 +2,6 @@ TO DO next
 
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
-     - changes in build not pushed
-     - conflicts in .gitignore
 2) Extend macros (see point 5 in HIGH PRIORITY)
 3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
@@ -25,9 +23,6 @@ TO DO next
 HIGH PRIORITY
 
 0.1) For the next release:
-
-Allow more complicated proofs for [unique] annotations, with game
-transformations before the actual proof.
 
 Use tables instead of find in HPKE.
 DONE update tech report
@@ -6519,3 +6514,7 @@ have the same continuation.
       continuation after the merge.
       Otherwise, I need to push the merge after the usage of x first.
 ABANDONED (see 6) above for better ideas)
+
+Allow more complicated proofs for [unique] annotations, with game
+transformations before the actual proof.
+DONE 28/7/2022

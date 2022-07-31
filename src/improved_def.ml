@@ -59,8 +59,14 @@ let rec infer_facts_fc cur_array true_facts t =
 	  let true_facts'' = (Terms.make_not t1) :: true_facts in
 	  infer_facts_fc cur_array true_facts' t2;
 	  infer_facts_fc cur_array true_facts'' t3
-      |	FindE(l0,t3,_) ->
-	  let l0_with_info = Info_from_term.add_info_find g.expanded l0 in
+      |	FindE(l0,t3,find_info) ->
+	  begin
+	    match event_accu, find_info with
+	    | Some accu, UniqueToProve f ->
+		accu := (Terms.event_term t.t_occ f cur_array, DTerm t) :: (!accu)
+	    | _ -> ()
+	  end;
+	  let l0_with_info = Info_from_term.add_info_find (Some g) g.expanded l0 in
 	  begin
 	  try 
 	    let def_vars = Facts.get_def_vars_at (DTerm t) in
@@ -135,10 +141,7 @@ let rec infer_facts_fc cur_array true_facts t =
 	    match event_accu with
 	      None -> ()
 	    | Some accu -> 
-		let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-		let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
-		let t_ev = Terms.build_term_type_occ Settings.t_bool t.t_occ (FunApp(f, [idx])) in
-		accu := (t_ev, DTerm t) :: (!accu)
+		accu := (Terms.event_term t.t_occ f cur_array, DTerm t) :: (!accu)
 	  end
        | EventE _ | GetE _ | InsertE _ -> 
 	  Parsing_helper.internal_error "get, insert, event should have been expanded in infer_facts_fc"
@@ -182,10 +185,7 @@ and infer_facts_o cur_array true_facts p' =
 	    match event_accu with
 	      None -> ()
 	    | Some accu -> 
-		let tupf = Settings.get_tuple_fun (List.map (fun ri -> ri.ri_type) cur_array) in
-		let idx = Terms.app tupf (List.map Terms.term_from_repl_index cur_array) in
-		let t = Terms.build_term_type_occ Settings.t_bool p'.p_occ (FunApp(f, [idx])) in
-		accu := (t, DProcess p') :: (!accu)
+		accu := (Terms.event_term p'.p_occ f cur_array, DProcess p') :: (!accu)
 	  end
       |	Restr(b,p) ->
 	  let node = get_node p.p_facts in
@@ -197,8 +197,14 @@ and infer_facts_o cur_array true_facts p' =
 	  let true_facts'' = (Terms.make_not t) :: true_facts in
 	  infer_facts_o cur_array true_facts' p1;
 	  infer_facts_o cur_array true_facts'' p2
-      |	Find(l0,p2,_) ->
-	  let l0_with_info = Info_from_term.add_info_find g.expanded l0 in
+      |	Find(l0,p2,find_info) ->
+	  begin
+	    match event_accu, find_info with
+	    | Some accu, UniqueToProve f  -> 
+		accu := (Terms.event_term p'.p_occ f cur_array, DProcess p') :: (!accu)
+	    | _ -> ()
+	  end;
+	  let l0_with_info = Info_from_term.add_info_find (Some g) g.expanded l0 in
 	  begin
 	  try 
 	    let def_vars = Facts.get_def_vars_at (DProcess p') in
@@ -284,13 +290,13 @@ let p = Terms.get_process g in
    not expanded. *)
 if (!Settings.improved_fact_collection) && g.expanded then
   begin
-    Def.build_def_process None p;
+    Def.build_def_process (Some g) None p;
     Incompatible.build_compatible_defs p;
     infer_facts_i [] [] p
   end
 else
   begin
-    Def.build_def_process event_accu p;
+    Def.build_def_process (Some g) event_accu p;
     if compatible_needed then
       Incompatible.build_compatible_defs p
   end
