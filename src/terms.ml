@@ -3007,6 +3007,9 @@ let rec may_abort t =
 	 | [([],_,_,_)] -> (* there is unique choice (one branch, no index),
 	     so that find never aborts even if it is marked [unique] *) false
 	 | _ -> true)) ||
+	   (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | GetE(_,_,_,_,_,find_info) ->
+	(find_info != Nothing) ||
 	(exists_subterm aux_t (fun br -> false) aux_pat t)
     | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
 
@@ -3025,6 +3028,11 @@ let rec may_abort_counted g_opt t =
 	| UniqueToProve _ -> true
 	| _ -> false) ||
 	  (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | GetE(_,_,_,_,_,find_info) ->
+	(match find_info with
+	| UniqueToProve _ -> true
+	| _ -> false) ||
+	(exists_subterm aux_t (fun br -> false) aux_pat t)
     | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
 
   and aux_pat pat =
@@ -3033,7 +3041,8 @@ let rec may_abort_counted g_opt t =
   in
   aux_t t    
     
-(* Check if a term may abort by an event other than [f] *)
+(* Check if a term may abort by an event other than [f] in a trace
+   counted in the probability *)
 
 let other_abort g_opt f t =
   let rec aux_t t =
@@ -3044,6 +3053,11 @@ let other_abort g_opt f t =
 	| UniqueToProve f' -> f' != f
 	| _ -> false) ||
 	  (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | GetE(_,_,_,_,_,find_info) ->
+	(match find_info with
+	| UniqueToProve f' -> f' != f
+	| _ -> false) ||
+	(exists_subterm aux_t (fun br -> false) aux_pat t)
     | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
 
   and aux_pat pat =
@@ -3053,7 +3067,7 @@ let other_abort g_opt f t =
   aux_t t
     
 (* [is_unique_no_abort l0 find_info] returns true when the find is unique 
-   and its conditions do not abort *)
+   and its conditions do not abort in traces counted in the probability *)
 
 let is_unique_no_abort g_opt l0 find_info =
   (is_unique g_opt l0 find_info == Unique) &&

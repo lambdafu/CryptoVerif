@@ -264,7 +264,8 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Stringmap.cst_for_type t3.t_type
       in
-      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
+      let unique = (Terms.is_unique (Some(!whole_game)) l0 find_info == Unique) in
+      let unique_no_abort = unique && (not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0)) in
       let rec simplify_findl seen = function
 	  [] -> []
 	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
@@ -316,7 +317,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      let tf' =
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
-		if unique_no_abort then 
+		if unique then 
 		  Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts
@@ -798,7 +799,8 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
+      let unique = (Terms.is_unique (Some(!whole_game)) l0 find_info == Unique) in
+      let unique_no_abort = unique && (not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0)) in
       let rec simplify_findl seen l1 = 
 	match l1 with
 	  [] -> []
@@ -852,7 +854,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      let tf' =
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
-		if unique_no_abort then 
+		if unique then 
 		  Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts

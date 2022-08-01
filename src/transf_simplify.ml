@@ -864,8 +864,9 @@ let rec simplify_term_w_find cur_array true_facts t =
 	| Unique | Nothing -> true
 	| UniqueToProve f' -> f == f') ->
 	    t3
-	| _ -> 
+      | _ -> 
 
+      let no_abort_counted = not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0) in
       (* Expand find in conditions of find when the inner find is "unique".
 	 The outer find is unique after transformation if and only if it
 	 was unique before transformation. *)
@@ -879,7 +880,10 @@ let rec simplify_term_w_find cur_array true_facts t =
 		let r' = expand_find r in
 		if Terms.may_abort_counted (Some (!whole_game)) t' then br1::r' else
 		match t'.t_desc with
-		  FindE(l2, t4, find_info') when Terms.is_false t4 && (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) ->
+		  FindE(l2, t4, find_info') when Terms.is_false t4 &&
+		  (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) &&
+		  (no_abort_counted || not (List.exists (fun (_,_,c,_) -> Terms.may_abort c) l2)) &&
+		  not (List.exists (fun (_,_,_,t1) -> Terms.may_abort t1) l2) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t5, t6) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -923,14 +927,16 @@ let rec simplify_term_w_find cur_array true_facts t =
 	 TO DO I could perform several of these transformations in a single step,
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
       let new_find = 
-	if (!Settings.unique_branch_reorg) &&
-	  (Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info) then
+	if (!Settings.unique_branch_reorg) && (find_info == Unique) then
 	  try
 	  let rec expand_find seen = function
 	      [] -> None
 	    | (((bl, def_list, t', t2) as br1)::r) ->
 		match t2.t_desc with
-		  FindE(l3, t4, find_info') when Terms.is_unique_no_abort (Some(!whole_game)) l3 find_info' -> 
+		  FindE(l3, t4, find_info') when
+		  (Terms.is_unique (Some(!whole_game)) l3 find_info' == Unique) &&
+		  (no_abort_counted || not (Terms.may_abort t')) &&
+		  (not (List.exists (fun (_,_,t1,_) -> Terms.may_abort t1) l3)) -> 
 		    (* bl is defined in a condition of find, so these variables
 		       will be SArenamed by auto_sa_rename. This SArename advice is
 		       therefore not necessary. 
@@ -978,7 +984,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	      Stringmap.cst_for_type t3.t_type
       in
-      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
+      let unique_no_abort = (find_info == Unique) && no_abort_counted in
       let rec simplify_findl seen = function
 	  [] -> []
 	| (((bl, def_list, t1, t2), _) as cur_branch)::l ->
@@ -1031,7 +1037,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      let tf' =
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
-		if unique_no_abort then 
+		if find_info == Unique then 
 		  Facts.add_elsefind (dependency_anal cur_array DepAnal2.init) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts
@@ -1473,20 +1479,24 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	| Unique | Nothing -> true
 	| UniqueToProve f' -> f == f') ->
 	    p2
-	| _ -> 
+      | _ -> 
+
+      let no_abort_counted = not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0) in
       (* Expand find in conditions of find when the inner find is "unique"
 	 The outer find is unique after transformation iff it is unique before transformation *)
       let done_expand = ref false in
       let l0' = 
 	if !Settings.unique_branch_reorg then
-	  try
+          try
 	  let rec expand_find = function
 	      [] -> []
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		let r' = expand_find r in
-		if Terms.may_abort_counted (Some (!whole_game)) t then br1::r' else
 		match t.t_desc with
-		  FindE(l2, t2, find_info') when Terms.is_false t2 && (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) ->
+		  FindE(l2, t2, find_info') when Terms.is_false t2 &&
+		  (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) &&
+		  (no_abort_counted || not (List.exists (fun (_,_,c,_) -> Terms.may_abort c) l2)) &&
+		  not (List.exists (fun (_,_,_,t1) -> Terms.may_abort t1) l2) ->
 		    let result = 
 		      (List.map (fun (bl3, def_list3, t3, t4) ->
 			(* Replace references to variables in bl3 with the corresponding 
@@ -1530,13 +1540,16 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	 TO DO I could perform several of these transformations in a single step,
 	 but I'm not sure if I want to have many nested Finds in the else branch *)
       let new_find = 
-	if (!Settings.unique_branch_reorg) && (Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info) then
+	if (!Settings.unique_branch_reorg) && (find_info == Unique) then
 	  try
 	  let rec expand_find seen = function
 	      [] -> None
 	    | (((bl, def_list, t, p1) as br1)::r) ->
 		match p1.p_desc with
-		  Find(l3, p3, find_info') when Terms.is_unique_no_abort (Some(!whole_game)) l3 find_info' ->
+		  Find(l3, p3, find_info') when
+		  (Terms.is_unique (Some(!whole_game)) l3 find_info' == Unique) &&
+		  (no_abort_counted || not (Terms.may_abort t)) &&
+		  (not (List.exists (fun (_,_,t1,_) -> Terms.may_abort t1) l3)) -> 
 		    List.iter (fun (b,_) ->
 		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
 		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
@@ -1576,7 +1589,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	  current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
 	  Terms.oproc_from_desc Yield
       in
-      let unique_no_abort = Terms.is_unique_no_abort (Some(!whole_game)) l0 find_info in
+      let unique_no_abort = (find_info == Unique) && no_abort_counted in
       let rec simplify_findl seen dep_info_l1 l1 = 
 	match (dep_info_l1,l1) with
 	  [],[] -> []
@@ -1631,7 +1644,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      let tf' =
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
-		if unique_no_abort then 
+		if find_info == Unique then 
 		  Facts.add_elsefind (dependency_anal cur_array dep_info_else) def_vars true_facts (List.rev_append seen l)
 		else
 		  true_facts

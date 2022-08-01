@@ -237,7 +237,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
       let (true_facts_else, elsefind_facts_else) = 
 	find_list_to_elsefind (true_facts, elsefind_facts) l0_with_info
       in
-      let unique_no_abort = Terms.is_unique_no_abort (!whole_game) l0 find_info in
+      let unique = (Terms.is_unique (!whole_game) l0 find_info == Unique) in
       let rec find_l seen = function
 	  [] -> ()
 	| (((bl,def_list,t1,t2), (info_then, info_else)) as cur_branch)::l ->
@@ -251,7 +251,7 @@ let rec def_term event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let elsefind_t1 = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t1 in
 
 	    let (true_facts', elsefind_facts_then) =
-	      if unique_no_abort then
+	      if unique then
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		find_list_to_elsefind (true_facts, elsefind_t1 @ elsefind_facts) (List.rev_append seen l)
@@ -519,7 +519,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
       let (fut_binders2, fut_true_facts2) = 
 	def_oprocess event_accu cur_array above_node true_facts' def_vars elsefind_facts' p2
       in
-      let unique_no_abort = Terms.is_unique_no_abort (!whole_game) l0 find_info in
+      let unique = (Terms.is_unique (!whole_game) l0 find_info == Unique) in
       let rec find_l seen = function
 	  [] -> (fut_binders2, fut_true_facts2)
 	| (((bl,def_list,t,p1), (info_then, info_else)) as cur_branch)::l ->
@@ -533,7 +533,7 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
 	    let elsefind_t = List.map (Terms.subst_else_find repl_indices vars_terms) elsefind_t in
 	    
 	    let (true_facts', elsefind_facts_then) =
-	      if unique_no_abort then
+	      if unique then
 		(* When the find is Unique, I know that the other branches fail,
 		   so I can add the corresponding elsefind facts *)
 		find_list_to_elsefind (true_facts, elsefind_t @ elsefind_facts) (List.rev_append seen l)
