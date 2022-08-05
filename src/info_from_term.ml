@@ -255,7 +255,11 @@ let filter_efl var_list f =
   List.filter not_refers_to_var_list f
     
     
-(* [extract_efl_exp t] derives facts implied by [t]. Applies when [t] is expanded *)
+(* From a term [t], [extract_efl_exp t] computes 
+   [or_i exists bl_i, defined(l_i) /\ tl_i] that implies [t],
+   represented as the list of [(bl_i, l_i, tl_i)], 
+   [tl_i] is a list of terms representing a conjonction. 
+   Applies when [t] is expanded *)
                     
 let rec extract_efl_exp t =
   match t.t_desc with
@@ -316,7 +320,10 @@ let rec extract_efl_exp t =
      end
   | ResE (b,t) ->
      filter_efl [b] (extract_efl_exp t)
-  | EventAbortE _ | GetE _ ->
+  | EventAbortE _ ->
+      (* In case of abortion, the else branch is not taken, like when t = true *)
+      [([],[],[])]
+  | GetE _ ->
      (* We overapproximate: false ==> t. The empty disjunction is false.
 
 	[get] may appear because this function is called before the first 
@@ -567,16 +574,19 @@ let rec extract_sure_exp g_opt in_find t =
       end
   | ResE (b,t) ->
      filter_sure [b] (extract_sure_exp g_opt in_find t)
-  | EventAbortE _ | GetE _ ->
-     (* Considering that [EventAbort e] implies false would not be correct
-	in transf_expand.ml and transf_simplify.ml, because it leads to 
-	removing the branch, including the condition, while evaluating
+  | EventAbortE _ ->
+     (* We consider that [EventAbort e] implies false.
+	In transf_expand.ml and transf_simplify.ml, in case the test may
+	abort, we do not remove the branch of find, because evaluating
 	the condition is needed for executing [EventAbort e].
-
-	[get] may appear because this function is called before the first 
-	transformation of get/insert into find. Since it is removed 
-	quickly, extracting information from [get] is not essential. *)
-     Some []
+	Instead, we replace the [then] branch with empty code 
+	(constant for terms, Yield for processes) *)
+      None
+  | GetE _ ->
+      (* [get] may appear because this function is called before the first 
+	 transformation of get/insert into find. Since it is removed 
+	 quickly, extracting information from [get] is not essential. *)
+      Some []
   | EventE(_,t) | InsertE(_,_,t) ->
       if in_find then
 	Parsing_helper.internal_error "extract_sure_exp: event, insert should not occur in conditions of find";

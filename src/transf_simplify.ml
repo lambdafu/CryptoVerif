@@ -668,6 +668,8 @@ let rec simplify_pat cur_array dep_info true_facts = function
 exception CannotExpand
 
 let make_and_find_cond t t' =
+  if (Terms.is_true t) || (Terms.is_false t' && not (Terms.may_abort t)) then t' else
+  if (Terms.is_true t') || (Terms.is_false t && not (Terms.may_abort t')) then t else  
   match t.t_desc, t'.t_desc with
     (Var _ | FunApp _), (Var _ | FunApp _) -> Terms.make_and t t'
   | _ -> raise CannotExpand
@@ -796,6 +798,116 @@ let generate_branches ((bl, def_list, t, _) as ext_branch) ((bl3, def_list3, t3,
   List.map (fun (bl3, def_list3, t3, p4) ->
     (bl @ bl3, def_list @ def_list3, make_and_find_cond t t3, p4)) br'
 
+let expand_find_in_find_branch pp in_find_cond get_pp get_find make_find (l0, p2, find_info) =
+  if (!Settings.unique_branch_reorg) && (find_info == Unique) then
+    let rec expand_find seen = function
+      | [] -> None
+      | (((bl, def_list, t, p1) as br1)::r) ->
+	  try
+	    match get_find p1 with
+	    | Some(l3, p3, find_info') when
+	      (not (Terms.is_false t)) &&
+	      (Terms.is_unique (Some(!whole_game)) l3 find_info' == Unique) &&
+	      (((Terms.check_simple_expanded t) &&
+		(List.for_all (fun (_,_,t1,_) -> Terms.check_simple_expanded t1) l3)) ||
+	       ((Terms.is_true t) && 
+		(List.for_all (fun (_,_,t1,_) -> not (Terms.may_abort t1)) l3)) ||
+	       ((List.for_all (fun (_,_,t1,_) -> Terms.is_true t1 || Terms.is_false t1) l3) &&
+		(not (Terms.may_abort t)))) ->
+		(* In a more general setting, the 6 lines above could be replaced by:
+		  (no_abort_counted || not (Terms.may_abort t)) &&
+		  (not (List.exists (fun (_,_,t1,_) -> Terms.may_abort t1) l3)) 
+		   However, with the current code, in most cases that do not satisfy the tested condition,
+		   [make_and_find_cond] will fail inside [generate_branches], by raising [CannotExpand],
+		   so we can fail early in this case. The tested condition 
+		   implies the required abortion condition: t and all t1
+		   never abort. *)
+		  let l3 = List.filter (fun (_,_,t1,_) -> not (Terms.is_false t1)) l3 in
+		  if not in_find_cond then
+		    (* Variables in conditions of find are SArenamed by Transf_auto_sa_rename,
+                       so this advice is not needed when we are in a condition of find *)
+		    List.iter (fun (b,_) ->
+		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
+		  let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
+		  let l0' = List.rev_append seen (expanded_branches @ r) in
+		  let p2' = make_find ([bl, def_list, t, p3], p2, Unique) in
+		  Settings.changed := true;
+		  current_pass_transfos := (SFindinFindBranch(pp,get_pp p1)) :: (!current_pass_transfos);
+		  Some (l0', p2', Unique)
+	    | _ -> expand_find (br1::seen) r
+	  with CannotExpand -> expand_find (br1::seen) r
+    in
+      expand_find [] l0
+  else
+    None
+
+(* Expand find in conditions of find when the inner find is "unique"
+   The outer find is unique after transformation iff it is unique before transformation *)
+let expand_find_in_find_cond cur_array pp (l0, p2, find_info) =
+  let done_expand = ref false in
+  let l0' = 
+    if !Settings.unique_branch_reorg then
+      let rec expand_find = function
+	| [] -> []
+	| (((bl, def_list, t, p1) as br1)::r) ->
+	    let r' = expand_find r in
+	    try
+	      match t.t_desc with
+		FindE(l2, t2, find_info') when Terms.is_false t2 &&
+		(Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) &&
+		(List.for_all (fun (_,_,t3,t4) ->
+		  (Terms.check_simple_expanded t3 && Terms.check_simple_expanded t4) ||
+                  (Terms.is_false t3) (* We will remove that branch *) ||
+                  ((Terms.is_true t3) && not (Terms.may_abort t4)) ||
+                  ((Terms.is_true t4 || Terms.is_false t4) && not (Terms.may_abort t3))) l2) ->
+		    (* In a more general setting, the 5 lines above could be replaced by:
+		  (no_abort_counted || not (List.exists (fun (_,_,c,_) -> Terms.may_abort c) l2)) &&
+		  not (List.exists (fun (_,_,_,t1) -> Terms.may_abort t1) l2)
+		       However, with the current code, in most cases that do not satisfy the tested condition,
+		       [make_and_find_cond t3 t4'] will fail below, by raising [CannotExpand],
+		       so we can fail early in this case. The tested condition 
+		       implies the required abortion condition: t3 and t4 never abort. *) 
+		    let l2 = List.filter (fun (_,_,t3,t4) -> not (Terms.is_false t3) && not (Terms.is_false t4)) l2 in
+		    let result = 
+		      (List.map (fun (bl3, def_list3, t3, t4) ->
+			(* Replace references to variables in bl3 with the corresponding 
+			   replication indices in t4 (because t4 occurred in the "then" branch
+			   before transformation, and occurs in the condition after
+			   transformation). 
+			   The transformation would be incorrect if t4 tested for the definition
+			   of variables in bl3, because these variables are defined more
+			   in the initial game than in the transformed game.
+			   However, this cannot happen because variables of bl3 are defined
+			   in the condition of a find, so there are no array accesses on them. *)
+			let t4' = Terms.subst3 (List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl3) t4 in
+			(* The variables in bl3 are no longer used, but I need to have some variables there.
+			   Moreover, the old variables of bl3 cannot be kept, because their
+			   args_at_creation is not correct in the transformed game *)
+			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname b.btype cur_array, b')) bl3 in
+			(bl @ bl3', def_list @ def_list3, make_and_find_cond t3 t4', p1)) l2) @ r'
+		    in
+		    done_expand := true;
+		    current_pass_transfos := (SFindinFindCondition(pp,t)) :: (!current_pass_transfos);
+		    result
+		| _ -> br1 :: r'
+	    with CannotExpand -> br1 :: r'
+      in
+      expand_find l0
+    else
+      l0
+  in
+  if (!done_expand) then
+    begin
+      Settings.changed := true;
+      let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
+      (* This transformation may reorder elements in the list of successful
+	 branches and indices of find, hence we need to add eps_find. *)
+      Proba.add_proba_find cur_array l0' find_info;
+      Some (l0', p2, find_info)
+    end
+  else
+    None
+      
 (* Simplification of terms with if/let/find/res.
    The simplifications are very similar to those performed
    on processes below. *)
@@ -867,104 +979,26 @@ let rec simplify_term_w_find cur_array true_facts t =
       | _ -> 
 
       let no_abort_counted = not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0) in
-      (* Expand find in conditions of find when the inner find is "unique".
-	 The outer find is unique after transformation if and only if it
-	 was unique before transformation. *)
-      let done_expand = ref false in
-      let l0' = 
-	if !Settings.unique_branch_reorg then
-	  try
-	  let rec expand_find = function
-	      [] -> []
-	    | (((bl, def_list, t', t2) as br1)::r) ->
-		let r' = expand_find r in
-		if Terms.may_abort_counted (Some (!whole_game)) t' then br1::r' else
-		match t'.t_desc with
-		  FindE(l2, t4, find_info') when Terms.is_false t4 &&
-		  (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) &&
-		  (no_abort_counted || not (List.exists (fun (_,_,c,_) -> Terms.may_abort c) l2)) &&
-		  not (List.exists (fun (_,_,_,t1) -> Terms.may_abort t1) l2) ->
-		    let result = 
-		      (List.map (fun (bl3, def_list3, t5, t6) ->
-			(* Replace references to variables in bl3 with the corresponding 
-			   replication indices in t6 (because t6 occurred in the "then" branch
-			   before transformation, and occurs in the condition after
-			   transformation). 
-			   The transformation would be incorrect if t6 tested for the definition
-			   of variables in bl3, because these variables are defined more
-			   in the initial game than in the transformed game.
-			   However, this cannot happen because variables of bl3 are defined
-			   in the condition of a find, so there are no array accesses on them. *)
-			let t6' = Terms.subst3 (List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl3) t6 in
-			(* The variables in bl3 are no longer used, but I need to have some variables there.
-			   Moreover, the old variables of bl3 cannot be kept, because their
-			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname b.btype cur_array, b')) bl3 in
-			(bl @ bl3', def_list @ def_list3, make_and_find_cond t5 t6', t2)) l2) @ r'
-		    in
-		    done_expand := true;
-		    current_pass_transfos := (SFindinFindCondition(pp,t')) :: (!current_pass_transfos);
-		    result
-		| _ -> br1 :: r'
-	  in
-	  expand_find l0
-	  with CannotExpand -> l0
-	else
-	  l0
+      let make_find (l0, p2, find_info) = Terms.build_term t (FindE(l0, p2, find_info)) in
+      let get_find t =
+	match t.t_desc with
+	| FindE(l0,p2,find_info) -> Some(l0, p2, find_info)
+	| _ -> None
       in
-      if (!done_expand) then
-	begin
-	  Settings.changed := true;
-	  let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
-	  (* This transformation may reorder elements in the list of successful
-	     branches and indices of find, hence we need to add eps_find. *)
-	  Proba.add_proba_find cur_array l0' find_info;
-	  Terms.build_term t (FindE(l0', t3, find_info))
-	end
-      else
-
-      (* Expand find in branch of find when both finds are "unique"
-	 TO DO I could perform several of these transformations in a single step,
-	 but I'm not sure if I want to have many nested Finds in the else branch *)
-      let new_find = 
-	if (!Settings.unique_branch_reorg) && (find_info == Unique) then
-	  try
-	  let rec expand_find seen = function
-	      [] -> None
-	    | (((bl, def_list, t', t2) as br1)::r) ->
-		match t2.t_desc with
-		  FindE(l3, t4, find_info') when
-		  (Terms.is_unique (Some(!whole_game)) l3 find_info' == Unique) &&
-		  (no_abort_counted || not (Terms.may_abort t')) &&
-		  (not (List.exists (fun (_,_,t1,_) -> Terms.may_abort t1) l3)) -> 
-		    (* bl is defined in a condition of find, so these variables
-		       will be SArenamed by auto_sa_rename. This SArename advice is
-		       therefore not necessary. 
-		    List.iter (fun b ->
-		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
-		    *)
-		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
-		    let l0' = List.rev_append seen (expanded_branches @ r) in
-		    let t3' = Terms.build_term_type t3.t_type (FindE([bl, def_list, t', t4], t3, Unique)) in
-		    Settings.changed := true;
-		    current_pass_transfos := (SFindinFindBranch(pp,DTerm t2)) :: (!current_pass_transfos);
-		    Some (Terms.build_term t (FindE(l0', t3', Unique)))
-		| _ -> expand_find (br1::seen) r
-	  in
-	  expand_find [] l0
-	  with CannotExpand -> None
-	else
-	  None
-      in
-      match new_find with
-      | Some t' -> t'
+      let get_pp p = DTerm p in
+      match expand_find_in_find_cond cur_array pp (l0,t3,find_info) with
+      | Some p' -> make_find p'
       | None -> 
 
+      match expand_find_in_find_branch pp true get_pp get_find make_find (l0,t3,find_info) with
+      | Some p' -> make_find p'
+      | None -> 
+	  
       match l0 with
 	[] ->
 	  simplify_term_w_find cur_array true_facts t3
       |	[([],def_list,t1,t2)] when Facts.reduced_def_list t.t_facts def_list = [] && 
-	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
+	                              (Terms.check_simple_expanded t1) -> 
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_term_w_find cur_array true_facts (Terms.build_term_at t (TestE(t1,t2,t3)))
@@ -977,12 +1011,13 @@ let rec simplify_term_w_find cur_array true_facts t =
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
-	  match t3.t_desc with
-	    FunApp(_,[]) -> t3 (* t3 is already a constant, leave it as it is *)
-	  | _ ->
+	  let (changed, t3') = Stringmap.make_cst t3 in
+	  if changed then
+	    begin
 	      Settings.changed := true;
-	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
-	      Stringmap.cst_for_type t3.t_type
+	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
+	    end;
+	  t3'
       in
       let unique_no_abort = (find_info == Unique) && no_abort_counted in
       let rec simplify_findl seen = function
@@ -1015,18 +1050,17 @@ let rec simplify_term_w_find cur_array true_facts t =
 		b.priority <- (!current_max_priority); 
 		priority_list := b :: (!priority_list)) vars;
 	      let (t1', facts_cond, def_vars_cond', elsefind_cond) =
-		match t1.t_desc with
-		  Var _ | FunApp _ ->
-		    let t1' = simplify_term cur_array_cond DepAnal2.init false true_facts_t1 t1 in
-		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
-		| _ -> 
-		    let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
-                   let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t1' in
-		   let then_node = Facts.get_initial_history (DTerm t2) in
-                   let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
-                   let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
-		   (t1', facts_def_vars_t1' @ sure_facts_t1' @ facts_from_elsefind_facts @ facts_def_list,
-                    def_vars_t1' @ def_vars_cond, elsefind_t1')
+		if Terms.check_simple_expanded t1 then
+		  let t1' = simplify_term cur_array_cond DepAnal2.init false true_facts_t1 t1 in
+		  (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		else
+		  let t1' = simplify_term_w_find cur_array_cond true_facts_t1 t1 in
+                  let (sure_facts_t1', sure_def_vars_t1', elsefind_t1') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t1' in
+		  let then_node = Facts.get_initial_history (DTerm t2) in
+                  let def_vars_t1' = Facts.def_vars_from_defined then_node sure_def_vars_t1' in
+                  let facts_def_vars_t1' = Facts.facts_from_defined then_node sure_def_vars_t1' in
+		  (t1', facts_def_vars_t1' @ sure_facts_t1' @ facts_from_elsefind_facts @ facts_def_list,
+                   def_vars_t1' @ def_vars_cond, elsefind_t1')
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -1082,15 +1116,17 @@ let rec simplify_term_w_find cur_array true_facts t =
 		 and substitute M for i *)
 	      let keep_bl = ref [] in
 	      let subst = ref [] in
-	      List.iter (fun (b, b') -> 
-		let b_im = Terms.try_no_var tf' (Terms.term_from_binder b) in
-		if (List.exists (fun (b', b_im') -> Terms.refers_to b b_im' || Terms.refers_to b' b_im) (!subst)) ||
-		   (Terms.refers_to b b_im)
-		then
-		  keep_bl := (b, b') :: (!keep_bl)
-		else
-		  subst := (b, b_im) :: (!subst);
-					  ) bl;
+	      if not (Terms.may_abort_counted (Some(!whole_game)) t1') then
+		List.iter (fun (b, b') -> 
+		  let b_im = Terms.try_no_var tf' (Terms.term_from_binder b) in
+		  if (List.exists (fun (b', b_im') ->
+		    Terms.refers_to b b_im' || Terms.refers_to b' b_im) (!subst)) ||
+		    (Terms.refers_to b b_im)
+		  then
+		    keep_bl := (b, b') :: (!keep_bl)
+		  else
+		    subst := (b, b_im) :: (!subst)
+					    ) bl;
 	      let (def_vars_cond, bl', def_list', t1', t2') =
 		if (!subst) != [] then
 		  begin
@@ -1136,10 +1172,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
-              if (!Settings.unique_branch) &&
-		(match t1'.t_desc with
-		  Var _ | FunApp _ -> true
-		| _ -> false)
+              if (!Settings.unique_branch) && (Terms.check_simple_expanded t1')
 	      then 
 		try 
 		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond DepAnal2.init) true_facts def_vars;
@@ -1199,9 +1232,23 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      (*let t_or_and = Terms.or_and_form t' in
 	      simplify_find true_facts' l' bl def_list' t_or_and p1 *)
 	    with Contradiction ->
-	      Settings.changed := true;
-	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos);
-	      l'
+	      if Terms.may_abort_counted (Some(!whole_game)) t1 then
+		begin
+		  (* The test may abort, we cannot remove it *)
+		  let (changed, t2') = Stringmap.make_cst t2 in
+		  if changed then
+		    begin
+		      Settings.changed := true;
+		      current_pass_transfos := (SFindBranchNotTaken(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos)
+		    end;
+		  (bl, def_list, t1, t2') :: l'
+		end
+	      else
+		begin	      
+		  Settings.changed := true;
+		  current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos);
+		  l'
+		end
 	    end
       in
       try 
@@ -1213,7 +1260,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	    t3'
 	  end
 	else
-	  Terms.build_term t (FindE(l0', t3',find_info))
+	  make_find (l0', t3', find_info)
       with OneBranchTerm(find_branch) ->
 	match find_branch with
 	  ([],[],t1,t2) -> 
@@ -1223,22 +1270,18 @@ let rec simplify_term_w_find cur_array true_facts t =
 	| (bl,def_list,t1,t2) ->
             (* The else branch of the find will never be executed
                => use some constant to simplify *)
-	    let t3'' = 
-	      match t3'.t_desc with
-		FunApp(_,[]) -> t3'
-	      |	_ -> Stringmap.cst_for_type t3'.t_type 
-	    in
+	    let (changed, t3'') = Stringmap.make_cst t3' in
 	    if List.length l0 > 1 then 
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DTerm t2))) :: (!current_pass_transfos)
 	      end
-	    else if not (Terms.equal_terms t3' t3'') then
+	    else if changed then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
 	      end;
-	    Terms.build_term t (FindE([find_branch], t3'',find_info))
+	     make_find ([find_branch], t3'',find_info)
       with Contradiction ->
 	(* The whole Find will never be executed.
            Use the else branch as a simplification *)
@@ -1482,98 +1525,26 @@ and simplify_oprocess cur_array dep_info true_facts p =
       | _ -> 
 
       let no_abort_counted = not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0) in
-      (* Expand find in conditions of find when the inner find is "unique"
-	 The outer find is unique after transformation iff it is unique before transformation *)
-      let done_expand = ref false in
-      let l0' = 
-	if !Settings.unique_branch_reorg then
-          try
-	  let rec expand_find = function
-	      [] -> []
-	    | (((bl, def_list, t, p1) as br1)::r) ->
-		let r' = expand_find r in
-		match t.t_desc with
-		  FindE(l2, t2, find_info') when Terms.is_false t2 &&
-		  (Terms.is_unique (Some(!whole_game)) l2 find_info' == Unique) &&
-		  (no_abort_counted || not (List.exists (fun (_,_,c,_) -> Terms.may_abort c) l2)) &&
-		  not (List.exists (fun (_,_,_,t1) -> Terms.may_abort t1) l2) ->
-		    let result = 
-		      (List.map (fun (bl3, def_list3, t3, t4) ->
-			(* Replace references to variables in bl3 with the corresponding 
-			   replication indices in t4 (because t4 occurred in the "then" branch
-			   before transformation, and occurs in the condition after
-			   transformation). 
-			   The transformation would be incorrect if t4 tested for the definition
-			   of variables in bl3, because these variables are defined more
-			   in the initial game than in the transformed game.
-			   However, this cannot happen because variables of bl3 are defined
-			   in the condition of a find, so there are no array accesses on them. *)
-			let t4' = Terms.subst3 (List.map (fun (b,b') -> (b, Terms.term_from_repl_index b')) bl3) t4 in
-			(* The variables in bl3 are no longer used, but I need to have some variables there.
-			   Moreover, the old variables of bl3 cannot be kept, because their
-			   args_at_creation is not correct in the transformed game *)
-			let bl3' = List.map (fun (b,b') -> (Terms.create_binder b.sname b.btype cur_array, b')) bl3 in
-			(bl @ bl3', def_list @ def_list3, make_and_find_cond t3 t4', p1)) l2) @ r'
-		    in
-		    done_expand := true;
-		    current_pass_transfos := (SFindinFindCondition(pp,t)) :: (!current_pass_transfos);
-		    result
-		| _ -> br1 :: r'
-	  in
-	  expand_find l0
-	  with CannotExpand -> l0
-	else
-	  l0
+      let make_find (l0, p2, find_info) = Terms.oproc_from_desc (Find(l0, p2, find_info)) in
+      let get_find p =
+	match p.p_desc with
+	| Find(l0, p2, find_info) -> Some(l0,p2,find_info)
+	| _ -> None
       in
-      if (!done_expand) then
-	begin
-	  Settings.changed := true;
-	  let find_info = Terms.is_unique (Some(!whole_game)) l0' find_info in
-	  (* This transformation may reorder elements in the list of successful
-	     branches and indices of find, hence we need to add eps_find. *)
-	  Proba.add_proba_find cur_array l0' find_info;
-	  Terms.oproc_from_desc (Find(l0', p2, find_info))
-	end
-      else
+      let get_pp p = DProcess p in
+      match expand_find_in_find_cond cur_array pp (l0,p2,find_info) with
+      | Some p' -> make_find p'
+      | None -> 
 
-      (* Expand find in branch of find when both finds are "unique"
-	 TO DO I could perform several of these transformations in a single step,
-	 but I'm not sure if I want to have many nested Finds in the else branch *)
-      let new_find = 
-	if (!Settings.unique_branch_reorg) && (find_info == Unique) then
-	  try
-	  let rec expand_find seen = function
-	      [] -> None
-	    | (((bl, def_list, t, p1) as br1)::r) ->
-		match p1.p_desc with
-		  Find(l3, p3, find_info') when
-		  (Terms.is_unique (Some(!whole_game)) l3 find_info' == Unique) &&
-		  (no_abort_counted || not (Terms.may_abort t)) &&
-		  (not (List.exists (fun (_,_,t1,_) -> Terms.may_abort t1) l3)) -> 
-		    List.iter (fun (b,_) ->
-		      Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise)) bl;
-		    let expanded_branches = List.concat (List.map (generate_branches br1) l3) in
-		    let l0' = List.rev_append seen (expanded_branches @ r) in
-		    let p2' = Terms.oproc_from_desc (Find([bl, def_list, t, p3], p2, Unique)) in
-		    Settings.changed := true;
-		    current_pass_transfos := (SFindinFindBranch(pp,DProcess p1)) :: (!current_pass_transfos);
-		    Some (Terms.oproc_from_desc (Find(l0', p2', Unique)))
-		| _ -> expand_find (br1::seen) r
-	  in
-	  expand_find [] l0
-	  with CannotExpand -> None
-	else
-	  None
-      in
-      match new_find with
-      | Some p' -> p'
+      match expand_find_in_find_branch pp false get_pp get_find make_find (l0,p2,find_info) with
+      | Some p' -> make_find p'
       | None -> 
 
       match l0 with
 	[] ->
 	  simplify_oprocess cur_array dep_info true_facts p2
       |	[([],def_list,t1,p1)] when (Facts.reduced_def_list p'.p_facts def_list = []) && 
-	                              (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
+	                              (Terms.check_simple_expanded t1) -> 
 	  Settings.changed := true;
 	  current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
 	  simplify_oprocess cur_array dep_info true_facts (Terms.oproc_from_desc_at p' (Test(t1,p1,p2)))
@@ -1621,18 +1592,17 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		b.priority <- (!current_max_priority);
 		priority_list := b :: (!priority_list)) vars;
 	      let (t', facts_cond, def_vars_cond', elsefind_cond) =
-		match t.t_desc with
-		  Var _ | FunApp _ ->
-		    let t' = simplify_term cur_array_cond dep_info_cond false true_facts_t t in
-		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
-		| _ -> 
-		    let t' = simplify_term_w_find cur_array_cond true_facts_t t in
-                    let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t' in
-		    let then_node = Facts.get_initial_history (DProcess p1) in
-                    let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
-                    let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
-		    (t', facts_def_vars_t' @ sure_facts_t' @ facts_from_elsefind_facts @ facts_def_list,
-                     def_vars_t' @ def_vars_cond, elsefind_t')
+		if Terms.check_simple_expanded t then
+		  let t' = simplify_term cur_array_cond dep_info_cond false true_facts_t t in
+		  (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		else
+		  let t' = simplify_term_w_find cur_array_cond true_facts_t t in
+                  let (sure_facts_t', sure_def_vars_t', elsefind_t') = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) (!whole_game).expanded true t' in
+		  let then_node = Facts.get_initial_history (DProcess p1) in
+                  let def_vars_t' = Facts.def_vars_from_defined then_node sure_def_vars_t' in
+                  let facts_def_vars_t' = Facts.facts_from_defined then_node sure_def_vars_t' in
+		  (t', facts_def_vars_t' @ sure_facts_t' @ facts_from_elsefind_facts @ facts_def_list,
+                   def_vars_t' @ def_vars_cond, elsefind_t')
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -1694,15 +1664,17 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		 and substitute M for i *)
 	      let keep_bl = ref [] in
 	      let subst = ref [] in
-	      List.iter (fun (b, b') -> 
-		let b_im = Terms.try_no_var tf' (Terms.term_from_binder b) in
-		if (List.exists (fun (b', b_im') -> Terms.refers_to b b_im' || Terms.refers_to b' b_im) (!subst)) ||
-		   (Terms.refers_to b b_im)
-		then
-		  keep_bl := (b, b') :: (!keep_bl)
-		else
-		  subst := (b, b_im) :: (!subst)
-					  ) bl;
+	      if not (Terms.may_abort_counted (Some(!whole_game)) t') then
+		List.iter (fun (b, b') -> 
+		  let b_im = Terms.try_no_var tf' (Terms.term_from_binder b) in
+		  if (List.exists (fun (b', b_im') ->
+		    Terms.refers_to b b_im' || Terms.refers_to b' b_im) (!subst)) ||
+		    (Terms.refers_to b b_im)
+		  then
+		    keep_bl := (b, b') :: (!keep_bl)
+		  else
+		    subst := (b, b_im) :: (!subst)
+					    ) bl;
 	      let (def_vars_cond, bl', def_list', t', p1') =
 		if (!subst) != [] then 
 		  begin
@@ -1749,9 +1721,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
               if (!Settings.unique_branch) &&
-		(match t'.t_desc with
-		  Var _ | FunApp _ -> true
-		| _ -> false)
+		(Terms.check_simple_expanded t')
 	      then 
 		try
 		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond dep_info_cond) true_facts def_vars;
@@ -1811,9 +1781,22 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      (*let t_or_and = Terms.or_and_form t' in
 	      simplify_find true_facts' l' bl def_list' t_or_and p1 *)
 	    with Contradiction ->
-	      Settings.changed := true;
-	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t, DProcess p1))) :: (!current_pass_transfos);
-	      l'
+	      if Terms.may_abort_counted (Some(!whole_game)) t then
+		begin
+		  (* The test may abort, we cannot remove it *)
+		  if p1.p_desc != Yield then
+		    begin
+		      Settings.changed := true;
+		      current_pass_transfos := (SFindBranchNotTaken(pp,(bl, def_list, t, DProcess p1))) :: (!current_pass_transfos)
+		    end;
+		  (bl, def_list, t, Terms.oproc_from_desc Yield) :: l'
+		end
+	      else
+		begin
+		  Settings.changed := true;
+		  current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t, DProcess p1))) :: (!current_pass_transfos);
+		  l'
+		end
 	    end
 	| _ -> Parsing_helper.internal_error "Different lengths in simplify/Find"
       in
@@ -1840,7 +1823,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Terms.oproc_from_desc Yield
 	      end
 	    else
-	      Terms.oproc_from_desc (Find(l0', p2', find_info))
+	      make_find(l0', p2', find_info)
 	  end
       with OneBranchProcess(find_branch) ->
 	match find_branch with
@@ -1855,7 +1838,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 		Settings.changed := true;
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DProcess p1))) :: (!current_pass_transfos);
 	      end;
-	    Terms.oproc_from_desc (Find([find_branch], Terms.oproc_from_desc Yield, find_info))
+	    make_find ([find_branch], Terms.oproc_from_desc Yield, find_info)
 
       with Contradiction ->
 	(* The whole Find will never be executed *)

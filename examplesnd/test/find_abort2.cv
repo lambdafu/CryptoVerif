@@ -1,0 +1,26 @@
+(* Cannot remove the branches of find because a condition aborts
+   I could replace the "then" branches with simpler code, since they
+   are never executed *)
+
+param N, N'.
+
+channel start, c.
+
+
+
+process
+	(! N in(c, x: bitstring); yield) |
+	(! N'  in(c, y: bitstring); yield) |
+
+	in(start, z:bitstring);
+	find i <= N suchthat defined(x[i]) && (if x[i] = z then (find[unique] k<=N suchthat defined(x[k]) then false else false) else false) then
+	    out(c, true)
+	orfind j <= N' suchthat defined(y[j]) && (if y[j] = z then (find[unique] k<=N suchthat defined(x[k]) then false else false) else false) then
+	    out(c, z)
+	else
+	    out(c, false)
+
+(* EXPECTED
+RESULT Could not prove event(non_unique_1) ==> false; event(non_unique) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

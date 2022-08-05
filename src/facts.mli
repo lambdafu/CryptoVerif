@@ -111,10 +111,6 @@ val nodepinfo : 'a depinfo
    [facts] hold.
 *)
 val simplif_add : dep_anal -> simp_facts -> term -> simp_facts
-(* [simplif_add_find_cond] is the same as [simplif_add] except
-   that it allows (and ignores) terms that are not variables or function
-   applications *)
-val simplif_add_find_cond : dep_anal -> simp_facts -> term -> simp_facts
 (* [simplif_add_list dep_anal facts tl] updates the facts by taking into
    account that the terms in [tl] are true. It can use [dep_anal] to eliminate
    collisions.

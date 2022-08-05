@@ -2665,6 +2665,30 @@ let rec occurs_in_pat b = function
   | PatTuple (f,l) -> List.exists (occurs_in_pat b) l
   | PatEqual t -> false
 
+(* Check if a term may abort *)
+
+let rec may_abort t =
+  let rec aux_t t =
+    match t.t_desc with
+    | EventAbortE _ -> true
+    | FindE(l0,t3,find_info) ->
+	((find_info != Nothing) &&
+	 (match l0 with
+	 | [([],_,_,_)] -> (* there is unique choice (one branch, no index),
+	     so that find never aborts even if it is marked [unique] *) false
+	 | _ -> true)) ||
+	   (exists_subterm aux_t (fun br -> false) aux_pat t)
+    | GetE(_,_,_,_,_,find_info) ->
+	(find_info != Nothing) ||
+	(exists_subterm aux_t (fun br -> false) aux_pat t)
+    | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
+
+  and aux_pat pat =
+    exists_subpat aux_t aux_pat pat
+
+  in
+  aux_t t
+
 (* Testing boolean values *)
 
 let is_true t =
@@ -2686,18 +2710,20 @@ let make_false () =
   app Settings.c_false []
 
 let make_and_ext ext t t' =
-  if (is_true t) || (is_false t') then t' else
-  if (is_true t') || (is_false t) then t else
+  if (is_true t) || (is_false t' && not (may_abort t)) then t' else
+  if (is_true t') || (is_false t && not (may_abort t')) then t else
   new_term Settings.t_bool ext (FunApp(Settings.f_and, [t;t']))
 
-let make_and t t' =  make_and_ext Parsing_helper.dummy_ext t t'
+let make_and t t' =  
+  make_and_ext Parsing_helper.dummy_ext t t'
 
 let make_or_ext ext t t' =
-  if (is_false t) || (is_true t') then t' else
-  if (is_false t') || (is_true t) then t else
+  if (is_false t) || (is_true t' && not (may_abort t)) then t' else
+  if (is_false t') || (is_true t && not (may_abort t')) then t else
   new_term Settings.t_bool ext (FunApp(Settings.f_or, [t;t']))
 
-let make_or t t' =  make_or_ext Parsing_helper.dummy_ext t t'
+let make_or t t' =  
+  make_or_ext Parsing_helper.dummy_ext t t'
 
 let make_and_list = function
     [] -> make_true()
@@ -2779,13 +2805,13 @@ let make_false_at t0 =
   build_term_at t0 (FunApp(Settings.c_false, []))
 
 let make_and_at t0 t t' =
-  if (is_true t) || (is_false t') then t' else
-  if (is_true t') || (is_false t) then t else
+  if (is_true t) || (is_false t' && not (may_abort t)) then t' else
+  if (is_true t') || (is_false t && not (may_abort t')) then t else
   build_term_at t0 (FunApp(Settings.f_and, [t;t']))
 
 let make_or_at t0 t t' =
-  if (is_false t) || (is_true t') then t' else
-  if (is_false t') || (is_true t) then t else
+  if (is_false t) || (is_true t' && not (may_abort t)) then t' else
+  if (is_false t') || (is_true t && not (may_abort t')) then t else
   build_term_at t0 (FunApp(Settings.f_or, [t;t']))
 
 let make_not_at t0 t =
@@ -2812,7 +2838,7 @@ let rec make_and2 l1 = function
   | (a::l2) -> make_or (make_and1 a l1) (make_and2 l1 l2)
 
 let make_and_distr t1 t2 =
-  if (is_false t1) || (is_false t2) then make_false() else
+  if (is_false t1 && not (may_abort t2)) || (is_false t2 && not (may_abort t1)) then make_false() else
   if is_true t1 then t2 else
   if is_true t2 then t1 else
   (* If t1 or t2 is "or", distribute *)
@@ -2995,30 +3021,9 @@ let is_unique g_opt l0' find_info =
 	    Unique
       | _ -> find_info
 
-(* Check if a term may abort *)
-
-let rec may_abort t =
-  let rec aux_t t =
-    match t.t_desc with
-    | EventAbortE _ -> true
-    | FindE(l0,t3,find_info) ->
-	((find_info != Nothing) &&
-	 (match l0 with
-	 | [([],_,_,_)] -> (* there is unique choice (one branch, no index),
-	     so that find never aborts even if it is marked [unique] *) false
-	 | _ -> true)) ||
-	   (exists_subterm aux_t (fun br -> false) aux_pat t)
-    | GetE(_,_,_,_,_,find_info) ->
-	(find_info != Nothing) ||
-	(exists_subterm aux_t (fun br -> false) aux_pat t)
-    | _ -> exists_subterm aux_t (fun br -> false) aux_pat t
-
-  and aux_pat pat =
-    exists_subpat aux_t aux_pat pat
-
-  in
-  aux_t t
-
+(* Check if a term may abort in a trace that is counted in the probabilities,
+   that is, proved find/get[unique] are not considered to abort. *)
+	    
 let rec may_abort_counted g_opt t =
   let rec aux_t t =
     match t.t_desc with
@@ -3138,12 +3143,21 @@ let update_elsefind_with_def bl ((bl',def_list,t) as elsefind) =
 
 let rec check_simple_term t =
   match t.t_desc with
-    Var(_,l) | FunApp(_,l) ->
+  | Var(_,l) | FunApp(_,l) ->
       List.for_all check_simple_term l
   | ReplIndex _ -> true
   | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
-     false
+      false
 
+(* Check that an expanded term is a basic term (no if/let/find/new/event/get/insert).
+   Because the term is expanded, if if/let/find/new/event/get/insert occurred in it,
+   it would occur at the top, so we do not need to inspect the whole term. *)
+
+let check_simple_expanded t =
+  match t.t_desc with
+  | Var _ | FunApp _ | ReplIndex _ -> true
+  | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
+      false
        
 let rec close_def_subterm accu (b,l) =
   add_binderref (b,l) accu;
@@ -3443,6 +3457,11 @@ let collect_first_and_last_inverses reduced inv l1 l =
      ?x != t -> false where ?x is a general variable (universally quantified)
 (These rules cannot be stored in file default, because there are several
 functions for = and for !=, one for each type.)
+
+This function works only when [t] is a simple term (contains only
+Var/FunApp/ReplIndex). In particular, it would not be correct
+if [t] may abort (contains EventAbortE/FindE[unique]) because of
+the simplifications of && and ||.
 *)
 
 let rec apply_eq_reds simp_facts reduced t =

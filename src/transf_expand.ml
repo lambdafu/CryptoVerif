@@ -190,12 +190,13 @@ let simplify_term_let rec_simplif pp cur_array true_facts pat t p1 p2 =
 	      with Contradiction ->
 	        (* The else branch of the let will never be executed
 		   => use some constant to simplify *)
-		match t3.t_desc with
-		  FunApp(_,[]) -> Some t3 (* t3 is already a constant, leave it as it is *)
-		| _ ->
+		let (changed, t3') = Stringmap.make_cst t3 in
+		if changed then
+		  begin
 		    Settings.changed := true;
-		    current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos);
-		    Some (Stringmap.cst_for_type t3.t_type)
+		    current_pass_transfos := (SLetElseRemoved(pp)) :: (!current_pass_transfos)
+		  end;
+		Some t3'
 	    end
     in
     (* Simplify the process p1 *)
@@ -242,7 +243,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
       rec_simplif cur_array true_facts t3
   | [([],def_list,t1,t2)] when
     Facts.reduced_def_list (Incompatible.get_facts pp) def_list = [] && 
-    (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
+    (Terms.check_simple_expanded t1) -> 
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_term_if rec_simplif pp cur_array true_facts t1 t2 t3
@@ -257,12 +258,13 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	with Contradiction ->
 	  (* The else branch of the find will never be executed
              => use some constant to simplify *)
-	  match t3.t_desc with
-	    FunApp(_,[]) -> t3 (* t3 is already a constant, leave it as it is *)
-	  | _ ->
+	  let (changed, t3') = Stringmap.make_cst t3 in
+	  if changed then
+	    begin
 	      Settings.changed := true;
-	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos);
-	      Stringmap.cst_for_type t3.t_type
+	      current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
+	    end;
+	  t3'
       in
       let unique = (Terms.is_unique (Some(!whole_game)) l0 find_info == Unique) in
       let unique_no_abort = unique && (not (List.exists (fun (_,_,t,_) -> Terms.may_abort_counted (Some(!whole_game)) t) l0)) in
@@ -296,17 +298,16 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		b.priority <- (!current_max_priority); 
 		priority_list := b :: (!priority_list)) vars;
 	      let (t1', facts_cond, def_vars_cond', elsefind_cond) =
-		match t1.t_desc with
-		  Var _ | FunApp _ ->
-		    let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
-		    (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
-		| _ -> 
-                    let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t1 in
-		    let then_node = Facts.get_initial_history (DTerm t2) in
-                    let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
-                    let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
-		    (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
-                     def_vars_t1 @ def_vars_cond, elsefind_t1)
+		if Terms.check_simple_expanded t1 then 
+		  let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
+		  (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		else
+                  let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t1 in
+		  let then_node = Facts.get_initial_history (DTerm t2) in
+                  let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
+                  let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
+		  (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
+                   def_vars_t1 @ def_vars_cond, elsefind_t1)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -370,9 +371,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
               if (!Settings.unique_branch) &&
-		(match t1'.t_desc with
-		  Var _ | FunApp _ -> true
-		| _ -> false)
+		(Terms.check_simple_expanded t1')
 	      then 
 		try 
 		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
@@ -430,9 +429,23 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		find_branch :: l'
 
 	    with Contradiction ->
-	      Settings.changed := true;
-	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos);
-	      l'
+	      if Terms.may_abort_counted (Some(!whole_game)) t1 then
+		begin
+		  (* The test may abort, we cannot remove it *)
+		  let (changed, t2') = Stringmap.make_cst t2 in
+		  if changed then
+		    begin
+		      Settings.changed := true;
+		      current_pass_transfos := (SFindBranchNotTaken(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos)
+		    end;
+		  (bl, def_list, t1, t2') :: l'
+		end
+	      else
+		begin
+		  Settings.changed := true;
+		  current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t1, DTerm t2))) :: (!current_pass_transfos);
+		  l'
+		end
 	    end
       in
       try 
@@ -460,17 +473,13 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	| (bl,def_list,t1,t2) ->
             (* The else branch of the find will never be executed
                => use some constant to simplify *)
-	    let t3'' = 
-	      match t3'.t_desc with
-		FunApp(_,[]) -> t3'
-	      |	_ -> Stringmap.cst_for_type t3'.t_type 
-	    in
+	    let (changed, t3'') = Stringmap.make_cst t3' in
 	    if List.length l0 > 1 then 
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindSingleBranch(pp,(bl,def_list,t1,DTerm t2))) :: (!current_pass_transfos)
 	      end
-	    else if not (Terms.equal_terms t3' t3'') then
+	    else if changed then
 	      begin
 		Settings.changed := true;
 		current_pass_transfos := (SFindElseRemoved(pp)) :: (!current_pass_transfos)
@@ -781,7 +790,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
       rec_simplif cur_array true_facts p2
   | [([],def_list,t1,p1)] when
     (Facts.reduced_def_list (Incompatible.get_facts pp) def_list = []) && 
-    (match t1.t_desc with Var _ | FunApp _ -> true | _ -> false) -> 
+    (Terms.check_simple_expanded t1) -> 
       Settings.changed := true;
       current_pass_transfos := (SFindtoTest pp) :: (!current_pass_transfos);
       simplify_if rec_simplif pp cur_array true_facts t1 p1 p2
@@ -832,17 +841,16 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		b.priority <- (!current_max_priority);
 		priority_list := b :: (!priority_list)) vars;
 	      let (t', facts_cond, def_vars_cond', elsefind_cond) =
-		match t.t_desc with
-		  Var _ | FunApp _ ->
-		    let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
-		    (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
-		| _ -> 
-                    let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t in
-		    let then_node = Facts.get_initial_history (get_pp p1) in
-                    let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
-                    let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
-		    (t, facts_def_vars_t @ sure_facts_t @ facts_from_elsefind_facts @ facts_def_list,
-                     def_vars_t @ def_vars_cond, elsefind_t)
+		if Terms.check_simple_expanded t then 
+		  let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
+		  (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		else
+                  let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t in
+		  let then_node = Facts.get_initial_history (get_pp p1) in
+                  let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
+                  let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
+		  (t, facts_def_vars_t @ sure_facts_t @ facts_from_elsefind_facts @ facts_def_list,
+                   def_vars_t @ def_vars_cond, elsefind_t)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -907,9 +915,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
               (* If the find is marked "unique", and we can prove that
 	         the current branch succeeds, keep only that branch *)
               if (!Settings.unique_branch) &&
-		(match t'.t_desc with
-		  Var _ | FunApp _ -> true
-		| _ -> false)
+		(Terms.check_simple_expanded t')
 	      then 
 		try
 		  Facts.branch_succeeds find_branch (dependency_anal cur_array_cond) true_facts def_vars;
@@ -969,9 +975,22 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      (*let t_or_and = Terms.or_and_form t' in
 	      simplify_find true_facts' l' bl def_list' t_or_and p1 *)
 	    with Contradiction ->
-	      Settings.changed := true;
-	      current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t, DNone(*Not needed*)))) :: (!current_pass_transfos);
-	      l'
+	      if Terms.may_abort_counted (Some(!whole_game)) t then
+		begin
+		  (* The test may abort, we cannot remove it *)
+		  if not (is_yield p1) then
+		    begin
+		      Settings.changed := true;
+		      current_pass_transfos := (SFindBranchNotTaken(pp,(bl, def_list, t, DNone(*Not needed*)))) :: (!current_pass_transfos)
+		    end;
+		  (bl, def_list, t, Terms.oproc_from_desc Yield) :: l'
+		end
+	      else
+		begin
+		  Settings.changed := true;
+		  current_pass_transfos := (SFindBranchRemoved(pp,(bl, def_list, t, DNone(*Not needed*)))) :: (!current_pass_transfos);
+		  l'
+		end
 	    end
       in
       try

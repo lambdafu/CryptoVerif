@@ -648,6 +648,7 @@ and simplify_ins =
   | STestOr of program_point
   | STestEElim of term
   | SFindBranchRemoved of program_point * program_point findbranch
+  | SFindBranchNotTaken of program_point * program_point findbranch
   | SFindSingleBranch of program_point * program_point findbranch
   | SFindRemoved of program_point 
   | SFindElseRemoved of program_point

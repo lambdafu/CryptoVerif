@@ -5,6 +5,7 @@ Version
 
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
+- Fixed bugs related to the fact that terms may abort.
 - Fixed bug: events were not preserved in the initial transformation of
   the RHS in equivalence proofs.
 

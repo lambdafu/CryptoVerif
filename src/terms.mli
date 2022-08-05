@@ -429,7 +429,10 @@ val remove_inverse_ends :
 
 (* [apply_eq_reds simp_facts reduced t] simplifies the term [t] using
    the equational theory. [reduced] is set when the term [t] is really
-   simplified. [simp_facts] is as in [simp_prod] above. *) 
+   simplified. [simp_facts] is as in [simp_prod] above. 
+
+   This function works only when [t] is a simple term (contains only
+   Var/FunApp/ReplIndex). *) 
 val apply_eq_reds : simp_facts -> bool ref -> term -> term
 
 (* [simp_facts_id] is a placeholder for [simp_facts] when there are 
@@ -582,9 +585,10 @@ val defined_refs_find : (binder * repl_index) list -> binderref list ->
   binderref list -> binderref list * binderref list
 
 (* [check_simple_term t] returns true if [t] is a basic term:
-   it contains no if/let/find/new/event. *)
+   it contains no if/let/find/new/event/get/insert. *)
 val check_simple_term : term -> bool
-
+val check_simple_expanded : term -> bool
+    
 val add_def_vars_node : binder list -> def_node -> binder list
 
 

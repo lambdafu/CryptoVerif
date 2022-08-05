@@ -77,4 +77,4 @@ val get_global_binder : string -> ident -> binder
 val get_global_binder_if_possible : string -> binder option
 
 val cst_for_type : typet -> term
-
+val make_cst : term -> bool * term

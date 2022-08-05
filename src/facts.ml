@@ -1611,12 +1611,6 @@ let simplif_add_list dep_info simp_facts fact =
 let reduce_rec simp_facts =
   reduce_rec 0 simp_facts
 
-let simplif_add_find_cond dep_info simp_facts fact =
-  match fact.t_desc with
-    Var _ | FunApp _ -> simplif_add dep_info simp_facts fact
-  | _ -> simp_facts
-    
-
 (* Compute the list of variables that must be defined at a certain
 point, taking into account defined conditions of find *)
 

@@ -2226,6 +2226,12 @@ let display_simplif_step = function
       print_string " in find at ";
       print_occ (Incompatible.occ_from_pp p);
       print_newline()
+  | SFindBranchNotTaken(p,br) -> 
+      print_string "    - Branch ";
+      get_find_branch p br;
+      print_string " not taken in find at ";
+      print_occ (Incompatible.occ_from_pp p);
+      print_newline()
   | SFindSingleBranch(p,br) ->
       print_string "    - A single branch always succeeds in find at ";
       print_occ (Incompatible.occ_from_pp p);
@@ -2462,7 +2468,7 @@ let mark_useful_occ_pp p =
 let mark_occs_simplif_step f_t = function
     SReplaceTerm(t,_) | STestEElim(t) -> f_t t
   | STestTrue(p) | STestFalse(p) | STestMerge(p) | STestOr(p) 
-  | SFindBranchRemoved(p,_) | SFindSingleBranch(p,_) 
+  | SFindBranchRemoved(p,_) | SFindBranchNotTaken(p,_) | SFindSingleBranch(p,_) 
   | SFindRemoved(p) | SFindElseRemoved(p) | SFindBranchMerge(p, _) 
   | SFindtoTest(p) | SFindIndexKnown(p, _,_) 
   | SFindDeflist(p, _,_) | SFindInferUnique(p) 

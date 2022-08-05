@@ -1611,6 +1611,12 @@ let display_simplif_step = function
       print_string " in find at ";
       print_occ (Incompatible.occ_from_pp p);
       print_string "\\\\\n"
+  | SFindBranchNotTaken(p,br) -> 
+      print_string "\\qquad -- Branch ";
+      get_find_branch p br;
+      print_string " not taken in find at ";
+      print_occ (Incompatible.occ_from_pp p);
+      print_string "\\\\\n"
   | SFindSingleBranch(p,br) ->
       print_string "\\qquad -- A single branch always succeeds in find at ";
       print_occ (Incompatible.occ_from_pp p);

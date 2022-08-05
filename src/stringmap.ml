@@ -384,3 +384,8 @@ let cst_for_type ty =
   in
   Terms.build_term_type ty (FunApp(f,[]))
 
+let make_cst t =
+  match t.t_desc with
+  | FunApp(_,[]) -> (false, t)
+  | _ ->
+      (true, cst_for_type t.t_type)

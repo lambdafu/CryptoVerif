@@ -1,0 +1,36 @@
+(* Cannot remove the branches of find because a condition aborts
+   I could replace the "then" branches with simpler code, since they
+   are never executed
+
+   The else branch can be removed, because the 2nd branch always aborts so
+   the find aborts. *)
+
+param N, N'.
+
+event e1.
+event e2.
+
+query event(e1) ==> false.
+query event(e2) ==> false.
+
+
+channel start, c.
+
+
+
+process
+	(! N in(c, x: bitstring); yield) |
+	(! N'  in(c, y: bitstring); yield) |
+
+	in(start, z:bitstring);
+	find i <= N suchthat defined(x[i]) && event_abort e1 then
+	    out(c, true)
+	orfind suchthat defined(z) && event_abort e2 then
+	    out(c, z)
+	else
+	    out(c, false)
+
+(* EXPECTED
+RESULT Could not prove event(e2) ==> false; event(e1) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

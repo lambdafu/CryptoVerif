@@ -1,0 +1,17 @@
+event e.
+
+query event(e) ==> false.
+
+channel c.
+
+process
+	in(c, ());
+	if false && event_abort e then
+	  out(c, true)
+	else
+	  out(c, false)
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

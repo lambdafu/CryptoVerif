@@ -1,0 +1,25 @@
+(* event e may be executed with high probability
+   CV must not replace i with j, although the [then] branch is executed
+   only with i = j *)
+
+event e.
+
+query event(e) ==> false.
+
+channel c.
+
+param N.
+
+process
+!N
+!N
+in(c,x: bitstring);
+find i <= N, j <= N suchthat defined(x[i,j]) && if i = j then true else event_abort e then
+out(c, x[i,j])
+else
+out(c, false)
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)
