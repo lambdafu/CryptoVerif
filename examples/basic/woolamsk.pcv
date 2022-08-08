@@ -42,13 +42,14 @@ ifdef(`CryptoVerif',`
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Zconcat2(bitstring):bitstring.
+fun Zenc(bitstring):bitstring.
 const Zconcat1:bitstring.
 equation forall y:tag, z:nonce; 
 	Z(concat1(y,z)) = Zconcat1.
 equation forall y:tag, z:host, u:bitstring; 
 	Z(concat2(y,z,u)) = Zconcat2(Z(u)).
 equation forall x:bitstring, k:key, r:enc_seed;
-	Z(enc_r(x,k,r)) = Z(x).
+	Z(enc_r(x,k,r)) = Zenc(Z(x)).
 ',`
 const Zbitstring:bitstring.
 equation forall x:bitstring; Z(x) = Zbitstring.

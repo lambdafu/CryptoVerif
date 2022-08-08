@@ -25,7 +25,7 @@ param NA, NB, NS, NK.
 
 type nonce [large,fixed].
 type host [bounded].
-type key [fixed].
+type key [large,fixed].
 type enc_seed [fixed].
 
 (* Shared-key encryption (IND-CPA + INT-CTXT Stream cipher) *)
@@ -33,7 +33,7 @@ type enc_seed [fixed].
 proba Penc.
 proba Pencctxt.
 
-expand IND_CPA_INT_CTXT_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc, Pencctxt).
+expand IND_CPA_INT_CTXT_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r2, dec, injbot, Z, Penc, Pencctxt).
 
 (* Utility functions *)
 fun concat1(nonce, host, key, bitstring):bitstring [data].
@@ -51,6 +51,7 @@ equation forall z:host,t:nonce,y2:key,z2:host,t2:nonce;
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Zconcat1(bitstring):bitstring.
+fun Zenc(bitstring):bitstring.
 const Zconcat2:bitstring.
 const Zconcat3:bitstring.
 equation forall y:nonce,z:host,t:key,u:bitstring;
@@ -60,7 +61,9 @@ equation forall y:host,z:nonce;
 equation forall y:key,z:host,t:nonce; 
 	Z(concat3(y,z,t)) = Zconcat3.
 equation forall m:bitstring, k:key, r:enc_seed; 
-	Z(enc_r(m, k, r)) = Z(m).
+	Z(enc_r(m, k, r)) = Zenc(Z(m)).
+equation forall m:bitstring, k:key, r:enc_seed; 
+	Z(enc_r2(m, k, r)) = Zenc(Z(m)).
 ',`
 const Zbitstring:bitstring.
 equation forall x:bitstring; Z(x) = Zbitstring.
@@ -84,8 +87,12 @@ query x:bitstring;
       event(partA(B,x)) ==> event(partB(A,x)) public_vars keyA.
 query x:bitstring, k:key;
       event(fullB(A,k,x)) ==> event(fullA(B,k,x)) public_vars keyA.
+(* Only the non-injective version above is true.
+   The adversary can replay the message from B to S to have S issue a token for each nonce Na with the same J and thus execute partA several times.
+   The injective query becomes true when the key confirmation is added.
 query x:bitstring;
       inj-event(partA(B,x)) ==> inj-event(partB(A,x)) public_vars keyA.
+*)
 query x:bitstring, k:key;
       inj-event(fullB(A,k,x)) ==> inj-event(fullA(B,k,x)) public_vars keyA. 
 query x:bitstring, k:key, k':key;

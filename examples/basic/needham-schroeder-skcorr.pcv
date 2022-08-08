@@ -38,6 +38,7 @@ equation forall z:host,t:nonce,y2:key,z2:host,t2:nonce;
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
 fun Zconcat1(bitstring):bitstring.
+fun Zenc(bitstring):bitstring.
 const Zconcat2:bitstring.
 const Zconcat3:bitstring.
 equation forall y:nonce,z:host,t:key,u:bitstring;
@@ -47,7 +48,7 @@ equation forall y:host,z:nonce;
 equation forall y:key,z:host,t:nonce; 
 	Z(concat3(y,z,t)) = Zconcat3.
 equation forall m:bitstring, k:key, r:enc_seed; 
-	Z(enc_r(m, k, r)) = Z(m).
+	Z(enc_r(m, k, r)) = Zenc(Z(m)).
 ',`
 const Zbitstring:bitstring.
 equation forall x:bitstring; Z(x) = Zbitstring.
