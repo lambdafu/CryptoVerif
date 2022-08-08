@@ -873,7 +873,7 @@ let guess_session state g =
        it is a full proof *)
   let current_queries' = List.map (fun (q, poptref) -> (q, ref (!poptref))) g.current_queries in
   let new_queries = ref [] in
-  List.iter (function ((q, g), proof_opt) as q_proof ->
+  List.iter (function ((q, g_q), proof_opt) as q_proof ->
       match q with
       | _ when Settings.get_query_status q_proof != ToProve -> () 
           (* I ignore already proved and inactive queries *)

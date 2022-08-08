@@ -6,17 +6,43 @@
 proof {
 crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' *)
 auto;
-(*
 guess iB;
-focus "query x:bitstring, k:key;event(fullB_1(A,k,x)) ==> event(fullA(B,k,x))";
 simplify;
 out_game "g1.cv";
 insert before_nth 1 "new r_25" "if h_2 = A then"; 
 simplify;
-SArename z_7;
+insert before_nth 1 "fullB_1" "find ja <= NA suchthat defined(keyA[ja],u_33[ja]) && u_33[ja] = u_57 then else event_abort bad_auth";
+success;
 success simplify;
-
+SArename z_7;
 SArename k_8;
+SArename z_8;
+SArename e3;
+SArename u_33;
+(* 
+A:
+        orfind u_61 = ri_21 <= NS suchthat defined(z_15[ri_21], k_19[ri_21], h2[ri_21], n[ri_21], z_2[ri_21]) && (z_2[ri_21] = m2) then
+        (
+          if (Na = n[u_61]) && (h_1 = h2[u_61]) then
+          let keyA: key = k_19[u_61] in
+          out(c5[iA], (z_15[u_61], acceptA(h_1)))
+        )
+
+B:
+            in(c8[iB], m4: bitstring);
+	    [...]
+            orfind u_57 = ri_45 <= NS suchthat defined(z_15[ri_45]) && (z_15[ri_45] = m4) then
+              find ja = ja_1 <= NA suchthat defined(keyA[ja_1], u_61[ja_1]) && (u_61[ja_1] = u_57) then
+                event_abort adv_loses
+              else
+                event_abort bad_auth
+
+Server:
+              new r_34: enc_seed;
+              let z_15: bitstring = enc_r2(Zconcat3, Kbs_2, r_34) in
+
+If z_15[i] does not leak, then one cannot have z_15[i] = m4 (global dependency analysis on r_34; extension probably required for that; needs a form of injectivity of enc_r2 wrt the random r_34).
+z_15[u_57] = m4 => code in A executed with u_61[iA] = u_57 => find ja succeeds
 *)
 interactive
 }

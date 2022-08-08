@@ -6,6 +6,8 @@ Version
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
 - Fixed bugs related to the fact that terms may abort.
+- Fixed bug in guess transformation: injectivity was proved in the initial
+  game instead of the current game.
 - Fixed bug: events were not preserved in the initial transformation of
   the RHS in equivalence proofs.
 
