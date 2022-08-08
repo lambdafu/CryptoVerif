@@ -13,14 +13,50 @@ The proof is as follows: *)
 
 proof {
 crypto uf_cma(sign) rkS;
+success; (* proves 	event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') *)
 crypto ind_cca2(enc) rkA;
 crypto ind_cca2(enc) rkB;
 success;
 auto;
 out_game "g1.cv";
-focus "query secret keyA"; (* helps because it makes events that use Na disappear, especially in B *)
+focus "query secret keyA",
+  "query x:bitstring, na: nonce; inj-event(partA(B, na, x)) ==> inj-event(partB(A, na, x))";
+  
 guess iA;
 SArename Na_4;
+guess_branch before_nth 1 "find u_29";
+(* First branch: else *)
+out_game "g_br1.cv";
+global_dep_anal Na_12;
+success;
+(* 2nd branch *)
+out_game "g_br2.cv";
+success;
+(* 3rd branch *)
+out_game "g_br3.cv";
+SArename m1_5;
+replace at 1 "{[0-9]+}Na_12, " "Na_12[iA_tested]";
+replace at 1 "{[0-9]+}m1_6, " "m1_6[iA_tested]";
+replace at 1 "{[0-9]+}m_6));" "m1_12[u_27]";
+replace at_nth 2 1 "{[0-9]+}m_8, " "m1_6[iA_tested]";
+success;
+(* 4th branch *)
+out_game "g_br4.cv";
+success;
+(* 5th branch *)
+out_game "g_br5.cv";
+global_dep_anal Na_12;
+success;
+(* 6th branch *)
+out_game "g_br6.cv";
+success;
+(* 7th branch *)
+out_game "g_br7.cv";
+global_dep_anal Na_12;
+success;
+(* Going back to focus *)
+out_game "g_fullB.cv";
+interactive;
 move array Na_12;
 success; (* proves secrecy of keyA; correspondences remain to prove *)
 interactive

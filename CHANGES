@@ -9,6 +9,8 @@ Version
 - Fixed bugs in guess transformation: injectivity was proved in the initial
   game instead of the current game; use compatibility information between
   program points to prove injectivity.
+- Fixed bug in guess_branch transformation: branches of find were not
+  computed correctly.
 - Fixed bug in proof of injectivity when there are several events before ==>.
 - Fixed bug: events were not preserved in the initial transformation of
   the RHS in equivalence proofs.

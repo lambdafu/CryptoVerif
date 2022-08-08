@@ -101,11 +101,11 @@ let rec guess_t state cur_array t =
 		Terms.build_term t (FindE(List.map (fun (bl,def_list,t0,p1) ->
 		  (bl,def_list,t0,bad_guess_t())
 		    ) l0, p2, find_info))
-	      else if state.branch_num  <= List.length l0 then
+	      else if state.branch_num <= List.length l0 then
 		let l0' =
 		  List.mapi (fun n (bl,def_list,t0,p1) ->
 		    (bl,def_list,t0,
-		     if n = state.branch_num then
+		     if n = state.branch_num-1 then
 		       p1
 		     else
 		       bad_guess_t())
@@ -230,11 +230,11 @@ and guess_o state cur_array p =
 		Terms.oproc_from_desc (Find(List.map (fun (bl,def_list,t,p1) ->
 		  (bl,def_list,t,bad_guess_p())
 		    ) l0, p2, find_info))
-	      else if state.branch_num  <= List.length l0 then
+	      else if state.branch_num <= List.length l0 then
 		let l0' =
 		  List.mapi (fun n (bl,def_list,t,p1) ->
 		    (bl,def_list,t,
-		     if n = state.branch_num then
+		     if n = state.branch_num-1 then
 		       p1
 		     else
 		       bad_guess_p())
