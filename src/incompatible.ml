@@ -291,7 +291,7 @@ let both_pp_add_fact fact_accu (args, pp) (args', pp') =
     let args_skip = Terms.lsuffix suffix_l args in
     let args_skip' = Terms.lsuffix suffix_l args' in
     (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
-  with Not_found -> 
+  with Not_found ->
     fact_accu
 
 (* [incompatible_suffix_length_onepp pp b'] returns a length [l] such

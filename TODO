@@ -496,13 +496,19 @@ given how the computation of probabilities is organized.
   That should allow to prove (inj-)event(fullB(A, k, x)) ==>
   (inj-)event(fullA(B, k, x))
   ==> tried in file examplesnd/notest/needham-schroeder-skcorr-guess.pcv
-      but does not work yet.
+   but does not work yet. Probably needs an extension of global
+   dependency analysis.
   Similar remark for file examples/basic/needham-schroeder-sk.pcv and
   query event(fullB(A, k, x)) ==> event(fullA(B, k, x))
 
 - examples/basic/needham-schroeder-pkcorrKeyN{a,b}.pcv
-  CV does not manage due to ordering pb (or to key Na/Nb leaked too early?)
-
+  CV does not manage due to ordering pb (or to key Na/Nb leaked too
+   early?)
+   For Nb, the key is leaked too early, the failure is a real attack.
+   For Na, it comes from limitations of CV.
+   Tried in examplesnd/notest/needham-schroeder-pkcorrKeyNa-guess.pcv
+   Does not work yet.
+   
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of
 equalities?), and fix it.

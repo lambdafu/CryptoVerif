@@ -824,14 +824,14 @@ let get_event_accu g =
   | Some event_accu -> event_accu
   | None ->
       let event_accu = ref [] in
-      Improved_def.improved_def_game (Some event_accu) false g;
+      Improved_def.improved_def_game (Some event_accu) true g;
       event_accu_ref := Some (!event_accu);
       !event_accu
 
 let cleanup_event_accu g =
   match !event_accu_ref with
   | Some event_accu ->
-      Improved_def.empty_improved_def_game false g;
+      Improved_def.empty_improved_def_game true g;
       event_accu_ref := None
   | None -> ()
 	

@@ -289,8 +289,9 @@ let check_inj_compat
     try
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
-	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	if List.for_all2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
 	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  (* The program points of end events are the same, we require some indices to be different *)
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
@@ -947,8 +948,9 @@ let check_inj_compat
     try
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
-	if List.exists2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	if List.for_all2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
 	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  (* The program points of end events are the same, we require some indices to be different *)
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
