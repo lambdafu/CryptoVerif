@@ -507,7 +507,7 @@ given how the computation of probabilities is organized.
    For Nb, the key is leaked too early, the failure is a real attack.
    For Na, it comes from limitations of CV.
    Tried in examplesnd/notest/needham-schroeder-pkcorrKeyNa-guess.pcv
-   Does not work yet.
+   Works for secrecy but does not work for correspondences yet.
    
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of

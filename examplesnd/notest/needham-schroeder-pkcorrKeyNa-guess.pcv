@@ -18,8 +18,11 @@ crypto ind_cca2(enc) rkB;
 success;
 auto;
 out_game "g1.cv";
+focus "query secret keyA"; (* helps because it makes events that use Na disappear, especially in B *)
 guess iA;
-
+SArename Na_4;
+move array Na_12;
+success; (* proves secrecy of keyA; correspondences remain to prove *)
 interactive
 }
 
