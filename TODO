@@ -24,10 +24,11 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-Use tables instead of find in HPKE.
-DONE update tech report
-
-
+When collecting future facts, I could be more precise: event_abort X
+means *any* fact is true, because the game will not reach the point that
+uses the future facts. (be careful with proof of correspondences,
+the correspondence needs to be proven even if the game aborts,
+see OPTIONAL in 20)
 
 Have a notion of intermediate result: you prove an equivalence, and then
 reuse it with the associated probability to prove some other result.
@@ -500,14 +501,6 @@ given how the computation of probabilities is organized.
    dependency analysis.
   Similar remark for file examples/basic/needham-schroeder-sk.pcv and
   query event(fullB(A, k, x)) ==> event(fullA(B, k, x))
-
-- examples/basic/needham-schroeder-pkcorrKeyN{a,b}.pcv
-  CV does not manage due to ordering pb (or to key Na/Nb leaked too
-   early?)
-   For Nb, the key is leaked too early, the failure is a real attack.
-   For Na, it comes from limitations of CV.
-   Tried in examplesnd/notest/needham-schroeder-pkcorrKeyNa-guess.pcv
-   Works for secrecy but does not work for correspondences yet.
    
 * It does not work automatically with the logs as they presented.
 Investigate in more details why (perhaps a bad orientation of
@@ -6524,3 +6517,12 @@ ABANDONED (see 6) above for better ideas)
 Allow more complicated proofs for [unique] annotations, with game
 transformations before the actual proof.
 DONE 28/7/2022
+
+- examples/basic/needham-schroeder-pkcorrKeyN{a,b}.pcv
+  CV does not manage due to ordering pb (or to key Na/Nb leaked too
+   early?)
+   For Nb, the key is leaked too early, the failure is a real attack.
+   For Na, it comes from limitations of CV.
+   Tried in examplesnd/notest/needham-schroeder-pkcorrKeyNa-guess.pcv
+   Works for secrecy but does not work for correspondences yet.
+DONE 9/8/2022

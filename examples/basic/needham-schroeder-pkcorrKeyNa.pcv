@@ -7,10 +7,27 @@ set preciseActions = true.
 
 (* Example updated from CV 1.28 by Benjamin Beurdouche *)
 
-(* In order to determine the proof, use interactive mode:
-   set interactiveMode = true.
-The proof is as follows: *)
+proof {
+crypto uf_cma(sign) rkS;
+success; (* proves event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') *)
+restart;
+out_game "g0.cv";
+(* The next transformations execute a "bad" event in case the authentication property fullB ==> fullA fails. 
+   The main goal of these transformations is to remove the initial events fullA and fullB, which contain Na.
+   After these transformations, Na no longer occurs in events and that allows CryptoVerif
+   to delay the generation of Na and to prove that equalities Na = ... cannot hold. *)
+insert before "event fullB" "if hostY = A then find jA <= NA suchthat defined(hostX[jA], Na_1[jA], m1[jA], m_6[jA], m3_1[jA]) && hostX[jA] = B && Na_1[jA] = Na_2 && m1[jA] = m_8 && m_6[jA] = m2 && m3_1[jA] = m3_2 then else event_abort bad_auth_full";
+simplify;
+success; (* proves inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) public_vars keyA, but requires proving event(bad_auth_full) ==> false *)
+(* Use the cryptographic assumptions *)
+crypto uf_cma(sign) rkS;
+crypto ind_cca2(enc) rkA;
+crypto ind_cca2(enc) rkB;
+simplify;
+success
+}
 
+(* The simpler proof:
 proof {
 crypto uf_cma(sign) rkS;
 crypto ind_cca2(enc) rkA;
@@ -18,6 +35,8 @@ crypto ind_cca2(enc) rkB;
 success;
 auto
 }
+fails (it proves no property at all).
+*)
 
 param NA, NB, NS, NK.
 
@@ -156,7 +175,7 @@ process
 	 (! iK <= NK processK(pkA,pkB)))
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; secrecy of keyA.
+All queries proved.
 2.664s (user 2.652s + system 0.012s), max rss 33132K
 END *)
 
