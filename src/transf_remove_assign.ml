@@ -4,21 +4,17 @@ open Types
 Supports If/let/find/new/event in terms.
 Be careful of variables defined at several places!  *)
 
-let queries = ref []
-
-let replacement_def_list = ref []
-(* List of correspondences (b,b'), b = old binder, b' = new binder,
-   for defined conditions. When b is used only in "defined" conditions,
-   we try to find another binder b' defined in the same cases, so that
-   we can remove the definition of b completely. *)
-
-let done_transfos = ref []
-
-let done_sa_rename = ref []
-
 type transf_args =
     { sarename_new : bool;
-      remove_set : rem_set }
+      remove_set : rem_set;
+      queries : cur_queries_t;
+      mutable replacement_def_list : (binder * binder) list;
+       (* List of correspondences (b,b'), b = old binder, b' = new binder,
+	  for defined conditions. When b is used only in "defined" conditions,
+	  we try to find another binder b' defined in the same cases, so that
+	  we can remove the definition of b completely. *)
+      mutable done_transfos : detailed_instruct list;
+      mutable done_sa_rename : (binder * binder) list}
     
 let rec copiable t =
   match t.t_desc with
@@ -59,7 +55,7 @@ let candidate_for_rem_assign refers in_find_cond transf_args b t p =
        (Terms.refers_to b t)
   then DontRemove
   else
-    if not (refers b p || b.array_ref || Settings.occurs_in_queries b (!queries)) then
+    if not (refers b p || b.array_ref || Settings.occurs_in_queries b transf_args.queries) then
       VariableUseless
     else
       match transf_args.remove_set with
@@ -158,7 +154,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 	      (* Variable is useless *)
 	      begin
 		Settings.changed := true;
-                done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
+                transf_args.done_transfos <- (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: transf_args.done_transfos;
 		rec_simplif above_vars p1
 	      end
 	    else
@@ -171,14 +167,14 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                   if b.count_def > 1 then raise Not_found;
                   let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond transf_args p1) b above_vars in
                   Settings.changed := true;
-                  done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-                  replacement_def_list := (b, b') :: (!replacement_def_list);
+                  transf_args.done_transfos <- (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: transf_args.done_transfos;
+                  transf_args.replacement_def_list <- (b, b') :: transf_args.replacement_def_list;
                   rec_simplif above_vars p1
                 with Not_found ->
 		      let t' = Stringmap.cst_for_type t.t_type in
 		      if not (Terms.equal_terms t t') then 
                         begin
-                          done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+                          transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
                           Settings.changed := true
                         end;
 		      make_assign pat t' (rec_simplif (b::above_vars) p1)
@@ -197,11 +193,11 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                 let p1' = copy (Terms.OneSubst(b,t,copy_changed)) p1 in
                 let subst_def = !copy_changed in (* Set to true if an occurrence of b has really been substituted *)
                 Settings.changed := (!Settings.changed) || subst_def;
-		if Settings.occurs_in_queries b (!queries) then
+		if Settings.occurs_in_queries b transf_args.queries then
 		  begin
 		    (* if b occurs in queries then leave as it is *)
                     if subst_def then
-                      done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
+                      transf_args.done_transfos <- (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: transf_args.done_transfos;
 		    make_assign pat t (rec_simplif (b::above_vars) p1')
 		  end
 		else if b.root_def_array_ref || b.array_ref then
@@ -212,14 +208,14 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                        defined(b[...]) with defined(b'[...]) *)
                     let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond transf_args p1') b above_vars in
                     Settings.changed := true;
-                    done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
-                    replacement_def_list := (b, b') :: (!replacement_def_list);
+                    transf_args.done_transfos <- (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: transf_args.done_transfos;
+                    transf_args.replacement_def_list <- (b, b') :: transf_args.replacement_def_list;
                     rec_simplif above_vars p1'
                   with Not_found ->
 		    let t' = Stringmap.cst_for_type t.t_type in
 		    if not (Terms.equal_terms t t') then 
                       begin
-                        done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+                        transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
                         Settings.changed := true
                       end;
 		    make_assign pat t' (rec_simplif (b::above_vars) p1')
@@ -227,7 +223,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 		  begin
                     (* b will completely disappear *)
                     Settings.changed := true;
-                    done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
+                    transf_args.done_transfos <- (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: transf_args.done_transfos;
 		    rec_simplif above_vars p1'
 		  end
 	      end
@@ -264,11 +260,11 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 			let t' = Stringmap.cst_for_type t.t_type in
 			if not (Terms.equal_terms t t') then 
 			  begin
-			    done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+			    transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
 			    Settings.changed := true
 			  end
 			else if subst_def then
-			  done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+			  transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
 			make_assign pat t' p1''
 		      end
 		    else
@@ -277,16 +273,16 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 			if do_advise then Settings.advise := Terms.add_eq (SArenaming b) (!Settings.advise);
                         (* Keep the definition so that out-of-scope array accesses are correct *)
 			if subst_def then
-			  done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveNonArray)) :: (!done_transfos);
+			  transf_args.done_transfos <- (DRemoveAssign(b, DKeepDef, DRemoveNonArray)) :: transf_args.done_transfos;
 			make_assign pat t p1''
 		      end
 		  end
-		else if Settings.occurs_in_queries b (!queries) then
+		else if Settings.occurs_in_queries b transf_args.queries then
                   begin
                     let p1'' = rec_simplif (b::above_vars) p1' in
 		    (* Cannot change definition if b occurs in queries *)
                     if subst_def then
-                      done_transfos := (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: (!done_transfos);
+                      transf_args.done_transfos <- (DRemoveAssign(b, DKeepDef, DRemoveAll)) :: transf_args.done_transfos;
  		    make_assign pat t p1''
                   end
                 else if b.root_def_array_ref then
@@ -295,17 +291,17 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
 		  let t' = Stringmap.cst_for_type t.t_type in
 		  if not (Terms.equal_terms t t') then 
                     begin
-                      done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+                      transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
                       Settings.changed := true
                     end
                   else if subst_def then
-                    done_transfos := (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: (!done_transfos);
+                    transf_args.done_transfos <- (DRemoveAssign(b, DKeepDefPoint, DRemoveAll)) :: transf_args.done_transfos;
                   let p1'' = rec_simplif (b::above_vars) p1' in
 		  make_assign pat t' p1''
 		else
                   (* b will completely disappear *)
 		  begin
-                    done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
+                    transf_args.done_transfos <- (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: transf_args.done_transfos;
 		    Settings.changed := true;
                     let p1'' = rec_simplif above_vars p1' in
 		    p1''
@@ -322,7 +318,7 @@ let expand_assign ((make_assign, make_let, make_test, get_else, find_replacement
     if transfos != [] then
       begin
 	Settings.changed := true;
-	done_transfos := (DLetSimplifyPattern(let_t, transfos)) :: (!done_transfos);
+	transf_args.done_transfos <- (DLetSimplifyPattern(let_t, transfos)) :: transf_args.done_transfos;
         (* Put the lets *)
 	let plet = put_lets bind p1 topt in
         (* Put the test *)
@@ -349,7 +345,7 @@ let expand_assign ((make_assign, make_let, make_test, get_else, find_replacement
       expand_assign_one funs in_find_cond transf_args above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt 
   with Terms.Impossible -> 
     Settings.changed := true;
-    done_transfos := (DLetSimplifyPattern(let_t, [pat, DImpossibleTuple])) :: (!done_transfos);
+    transf_args.done_transfos <- (DLetSimplifyPattern(let_t, [pat, DImpossibleTuple])) :: transf_args.done_transfos;
     rec_simplif above_vars (get_else topt)
 
 
@@ -388,12 +384,12 @@ let rec remove_assignments_term in_find_cond transf_args above_vars t =
 	  (remove_assignments_term in_find_cond transf_args)
 	  pat t1 t2 topt
   | ResE(b,t) ->
-      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
+      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b transf_args.queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
 	  Settings.changed := true;
-	  done_sa_rename := (b,b') :: (!done_sa_rename);
+	  transf_args.done_sa_rename <- (b,b') :: transf_args.done_sa_rename;
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
           let above_vars' = b' :: above_vars in
@@ -433,12 +429,12 @@ and remove_assignments_reco transf_args above_vars p =
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
+      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b transf_args.queries)) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
 	  Settings.changed := true;
-	  done_sa_rename := (b,b') :: (!done_sa_rename);
+	  transf_args.done_sa_rename <- (b,b') :: transf_args.done_sa_rename;
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
           let above_vars' = b' :: above_vars in
@@ -493,30 +489,28 @@ let rec do_sa_rename = function
 
 (* - Main function for assignment removal *)
 
-let remove_assignments transf_args g =
+let remove_assignments sarename_new remove_set g =
   let p = Terms.get_process g in
-  queries := g.current_queries;
-  done_sa_rename := [];
-  done_transfos := [];
   Def.build_def_process (Some g) None p;
   if !Terms.current_bound_vars != [] then
     Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
   Array_ref.array_ref_process p;
-  replacement_def_list := [];
+  let transf_args =
+    { sarename_new = sarename_new;
+      remove_set = remove_set;
+      queries = g.current_queries;
+      done_sa_rename = [];
+      done_transfos = [];
+      replacement_def_list = [] }
+  in
   (* - First pass: put links; split assignments of tuples if possible *)
   let p' = remove_assignments_rec transf_args p in
   (* - Second pass: copy the process following the links or replacing just one variable.
        Be careful for array references: update the indexes properly  *)
-  let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
+  let p'' = Terms.copy_process (Terms.Links_Vars_Args(transf_args.replacement_def_list)) p' in
   Terms.cleanup();
   Array_ref.cleanup_array_ref();
   Def.empty_def_process p;
-  replacement_def_list := [];
-  queries := [];
-  let sa_rename = !done_sa_rename in
-  let transfos = !done_transfos in
-  done_transfos := [];
-  done_sa_rename := [];
   let g' = Terms.build_transformed_game p'' g in
   let (g'', proba, renames) =
     if transf_args.remove_set == NoRemAssign then
@@ -524,14 +518,14 @@ let remove_assignments transf_args g =
     else
       Transf_auto_sa_rename.auto_sa_rename g'
   in      
-  (g'', proba, renames @ (do_sa_rename sa_rename) @ transfos)
+  (g'', proba, renames @ (do_sa_rename transf_args.done_sa_rename) @ transf_args.done_transfos)
 
-let rec remove_assignments_repeat n transf_args g =
+let rec remove_assignments_repeat n sarename_new remove_set g =
   let tmp_changed = !Settings.changed in
   Settings.changed := false;
-  let (g', proba, transfos) = remove_assignments transf_args g in
+  let (g', proba, transfos) = remove_assignments sarename_new remove_set g in
   if n != 1 && !Settings.changed then
-    let (g'', proba', transfos') = remove_assignments_repeat (n-1) transf_args g' in
+    let (g'', proba', transfos') = remove_assignments_repeat (n-1) sarename_new remove_set g' in
     (g'', proba' @ proba, transfos' @ transfos)
   else
     begin
@@ -540,48 +534,45 @@ let rec remove_assignments_repeat n transf_args g =
     end
 
 let remove_assignments sarename_new remove_set g =
-  let transf_args =
-    { sarename_new = sarename_new;
-      remove_set = remove_set }
-  in
-  if (transf_args.remove_set == Minimal) || (transf_args.remove_set == FindCond) then
-    remove_assignments_repeat (!Settings.max_iter_removeuselessassign) transf_args g
+  if (remove_set == Minimal) || (remove_set == FindCond) then
+    remove_assignments_repeat (!Settings.max_iter_removeuselessassign) sarename_new remove_set g
   else
-    remove_assignments transf_args g
+    remove_assignments sarename_new remove_set g
 
 (* - Main function for assignment removal for sides of equiv *)
 
-let rec remove_assignments_fungroup = function
+let rec remove_assignments_fungroup transf_args = function
   | ReplRestr(repl_opt, restr, funlist) ->
-      ReplRestr(repl_opt, restr, List.map remove_assignments_fungroup funlist)
+      ReplRestr(repl_opt, restr, List.map (remove_assignments_fungroup transf_args) funlist)
   | Fun(ch, args, res, priority) ->
-      Fun(ch, args, remove_assignments_term false { sarename_new = false; remove_set = EqSide } [] res, priority)
+      Fun(ch, args, remove_assignments_term false transf_args [] res, priority)
       
-let remove_assignments_rec_eqside rm =
+let remove_assignments_rec_eqside transf_args rm =
   List.map (fun (fg, mode) ->
-    (remove_assignments_fungroup fg, mode)
+    (remove_assignments_fungroup transf_args fg, mode)
       ) rm
       
 let remove_assignments_eqside rm =
-  queries := [];
-  done_sa_rename := [];
-  done_transfos := [];
+  let transf_args =
+    { sarename_new = false;
+      remove_set = EqSide;
+      queries = [];
+      done_sa_rename = [];
+      done_transfos = [];
+      replacement_def_list = [] }
+  in
   Def.build_def_member rm;
   if !Terms.current_bound_vars != [] then
     Parsing_helper.internal_error "bound vars should be cleaned up (transf1)";
   Array_ref.array_ref_eqside rm;
-  replacement_def_list := [];
   (* - First pass: put links; split assignments of tuples if possible *)
-  let rm' = remove_assignments_rec_eqside rm in
+  let rm' = remove_assignments_rec_eqside transf_args rm in
   (* - Second pass: copy the process following the links or replacing just one variable.
        Be careful for array references: update the indexes properly  *)
-  let rm'' = Terms.copy_eqside (Terms.Links_Vars_Args(!replacement_def_list)) rm' in
+  let rm'' = Terms.copy_eqside (Terms.Links_Vars_Args(transf_args.replacement_def_list)) rm' in
   Terms.cleanup();
   Array_ref.cleanup_array_ref();
   Def.empty_def_member rm;
-  replacement_def_list := [];
-  done_transfos := [];
-  done_sa_rename := [];
   Transf_auto_sa_rename.auto_sa_rename_eqside rm''
 
 let rec remove_assignments_repeat_eqside n rm =
