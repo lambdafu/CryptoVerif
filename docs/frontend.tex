@@ -1128,7 +1128,9 @@ When {\tt true}, and a variable is defined several times and
 used only in the scope of its definition with the current
 replication indices at that definition, each definition of
 this variable is renamed to a different name, and the uses
-are renamed accordingly, by the transformation {\tt remove\string_assign}.
+are renamed accordingly, by the transformation {\tt all\_simplify}
+and by the simplification after the {\tt crypto} and {\tt SArename}
+transformations.
 When {\tt false}, such a renaming is not done automatically,
 but in manual proofs, it can be requested specifically for each 
 variable by {\tt SArename x}, where {\tt x} is the name of the variable.
@@ -1231,8 +1233,11 @@ dependency analysis generates bad advice.
 \item \texttt{set simplifyAfterSARename = true.}\\
 \texttt{set simplifyAfterSARename = false.}
 
-When \texttt{simplifyAfterSARename = true}, apply simplification after
-each execution of the SArename transformation. This slows down
+When \texttt{simplifyAfterSARename = true}, apply simplification
+(\texttt{remove\string_assign useless} if \texttt{autoRemoveAssignFindCond = false}, 
+\texttt{remove\string_assign findcond} if \texttt{autoRemoveAssignFindCond = true},
+\texttt{SArename new} if \texttt{autoSARename = true}, \texttt{simplify})
+after each execution of the SArename transformation. This slows down
 the system, but enables it to succeed more often.
 
 \item \texttt{set backtrackOnCrypto = false.}\\

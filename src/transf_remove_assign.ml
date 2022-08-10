@@ -16,6 +16,10 @@ let done_transfos = ref []
 
 let done_sa_rename = ref []
 
+type transf_args =
+    { sarename_new : bool;
+      remove_set : rem_set }
+    
 let rec copiable t =
   match t.t_desc with
   | Var(_,l) | FunApp(_,l) ->
@@ -38,7 +42,7 @@ let rec copiable t =
   | GetE _ | InsertE _ ->
      Parsing_helper.internal_error "Get/insert should not occur in terms"
 
-(* [candidate_for_rem_assign refers in_find_cond remove_set b t p] returns [true]
+(* [candidate_for_rem_assign refers in_find_cond transf_args b t p] returns [true]
  * when the assignment [let b = t in p] may be removed
  * [refers b p] returns whether [p] refers to [b] 
  * (Terms.refers_to_nodef for terms, Terms.refers_to_nodef_process for processes)
@@ -49,7 +53,7 @@ type rem_assign_level =
   | VariableUseless
   | Remove of bool (* the boolean is true when we want to apply advice *)
                                    
-let candidate_for_rem_assign refers in_find_cond remove_set b t p =
+let candidate_for_rem_assign refers in_find_cond transf_args b t p =
   if (not (copiable t)) ||
        (* Cannot remove cyclic assignment *)
        (Terms.refers_to b t)
@@ -58,8 +62,7 @@ let candidate_for_rem_assign refers in_find_cond remove_set b t p =
     if not (refers b p || b.array_ref || Settings.occurs_in_queries b (!queries)) then
       VariableUseless
     else
-      match remove_set with
-      | All ->  Remove true
+      match transf_args.remove_set with
       | FindCond when in_find_cond -> Remove true
       | Binders l when List.memq b l -> Remove true
       | EqSide ->
@@ -96,32 +99,32 @@ let make_let_proc rec_simplif pat t p1 p2 =
 let make_test_proc test p1 p2 =
   Terms.oproc_from_desc (Test(test, p1, p2))  
                   
-(* [find_replacement_for_def_term in_find_cond remove_set p b] finds a variable that
+(* [find_replacement_for_def_term in_find_cond transf_args p b] finds a variable that
    can replace [b] in defined conditions (that is, a variable that is defined exactly when [b] is defined)
    in the process [p]. [b] is defined exactly when [p] is executed. *)
 	    
-let rec find_replacement_for_def_term in_find_cond remove_set p b =
+let rec find_replacement_for_def_term in_find_cond transf_args p b =
   match p.t_desc with
   | ResE(b',p') ->
-      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def_term in_find_cond remove_set p' b
+      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def_term in_find_cond transf_args p' b
   | LetE(PatVar b', t, p', _) ->
-      if b' != b && b'.count_def == 1 && (candidate_for_rem_assign Terms.refers_to_nodef in_find_cond remove_set b' t p' == DontRemove) then b' else 
-      find_replacement_for_def_term in_find_cond remove_set p' b
-  | EventE(_,p') -> find_replacement_for_def_term in_find_cond remove_set p' b
+      if b' != b && b'.count_def == 1 && (candidate_for_rem_assign Terms.refers_to_nodef in_find_cond transf_args b' t p' == DontRemove) then b' else 
+      find_replacement_for_def_term in_find_cond transf_args p' b
+  | EventE(_,p') -> find_replacement_for_def_term in_find_cond transf_args p' b
   | _ -> raise Not_found
 
-(* [find_replacement_for_def_proc remove_set p b] finds a variable that
+(* [find_replacement_for_def_proc transf_args p b] finds a variable that
    can replace [b] in defined conditions (that is, a variable that is defined exactly when [b] is defined)
    in the process [p]. [b] is defined exactly when [p] is executed. *)
 	    
-let rec find_replacement_for_def_proc in_find_cond remove_set p b =
+let rec find_replacement_for_def_proc in_find_cond transf_args p b =
   match p.p_desc with
   | Restr(b',p') ->
-      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def_proc in_find_cond remove_set p' b
+      if b' != b && b'.count_def == 1 then b' else find_replacement_for_def_proc in_find_cond transf_args p' b
   | Let(PatVar b', t, p', _) ->
-      if b' != b && b'.count_def == 1 && (candidate_for_rem_assign Terms.refers_to_process_nodef false remove_set b' t p' == DontRemove) then b' else 
-      find_replacement_for_def_proc in_find_cond remove_set p' b
-  | EventP(_,p') -> find_replacement_for_def_proc in_find_cond remove_set p' b
+      if b' != b && b'.count_def == 1 && (candidate_for_rem_assign Terms.refers_to_process_nodef false transf_args b' t p' == DontRemove) then b' else 
+      find_replacement_for_def_proc in_find_cond transf_args p' b
+  | EventP(_,p') -> find_replacement_for_def_proc in_find_cond transf_args p' b
   | _ -> raise Not_found
 
 let term_funs = (make_assign_term, make_let_term, make_test_term, Terms.get_else, find_replacement_for_def_term, Terms.copy_term, Terms.refers_to_nodef, Terms.put_lets_term)
@@ -141,11 +144,11 @@ let rec find_replacement_for_def_ab final b = function
 (* Function for assignment expansion, shared between terms and processes *)
 
 let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacement_for_def, copy, refers, put_lets)
-      in_find_cond remove_set above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt =
+      in_find_cond transf_args above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt =
   match pat with
   | PatVar b ->
      begin
-       match candidate_for_rem_assign refers in_find_cond remove_set b t p1 with
+       match candidate_for_rem_assign refers in_find_cond transf_args b t p1 with
        | DontRemove ->
           make_assign pat (rec_simplif_term t) (rec_simplif (b::above_vars) p1)
        | VariableUseless ->
@@ -166,7 +169,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                   (* Try to remove the definition of b completely, by replacing
                        defined(b[...]) with defined(b'[...]) *)
                   if b.count_def > 1 then raise Not_found;
-                  let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond remove_set p1) b above_vars in
+                  let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond transf_args p1) b above_vars in
                   Settings.changed := true;
                   done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
                   replacement_def_list := (b, b') :: (!replacement_def_list);
@@ -207,7 +210,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
                   try
                     (* Try to remove the definition of b completely, by replacing
                        defined(b[...]) with defined(b'[...]) *)
-                    let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond remove_set p1') b above_vars in
+                    let b' = find_replacement_for_def_ab (find_replacement_for_def in_find_cond transf_args p1') b above_vars in
                     Settings.changed := true;
                     done_transfos := (DRemoveAssign(b, DRemoveDef, DRemoveAll)) :: (!done_transfos);
                     replacement_def_list := (b, b') :: (!replacement_def_list);
@@ -313,7 +316,7 @@ let expand_assign_one (make_assign, make_let, make_test, get_else, find_replacem
      make_let (rec_simplif []) (rec_simplif_pat pat) (rec_simplif_term t) p1 topt
 
 let expand_assign ((make_assign, make_let, make_test, get_else, find_replacement_for_def, copy, refers, put_lets) as funs)
-      let_t in_find_cond remove_set above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt =
+      let_t in_find_cond transf_args above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt =
   try
     let (transfos, test, bind) = Terms.simplify_let_tuple (fun t -> t) pat t in
     if transfos != [] then
@@ -343,7 +346,7 @@ let expand_assign ((make_assign, make_let, make_test, get_else, find_replacement
         rec_simplif above_vars pfinal
       end
     else
-      expand_assign_one funs in_find_cond remove_set above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt 
+      expand_assign_one funs in_find_cond transf_args above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 topt 
   with Terms.Impossible -> 
     Settings.changed := true;
     done_transfos := (DLetSimplifyPattern(let_t, [pat, DImpossibleTuple])) :: (!done_transfos);
@@ -355,31 +358,37 @@ let several_def b =
     [] | [_] -> false
   | _::_::_ -> true
 
-let rec remove_assignments_term in_find_cond remove_set above_vars t =
+let rec remove_assignments_term in_find_cond transf_args above_vars t =
   match t.t_desc with
     Var(b,l) ->
-      Terms.build_term t (Var(b, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
+      Terms.build_term t (Var(b, List.map (remove_assignments_term in_find_cond transf_args above_vars) l))
   | ReplIndex i -> Terms.build_term t (ReplIndex i)
   | FunApp(f,l) ->
-      Terms.build_term t (FunApp(f, List.map (remove_assignments_term in_find_cond remove_set above_vars) l))
+      Terms.build_term t (FunApp(f, List.map (remove_assignments_term in_find_cond transf_args above_vars) l))
   | TestE(t1,t2,t3) ->
-      Terms.build_term t (TestE(remove_assignments_term in_find_cond remove_set above_vars t1,
-		                 remove_assignments_term in_find_cond remove_set [] t2,
-		                 remove_assignments_term in_find_cond remove_set [] t3))
+      Terms.build_term t (TestE(remove_assignments_term in_find_cond transf_args above_vars t1,
+		                 remove_assignments_term in_find_cond transf_args [] t2,
+		                 remove_assignments_term in_find_cond transf_args [] t3))
   | FindE(l0, t3, find_info) ->
       Terms.build_term t (FindE(List.map (fun (bl, def_list, t1, t2) ->
 	                             (bl, def_list,
-			              remove_assignments_term true remove_set [] t1,
-			              remove_assignments_term in_find_cond remove_set [] t2)) l0,
-		                 remove_assignments_term in_find_cond remove_set [] t3, find_info))
+			              remove_assignments_term true transf_args [] t1,
+			              remove_assignments_term in_find_cond transf_args [] t2)) l0,
+		                 remove_assignments_term in_find_cond transf_args [] t3, find_info))
   | LetE(pat,t1,t2,topt) ->
-     expand_assign term_funs (DTerm t) in_find_cond remove_set above_vars
-       (remove_assignments_term in_find_cond remove_set above_vars)
-       (remove_assignments_pat in_find_cond remove_set above_vars)
-       (remove_assignments_term in_find_cond remove_set)
-       pat t1 t2 topt
+      if transf_args.remove_set == NoRemAssign then
+	make_let_term (remove_assignments_term in_find_cond transf_args [])
+	  (remove_assignments_pat in_find_cond transf_args above_vars pat)
+	  (remove_assignments_term in_find_cond transf_args above_vars t1)
+	  t2 topt
+      else
+	expand_assign term_funs (DTerm t) in_find_cond transf_args above_vars
+	  (remove_assignments_term in_find_cond transf_args above_vars)
+	  (remove_assignments_pat in_find_cond transf_args above_vars)
+	  (remove_assignments_term in_find_cond transf_args)
+	  pat t1 t2 topt
   | ResE(b,t) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
+      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let t' = Terms.copy_term (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) t in
@@ -388,43 +397,43 @@ let rec remove_assignments_term in_find_cond remove_set above_vars t =
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
           let above_vars' = b' :: above_vars in
-	  Terms.build_term t' (ResE(b', remove_assignments_term in_find_cond remove_set above_vars' t'))
+	  Terms.build_term t' (ResE(b', remove_assignments_term in_find_cond transf_args above_vars' t'))
 	end
       else
-	Terms.build_term t (ResE(b, remove_assignments_term in_find_cond remove_set (b::above_vars) t))
+	Terms.build_term t (ResE(b, remove_assignments_term in_find_cond transf_args (b::above_vars) t))
   | EventAbortE f ->
      t
   | EventE(t1,p) ->
-     Terms.build_term t (EventE(remove_assignments_term in_find_cond remove_set above_vars t1,
-		                 remove_assignments_term in_find_cond remove_set above_vars p))
+     Terms.build_term t (EventE(remove_assignments_term in_find_cond transf_args above_vars t1,
+		                 remove_assignments_term in_find_cond transf_args above_vars p))
   | GetE _ | InsertE _ ->      
       Parsing_helper.internal_error "Get/Insert should not appear in Transf_remove_assign.remove_assignments_term"
 
-and remove_assignments_pat in_find_cond remove_set above_vars = function
+and remove_assignments_pat in_find_cond transf_args above_vars = function
     (PatVar _) as pat -> pat
-  | PatEqual t -> PatEqual (remove_assignments_term in_find_cond remove_set above_vars t)
-  | PatTuple(f,l) -> PatTuple(f, List.map (remove_assignments_pat in_find_cond remove_set above_vars) l)
+  | PatEqual t -> PatEqual (remove_assignments_term in_find_cond transf_args above_vars t)
+  | PatTuple(f,l) -> PatTuple(f, List.map (remove_assignments_pat in_find_cond transf_args above_vars) l)
     
-let rec remove_assignments_rec remove_set p = 
+let rec remove_assignments_rec transf_args p = 
   Terms.iproc_from_desc (
   match p.i_desc with
     Nil -> Nil
   | Par(p1,p2) -> 
-      Par(remove_assignments_rec remove_set p1,
-	  remove_assignments_rec remove_set p2)
+      Par(remove_assignments_rec transf_args p1,
+	  remove_assignments_rec transf_args p2)
   | Repl(b,p) ->
-      Repl(b,remove_assignments_rec remove_set p)
+      Repl(b,remove_assignments_rec transf_args p)
   | Input((c,tl),pat,p) ->
-     Input((c, List.map (remove_assignments_term false remove_set []) tl),
-           remove_assignments_pat false remove_set [] pat, 
-	   remove_assignments_reco remove_set [] p))
+     Input((c, List.map (remove_assignments_term false transf_args []) tl),
+           remove_assignments_pat false transf_args [] pat, 
+	   remove_assignments_reco transf_args [] p))
 
-and remove_assignments_reco remove_set above_vars p =
+and remove_assignments_reco transf_args above_vars p =
   match p.p_desc with
     Yield -> Terms.oproc_from_desc Yield
   | EventAbort f -> Terms.oproc_from_desc (EventAbort f)
   | Restr(b,p) ->
-      if (!Settings.auto_sa_rename) && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
+      if transf_args.sarename_new && (several_def b) && (not (Array_ref.has_array_ref_q b (!queries))) then
 	begin
 	  let b' = Terms.new_binder b in
 	  let p' = Terms.copy_oprocess (Terms.Rename(List.map Terms.term_from_repl_index b.args_at_creation, b, b')) p in
@@ -433,35 +442,38 @@ and remove_assignments_reco remove_set above_vars p =
           (* Allow using b' for testing whether a variable is defined *) 
           b'.count_def <- 1;
           let above_vars' = b' :: above_vars in
-	  Terms.oproc_from_desc (Restr(b',remove_assignments_reco remove_set above_vars' p'))
+	  Terms.oproc_from_desc (Restr(b',remove_assignments_reco transf_args above_vars' p'))
 	end
       else
-	Terms.oproc_from_desc (Restr(b,remove_assignments_reco remove_set (b::above_vars) p))
+	Terms.oproc_from_desc (Restr(b,remove_assignments_reco transf_args (b::above_vars) p))
   | Test(t,p1,p2) ->
-      Terms.oproc_from_desc (Test(remove_assignments_term false remove_set above_vars t, 
-	   remove_assignments_reco remove_set [] p1,
-	   remove_assignments_reco remove_set [] p2))
+      Terms.oproc_from_desc (Test(remove_assignments_term false transf_args above_vars t, 
+	   remove_assignments_reco transf_args [] p1,
+	   remove_assignments_reco transf_args [] p2))
   | Find(l0,p2,find_info) ->
       Terms.oproc_from_desc 
 	(Find(List.map (fun (bl,def_list,t,p1) ->
 	     (bl, def_list, 
-	      remove_assignments_term true remove_set [] t,
-	      remove_assignments_reco remove_set [] p1)) l0,
-	   remove_assignments_reco remove_set [] p2, find_info))
+	      remove_assignments_term true transf_args [] t,
+	      remove_assignments_reco transf_args [] p1)) l0,
+	   remove_assignments_reco transf_args [] p2, find_info))
   | Output((c,tl),t2,p) ->
       Terms.oproc_from_desc 
-	(Output((c, List.map (remove_assignments_term false remove_set above_vars) tl), 
-		remove_assignments_term false remove_set above_vars t2,
-		remove_assignments_rec remove_set p))
+	(Output((c, List.map (remove_assignments_term false transf_args above_vars) tl), 
+		remove_assignments_term false transf_args above_vars t2,
+		remove_assignments_rec transf_args p))
   | Let(pat, t, p1, p2) ->
-     let rec_simplif_term = remove_assignments_term false remove_set above_vars in
-     let rec_simplif_pat = remove_assignments_pat false remove_set above_vars in
-      let rec_simplif = remove_assignments_reco remove_set in
-      expand_assign proc_funs (DProcess p) false remove_set above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 p2
+     let rec_simplif_term = remove_assignments_term false transf_args above_vars in
+     let rec_simplif_pat = remove_assignments_pat false transf_args above_vars in
+     let rec_simplif = remove_assignments_reco transf_args in
+     if transf_args.remove_set == NoRemAssign then
+       make_let_proc (rec_simplif []) (rec_simplif_pat pat) (rec_simplif_term t) p1 p2
+     else
+       expand_assign proc_funs (DProcess p) false transf_args above_vars rec_simplif_term rec_simplif_pat rec_simplif pat t p1 p2
   | EventP(t,p) ->
       Terms.oproc_from_desc 
-	(EventP(remove_assignments_term false remove_set above_vars t,
-		remove_assignments_reco remove_set above_vars p))
+	(EventP(remove_assignments_term false transf_args above_vars t,
+		remove_assignments_reco transf_args above_vars p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let rec do_sa_rename = function
@@ -481,7 +493,7 @@ let rec do_sa_rename = function
 
 (* - Main function for assignment removal *)
 
-let remove_assignments remove_set g =
+let remove_assignments transf_args g =
   let p = Terms.get_process g in
   queries := g.current_queries;
   done_sa_rename := [];
@@ -492,7 +504,7 @@ let remove_assignments remove_set g =
   Array_ref.array_ref_process p;
   replacement_def_list := [];
   (* - First pass: put links; split assignments of tuples if possible *)
-  let p' = remove_assignments_rec remove_set p in
+  let p' = remove_assignments_rec transf_args p in
   (* - Second pass: copy the process following the links or replacing just one variable.
        Be careful for array references: update the indexes properly  *)
   let p'' = Terms.copy_process (Terms.Links_Vars_Args(!replacement_def_list)) p' in
@@ -505,15 +517,21 @@ let remove_assignments remove_set g =
   let transfos = !done_transfos in
   done_transfos := [];
   done_sa_rename := [];
-  let (g', proba, renames) = Transf_auto_sa_rename.auto_sa_rename (Terms.build_transformed_game p'' g) in      
-  (g', proba, renames @ (do_sa_rename sa_rename) @ transfos)
+  let g' = Terms.build_transformed_game p'' g in
+  let (g'', proba, renames) =
+    if transf_args.remove_set == NoRemAssign then
+      (g', [], [])
+    else
+      Transf_auto_sa_rename.auto_sa_rename g'
+  in      
+  (g'', proba, renames @ (do_sa_rename sa_rename) @ transfos)
 
-let rec remove_assignments_repeat n remove_set g =
+let rec remove_assignments_repeat n transf_args g =
   let tmp_changed = !Settings.changed in
   Settings.changed := false;
-  let (g', proba, transfos) = remove_assignments remove_set g in
+  let (g', proba, transfos) = remove_assignments transf_args g in
   if n != 1 && !Settings.changed then
-    let (g'', proba', transfos') = remove_assignments_repeat (n-1) remove_set g' in
+    let (g'', proba', transfos') = remove_assignments_repeat (n-1) transf_args g' in
     (g'', proba' @ proba, transfos' @ transfos)
   else
     begin
@@ -521,11 +539,15 @@ let rec remove_assignments_repeat n remove_set g =
       (g', proba, transfos)
     end
 
-let remove_assignments remove_set g =
-  if (remove_set == Minimal) || (remove_set = FindCond) then
-    remove_assignments_repeat (!Settings.max_iter_removeuselessassign) remove_set g
+let remove_assignments sarename_new remove_set g =
+  let transf_args =
+    { sarename_new = sarename_new;
+      remove_set = remove_set }
+  in
+  if (transf_args.remove_set == Minimal) || (transf_args.remove_set == FindCond) then
+    remove_assignments_repeat (!Settings.max_iter_removeuselessassign) transf_args g
   else
-    remove_assignments remove_set g
+    remove_assignments transf_args g
 
 (* - Main function for assignment removal for sides of equiv *)
 
@@ -533,7 +555,7 @@ let rec remove_assignments_fungroup = function
   | ReplRestr(repl_opt, restr, funlist) ->
       ReplRestr(repl_opt, restr, List.map remove_assignments_fungroup funlist)
   | Fun(ch, args, res, priority) ->
-      Fun(ch, args, remove_assignments_term false EqSide [] res, priority)
+      Fun(ch, args, remove_assignments_term false { sarename_new = false; remove_set = EqSide } [] res, priority)
       
 let remove_assignments_rec_eqside rm =
   List.map (fun (fg, mode) ->

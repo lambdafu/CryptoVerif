@@ -196,14 +196,14 @@ let default_file_out s ext f =
   Display.file_out (prepare_filename s ext) ext f
 		
 let sa_rename_ins_updater b bl = function
-    (ExpandGetInsert_ProveUnique | Expand | Simplify _ | SimplifyNonexpanded | RemoveAssign(All) | 
-     RemoveAssign(Minimal | FindCond | EqSide) | 
+    (ExpandGetInsert_ProveUnique | Expand | Simplify _ | SimplifyNonexpanded | 
+     RemoveAssign(_, (Minimal | FindCond | EqSide | NoRemAssign)) | 
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) |
      IFocus _ | Guess _ | GuessBranch _) as x -> [x]
-  | RemoveAssign (Binders l) ->
-      [RemoveAssign (Binders (replace_list b bl l))]
+  | RemoveAssign (sarename_new, Binders l) ->
+      [RemoveAssign (sarename_new, Binders (replace_list b bl l))]
   | UseVariable l ->
       [UseVariable (replace_list b bl l)]
   | SArenaming b' -> 
@@ -282,7 +282,7 @@ let execute state ins =
 	Transf_simplify_nonexpanded.main g
     | GlobalDepAnal (b,l) -> Transf_globaldepanal.main b l g
     | MoveNewLet s -> Transf_move.move_new_let s g
-    | RemoveAssign r -> Transf_remove_assign.remove_assignments r g
+    | RemoveAssign (sarename_new, r) -> Transf_remove_assign.remove_assignments sarename_new r g
     | UseVariable l -> Transf_use_variable.use_variable l g
     | SArenaming b -> Transf_sarename.sa_rename b g
     | InsertEvent(s,ext_s,occ,ext_o) -> Transf_insert_event.insert_event occ ext_o s ext_s g
@@ -340,9 +340,9 @@ let execute_state_basic state i =
       (state, None)
     end
 
-let default_remove_assign() =
+let default_remove_assign sarename_new =
   let r = if !Settings.auto_remove_assign_find_cond then FindCond else Minimal in
-  RemoveAssign(r)
+  RemoveAssign(sarename_new, r)
       
 let rec execute_state state = function
     SArenaming b ->
@@ -352,7 +352,7 @@ let rec execute_state state = function
       let (state', ins_updater) = execute_state_basic state (SArenaming b) in
       if !Settings.changed then 
 	if !Settings.simplify_after_sarename then 
-	  let (state'', ins_updater') = execute_state_basic state' (default_remove_assign()) in
+	  let (state'', ins_updater') = execute_state_basic state' (default_remove_assign(!Settings.auto_sa_rename)) in
 	  let (state''', ins_updater'') = execute_state state'' (Simplify(None, [])) in
 	  (state''', compos_ins_updater (compos_ins_updater ins_updater ins_updater') ins_updater'')
 	else
@@ -517,13 +517,6 @@ let move_new_let state =
   else
     state
 
-let remove_assign_no_sa_rename state =
-  let tmp_auto_sa_rename = !Settings.auto_sa_rename in
-  Settings.auto_sa_rename := false;
-  let state' = execute_display_advise (default_remove_assign()) state in
-  Settings.auto_sa_rename := tmp_auto_sa_rename;
-  state'
-
 let merge state =
   if !Settings.merge_branches then
     execute_display_advise MergeBranches state
@@ -569,10 +562,10 @@ let basic_success_state state =
       
 let simplify state =
   state
-  |> remove_assign_no_sa_rename
+  |> execute_display_advise (default_remove_assign false) 
   |> execute_display_advise (Simplify(None,[]))
   |> move_new_let
-  |> execute_display_advise (default_remove_assign())
+  |> execute_display_advise (default_remove_assign(!Settings.auto_sa_rename))
   |> merge
 
 let crypto_simplify state =
@@ -1803,10 +1796,10 @@ let rec interpret_command interactive state = function
   | CRemove_assign(arg) ->
       begin
 	match arg with
-	| RemCst x -> execute_display_advise (RemoveAssign x) state 
+	| RemCst x -> execute_display_advise (RemoveAssign(false, x)) state 
 	| RemBinders l ->
 	    let binders = find_binders state.game in
-	    execute_display_advise (RemoveAssign (Binders (find_binder_list binders l))) state 
+	    execute_display_advise (RemoveAssign (false, Binders (find_binder_list binders l))) state 
       end
   | CUse_variable(l) ->
       let binders = find_binders state.game in
@@ -1871,6 +1864,8 @@ let rec interpret_command interactive state = function
       List.fold_left (fun state b ->
 	execute_display_advise (SArenaming b) state)
 	state (find_binder_list_one_id binders id)
+  | CSArenameNew ->
+      execute_display_advise (RemoveAssign(true, NoRemAssign)) state       
   | CGlobal_dep_anal(id, coll_elim) ->
       let coll_elim' = List.map (interpret_coll_elim state) coll_elim in
       let binders = find_binders state.game in	      

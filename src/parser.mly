@@ -566,6 +566,8 @@ proofcommand:
     { CGlobal_dep_anal($2, $3) }
 |   SARENAME idst
     { CSArename($2) }
+|   SARENAME NEW
+    { CSArenameNew }
 |   MERGE_BRANCHES
     { CMerge_branches }
 |   MERGE_ARRAYS varlistlist
@@ -618,8 +620,6 @@ rem_opt:
     { RemCst(Minimal) }
 |   FINDCOND
     { RemCst(FindCond) }
-|   ALL
-    { RemCst(All) }
 |   BINDER neidentlistnosep
     { RemBinders($2) }
     

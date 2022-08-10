@@ -452,7 +452,7 @@ let check_secrecy collector b pub_vars =
 	    begin
 	      add_leak (NotOnlyRestr b');
 	      Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
-	      advise := Terms.add_eq (RemoveAssign (Binders [b'])) (!advise)
+	      advise := Terms.add_eq (RemoveAssign (false, Binders [b'])) (!advise)
 	    end
 	  else if Terms.is_restr b' then
 	    begin

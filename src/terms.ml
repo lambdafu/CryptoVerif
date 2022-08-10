@@ -657,7 +657,7 @@ let equal_mset mset1 mset2 =
 
 let equal_rset rset1 rset2 =
   match (rset1, rset2) with
-    (All, All) | (Minimal, Minimal) | (FindCond, FindCond) -> true
+    (Minimal, Minimal) | (FindCond, FindCond) | (NoRemAssign, NoRemAssign) -> true
   | (Binders l1, Binders l2) -> equal_lists_sets_q l1 l2
   | _ -> false
 
@@ -767,7 +767,7 @@ let equal_instruct i1 i2 =
   | (Simplify(None, l1), Simplify(None, l2)) -> equal_lists (=) l1 l2
   | (SimplifyNonexpanded, SimplifyNonexpanded) -> true
   | (GlobalDepAnal (b1,l1), GlobalDepAnal (b2,l2)) -> (b1 == b2) && (equal_lists (=) l1 l2)
-  | (RemoveAssign rset1, RemoveAssign rset2) -> equal_rset rset1 rset2
+  | (RemoveAssign (b1, rset1), RemoveAssign (b2, rset2)) -> b1 == b2 && equal_rset rset1 rset2
   | (SArenaming b1, SArenaming b2) -> b1 == b2
   | (MoveNewLet mset1, MoveNewLet mset2) -> equal_mset mset1 mset2
   | (CryptoTransf (eq1, bl1), CryptoTransf (eq2, bl2)) -> 

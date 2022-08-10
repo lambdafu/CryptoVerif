@@ -249,6 +249,7 @@ type command =
   | CAll_simplify
   | CGlobal_dep_anal of ident * pcoll_elim_t list
   | CSArename of ident
+  | CSArenameNew
   | CMerge_branches
   | CMerge_arrays of ident list list * Parsing_helper.extent
   | CReplace of poccext * ident * Types.replace_check_opt_t

@@ -13,7 +13,8 @@ The proof is as follows: *)
 proof {
   guess iA;
   crypto ind_cca2(enc) rkB;
-  insert before "let injbot(concat1(k_2" "find i <= NA suchthat defined(k_4[i],m2[i]) && m = m2[i] then";
+  out_game "g1.cv";
+  insert before "let injbot(concat1(k_2" "find i <= NA suchthat defined(k_1[i],m2[i]) && m = m2[i] then";
   simplify
 }
 

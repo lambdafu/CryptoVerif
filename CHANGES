@@ -5,6 +5,8 @@ Version
 
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
+- Removed command "remove_assign all", useless in practice.
+- New command "SArename new", previously included in "remove_assign".
 - Fixed bugs related to the fact that terms may abort.
 - Fixed bugs in guess transformation: injectivity was proved in the initial
   game instead of the current game; use compatibility information between

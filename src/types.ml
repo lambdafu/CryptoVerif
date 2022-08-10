@@ -566,12 +566,12 @@ and query =
 
 (* For removal of assignments *)
 and rem_set =
-    All
   | Binders of binder list
   | FindCond
   | Minimal
   | EqSide (* Specific for the RHS of equiv statements. 
 	      Removes useless assignments let x = y; does not remove let x = y[...] *)
+  | NoRemAssign (* For performing only SArenaming of new *)
 
 and move_set =
     MAll
@@ -611,7 +611,7 @@ and instruct =
   | Simplify of known_when_adv_wins option * coll_elim_t list(*occurrences, variables, or types for collision elimination of password types*)
   | SimplifyNonexpanded
   | GlobalDepAnal of binder * coll_elim_t list (* same as for Simplify *)
-  | RemoveAssign of rem_set
+  | RemoveAssign of bool * rem_set
   | UseVariable of binder list
   | SArenaming of binder
   | MoveNewLet of move_set

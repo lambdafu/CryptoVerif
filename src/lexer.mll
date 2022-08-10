@@ -112,6 +112,7 @@ let keyword_table_proof =
       "merge_arrays", MERGE_ARRAYS;
       "merge_branches", MERGE_BRANCHES;
       "SArename", SARENAME;
+      "new", NEW;
       "global_dep_anal", GLOBAL_DEP_ANAL;
       "expand", EXPAND;
       "all_simplify", ALL_SIMPLIFY;

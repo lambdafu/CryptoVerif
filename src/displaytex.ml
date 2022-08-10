@@ -1197,7 +1197,6 @@ let display_process p =
 (* Instructions *)
 
 let display_rem_set = function
-    All -> print_string "all\\ binders"
   | Binders l -> 
       print_string "binder $";
       display_list_sep "\\ " display_binder l;
@@ -1208,6 +1207,7 @@ let display_rem_set = function
       print_string "findcond"
   | EqSide ->
       print_string "right-hand side of equiv"
+  | NoRemAssign -> assert false
 
 let display_move_set = function
     MAll -> print_string "all\\ binders"
@@ -1376,7 +1376,15 @@ let display_instruct = function
 	  display_list_sep "; \\allowbreak " display_coll_elim l
 	end
   | MoveNewLet s -> print_string "move\\ "; display_move_set s
-  | RemoveAssign r -> print_string "remove assignments of "; display_rem_set r
+  | RemoveAssign (sarename_new, r) ->
+      if sarename_new then
+	print_string "SA rename new without array accesses";
+      if sarename_new && (r != NoRemAssign) then
+	print_string " and ";
+      if r != NoRemAssign then
+	begin
+	  print_string "remove assignments of "; display_rem_set r
+	end
   | UseVariable l -> print_string "use variable(s) $"; display_list display_binder l; print_string "$"
   | SArenaming b -> 
       print_string "SA rename $";
