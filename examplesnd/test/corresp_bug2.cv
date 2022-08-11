@@ -1,0 +1,32 @@
+(* CryptoVerif proves this injective correspondence, and that does not
+match the definition of CSF'07: that definition requires the 
+existence of an injective function f (the single projection of F) from 
+the step of e2 to the step of e3, such that if e1(x) is executed
+and e2(y) is executed at step tau, then e3(x,y) is executed at step f(tau).
+However, that does not work here: the step of e3 also depends on the step of e1.
+I believe the result provided by CryptoVerif is the one we want, but the 
+definition should be modified. *)
+
+event e1(bitstring).
+event e2(bitstring).
+event e3(bitstring,bitstring).
+
+const a,b,c: bitstring.
+
+query x: bitstring, y: bitstring; event(e1(x)) && inj-event(e2(y)) ==> inj-event(e3(x,y)).
+
+channel ch.
+
+process
+	in(ch, x: bitstring);
+	event e3(a,c);
+	event e1(a);
+	event e3(b,c);
+	event e1(b);
+	event e2(c);
+	out(ch, x)
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

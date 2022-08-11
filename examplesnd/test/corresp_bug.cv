@@ -1,0 +1,28 @@
+(* CryptoVerif cannot prove this correspondence
+and this is what we want: when we know that e1(f_zero(x))
+is executed, x can actually have any value, so the
+correspondence would require that e2(x) is executed for all x,
+which is not true, it is executed for one x. *)
+
+fun f_zero(bitstring):bitstring.
+const zero : bitstring.
+
+(* equation forall x: bitstring; f_zero(x) = zero. *)
+
+event e1(bitstring).
+event e2(bitstring).
+
+query x: bitstring; event(e1(f_zero(x))) ==> event(e2(x)).
+
+channel c.
+
+process
+	in(c, x: bitstring);
+	event e2(x);
+	event e1(f_zero(x));
+	out(c, x)
+
+(* EXPECTED
+RESULT Could not prove event(e1(f_zero(x))) ==> event(e2(x)).
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)
