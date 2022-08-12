@@ -2,8 +2,10 @@ open Types
 
 val add_else_find : elsefind_fact list -> simp_facts -> simp_facts
 
-val add_to_collector : 'a list ref option -> 'a -> unit
-
+val add_to_collector : known_when_adv_wins ref option -> el_known_when_adv_wins -> unit
+val collector_set_no_info : known_when_adv_wins ref option -> unit
+val is_collector_no_info : known_when_adv_wins -> bool
+    
 val for_all_collector : 'a option -> ('b -> bool) -> 'b list -> bool
     
 (* Basic list functions *)

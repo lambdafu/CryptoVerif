@@ -727,9 +727,12 @@ and simp_facts = term list * term list * elsefind_fact list
    executed with the associated replication indices,
    [simp_facts] are facts are known to hold,
    [def_list] is a list of variables known to be defined. *)
+
+and el_known_when_adv_wins = 
+    repl_index list * (term list * program_point) list * simp_facts * binderref list
       
 and known_when_adv_wins =
-    (repl_index list * (term list * program_point) list * simp_facts * binderref list) list
+    el_known_when_adv_wins list
 
 (* Polynoms of probabilities *)
 

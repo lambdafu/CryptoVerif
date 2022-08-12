@@ -6,12 +6,25 @@ let try_no_var_id t = t
 
 let add_else_find else_find' (facts, subst, else_find) =
   (facts, subst, else_find' @ else_find)
-	    
+
+let collector_no_info = ([], [], simp_facts_id, [])
+
+let collector_set_no_info collector =
+  match collector with
+  | None -> ()
+  | Some coll_ref ->
+      coll_ref := [collector_no_info]
+
+let is_collector_no_info = function
+  | [x] -> x == collector_no_info 
+  | _ -> false
+	
 let add_to_collector collector elem =
   match collector with
   | None -> ()
   | Some coll_ref ->
-      coll_ref := elem :: (!coll_ref)
+      if not (is_collector_no_info (!coll_ref)) then
+	coll_ref := elem :: (!coll_ref)
 
 (* [for_all_collector collector f l] computes [List.for_all f l]
    but applies [f] to all elements of [l] in case [collector] 

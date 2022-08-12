@@ -16,6 +16,8 @@ Version
 - Fixed bug in proof of injectivity when there are several events before ==>.
 - Fixed bug: events were not preserved in the initial transformation of
   the RHS in equivalence proofs.
+- Fixed internal error in the command "success simplify" when there is no
+  query.
 
 Version 2.06
 

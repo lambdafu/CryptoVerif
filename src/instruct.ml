@@ -1772,10 +1772,19 @@ let success_command do_simplify state =
 	    ) state'.game.current_queries;
       match do_simplify, collector with
       |	Some coll_elim, Some coll_ref ->
-	  (* simplify *)
-	  if !Settings.debug_event_adv_loses then
-	    display_collector (!coll_ref);
-	  execute_display_advise (Simplify (Some !coll_ref, coll_elim)) state'
+	  let coll_content = !coll_ref in
+	  if Terms.is_collector_no_info coll_content then
+	    begin
+	      print_string "Sorry, I could not infer simplification information via success.\n";
+	      state'
+	    end
+	  else
+	    begin
+	      (* simplify *)
+	      if !Settings.debug_event_adv_loses then
+		display_collector coll_content;
+	      execute_display_advise (Simplify (Some coll_content, coll_elim)) state'
+	    end
       | None, None -> state'
       | _ ->
 	  Parsing_helper.internal_error "Instruct.success_command: incoherent do_simplify and collector"

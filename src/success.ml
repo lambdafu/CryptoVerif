@@ -451,7 +451,7 @@ let check_secrecy collector b pub_vars =
 	  if has_assign b' then
 	    begin
 	      add_leak (NotOnlyRestr b');
-	      Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
+	      Terms.collector_set_no_info collector;
 	      advise := Terms.add_eq (RemoveAssign (false, Binders [b'])) (!advise)
 	    end
 	  else if Terms.is_restr b' then
@@ -480,7 +480,7 @@ let check_secrecy collector b pub_vars =
 	  else
 	    begin
 	      add_leak (NotOnlyRestr b');
-	      Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
+	      Terms.collector_set_no_info collector;
 	      raise Not_found
 	    end
       |	RestrDef ->
@@ -504,7 +504,7 @@ let check_secrecy collector b pub_vars =
 	  end
       |	OtherDef ->
 	  add_leak NotRestrOrAssign;
-	  Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
+	  Terms.collector_set_no_info collector;
 	  raise Not_found) b.def;
     if !not_found_flag then raise Not_found;
     if (!advise) == [] then
@@ -588,7 +588,7 @@ let check_included mess1 g1 mess2 g2 =
     
 let check_equivalence collector state game =
   (* The adversary may always win *)
-  Terms.add_to_collector collector ([], [], Terms.simp_facts_id, []);
+  Terms.collector_set_no_info collector;
   let (r, proba) = Transf_merge.equal_games game state.game in
   if r &&
     (check_active "" game) &&
@@ -624,7 +624,10 @@ let check_query collector event_accu = function
 	  end
 	else (false, [])
       else (false, [])
-  | (AbsentQuery,_) -> (false, [])
+  | (AbsentQuery,_) ->
+      (* The adversary may always win *)
+      Terms.collector_set_no_info collector;
+      (false, [])
   | (query, _) ->
       let (r, proba) =
 	match query with
