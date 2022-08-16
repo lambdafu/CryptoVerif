@@ -30,18 +30,18 @@ let add_to_collector collector elem =
    but applies [f] to all elements of [l] in case [collector] 
    is not [None] *)
 			    
+let rec for_all_all_test f = function
+  | [] -> true
+  | a::l ->
+      let av = f a in
+      let lv = for_all_all_test f l in
+      av && lv
+
 let for_all_collector collector =
   if collector = None then
     List.for_all
   else
-    let rec aux f = function
-      | [] -> true
-      | a::l ->
-	  let av = f a in
-	  let lv = aux f l in
-	  av && lv
-    in
-    aux
+    for_all_all_test
 
 (* Returns a list containing n times element x *)
 
