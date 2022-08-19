@@ -204,9 +204,11 @@ let anal_file s0 =
 		    expanded = false;
 		    game_number = 1;
 		    current_queries = [] } in
+	  let var_num_state = Terms.get_var_num_state() in
           let queries = List.map (fun q ->
 	    Check_corresp.well_formed q;
 	    ((q,g), ref ToProve)) queries in
+	  Terms.set_var_num_state var_num_state;
 	  let queries =
             if List.for_all Terms.is_nonunique_event_query queries then 
 	      ((AbsentQuery,g), ref ToProve)::queries
