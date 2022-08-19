@@ -1,0 +1,21 @@
+fun f_zero(bitstring):bitstring [data].
+
+event e1(bitstring).
+event e2(bitstring).
+
+
+(* This correspondence is well-formed: x uniquely determined because f_zero is [data] *)
+query x: bitstring; event(e1(f_zero(x))) ==> event(e2(x)).
+
+channel c.
+
+process
+	in(c, x: bitstring);
+	event e2(x);
+	event e1(f_zero(x));
+	out(c, x)
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

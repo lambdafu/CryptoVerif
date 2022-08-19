@@ -7,6 +7,9 @@ Version
 - As a consequence, removed setting allowUnprovedUnique.
 - Removed command "remove_assign all", useless in practice.
 - New command "SArename new", previously included in "remove_assign".
+- Display a warning when correspondence queries do not satisfy a well-formedness
+  condition (the conclusion of the correspondence must be uniquely determined
+  given the events in the hypothesis).
 - Fixed bugs related to the fact that terms may abort.
 - Fixed bugs in guess transformation: injectivity was proved in the initial
   game instead of the current game; use compatibility information between

@@ -1139,3 +1139,52 @@ let remove_inj event_accu g q =
       Some (remove_inj_q q, proba)
   | None -> 
       None
+
+
+(**** Check well-formedness *)
+
+let well_formed = function
+  | QSecret _ | QEquivalence _ | QEquivalenceFinal _ | AbsentQuery -> ()
+  | QEventQ(psi,phi,_pub_vars) ->
+      let vars_psi = ref [] in
+      List.iter (fun (_, t) -> collect_vars vars_psi t) psi;
+      let subst = List.map (fun b ->
+	b.def <- [];
+	ignore (Terms.set_def [b] DNone DNone None);
+	let b' = Terms.new_binder b in
+	ignore (Terms.set_def [b'] DNone DNone None);
+	(b, Terms.term_from_binder b')
+	  ) (!vars_psi)
+      in
+      let eq_facts = List.concat (List.map (fun (_,t) ->
+	match t.t_desc with
+	| FunApp(f,l) ->
+	    List.map (fun t -> Terms.make_equal t (Terms.subst3 subst t)) l
+	| _ -> assert false
+	      ) psi)
+      in
+      let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id eq_facts in
+      let check_eq_term t =
+	let diff_fact = Terms.make_diff t (Terms.subst3 subst t) in
+	try
+	  ignore(Facts.simplif_add Facts.no_dependency_anal simp_facts diff_fact);
+	  let t_string = Display.string_out (fun () -> Display.display_term t) in
+	  Parsing_helper.input_warning ("could not prove that the term "^t_string^" in the conclusion of a correspondence is determined by the hypothesis of the correspondence: it might take several different values for the same events in the hypothesis") t.t_loc
+	with Contradiction ->
+	  ()
+      in
+      let rec check_eq = function
+	| QEvent(_,t) ->
+	    begin
+	      match t.t_desc with
+	      | FunApp(f,l) ->
+		  List.iter check_eq_term l
+	      | _ -> assert false
+	    end
+	| QTerm t ->
+	    check_eq_term t
+	| QAnd(t1,t2) | QOr(t1,t2) ->
+	    check_eq t1;
+	    check_eq t2
+      in
+      check_eq phi

@@ -16,3 +16,10 @@ val check_corresp :
    - [None] otherwise. *)
 val remove_inj : (term * program_point) list -> game -> query ->
   (query * setf list) option
+
+(* [well_formed q] checks that [q] is well-formed, that is,
+   for correspondence queries psi => phi, psi = psi{x'/x} => phi = phi{x'/x}
+   where x represents the tuple of variables of psi, and x' is a tuple of fresh
+   variables. 
+   It displays a warning message when the proof of well-formedness fails. *)
+val well_formed : query -> unit

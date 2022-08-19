@@ -1,0 +1,22 @@
+fun f_zero(bitstring):bitstring.
+
+event e1(bitstring).
+event e2(bitstring).
+
+
+(* This correspondence is well-formed: x is not uniquely determined, but not
+   used in the conclusion *)
+query x: bitstring; event(e1(f_zero(x))) ==> false.
+
+channel c.
+
+process
+	in(c, x: bitstring);
+	event e2(x);
+	event e1(f_zero(x));
+	out(c, x)
+
+(* EXPECTED
+RESULT Could not prove event(e1(f_zero(x))) ==> false.
+0.080s (user 0.080s + system 0.000s), max rss 15876K
+END *)

@@ -171,7 +171,7 @@ let anal_file s0 =
 	      game_number = -1;
 	      current_queries = [] }
 	  in
-          (*We put AbsentQuery to make sure that events are preserved in [initial_expand_simplify]*)
+          (*W]e put AbsentQuery to make sure that events are preserved in [initial_expand_simplify]*)
 	  final_game.current_queries <-
 	     ((AbsentQuery,final_game), ref ToProve)::(List.map (fun q -> ((q,final_game), ref ToProve)) q2);
 	  let final_state =
@@ -204,7 +204,9 @@ let anal_file s0 =
 		    expanded = false;
 		    game_number = 1;
 		    current_queries = [] } in
-          let queries = List.map (fun q -> ((q,g), ref ToProve)) queries in
+          let queries = List.map (fun q ->
+	    Check_corresp.well_formed q;
+	    ((q,g), ref ToProve)) queries in
 	  let queries =
             if List.for_all Terms.is_nonunique_event_query queries then 
 	      ((AbsentQuery,g), ref ToProve)::queries
