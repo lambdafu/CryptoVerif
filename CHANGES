@@ -3,6 +3,7 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow _ in patterns.
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
 - Removed command "remove_assign all", useless in practice.

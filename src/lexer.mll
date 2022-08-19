@@ -193,7 +193,8 @@ rule token = parse
       comment_extent_list := (extent lexbuf) :: !comment_extent_list;
          comment lexbuf;
          token lexbuf
-       }
+}
+| '_' { UNDERSCORE }
 | ',' { COMMA }
 | '(' { LPAREN }
 | ')' { RPAREN }

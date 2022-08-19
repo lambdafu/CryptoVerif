@@ -135,7 +135,7 @@ let processK(pkB: pkey) =
 	   insert enc_key_tbl(Khost, Kkey).
 
 let processS(skS: sskey) =
-	in(c5, (h1: host, h2: host));
+	in(c5, (_: host, h2: host));
 	get enc_key_tbl(=h2, kh2) in
 	out(c6, (h2, kh2, sign(concat3(h2, kh2), skS))).
 
@@ -147,7 +147,7 @@ let processSK(pkA: spkey) =
 	   insert sign_key_tbl(SKhost, SKkey).
 
 let processSS(skS: sskey) =
-	in(c11, (h1: host, h2: host));
+	in(c11, (_: host, h2: host));
 	get sign_key_tbl(=h2, kh2) in
 	out(c12, (h2, kh2, sign(concat4(h2, kh2), skS))).
 

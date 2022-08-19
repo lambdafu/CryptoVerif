@@ -441,18 +441,21 @@ and check_term_list1 binder_env in_find_cond cur_array env = function
    its type must be explicitly given. *)
 
 and check_pattern1 binder_env in_find_cond cur_array env needtype = function
-    PPatVar ((s1,ext1), tyopt), _ ->
+    PPatVar (id_underscore, tyopt), _ ->
       begin
-	let env' = StringMap.add s1 (EVar dummy_var) env in
-	match tyopt with
-	  None -> 
-	    if needtype then
-	      raise_error "type needed for this variable" ext1
-	    else
-	      (binder_env, env', [s1, None])
-	| Some ty ->
-	    let (ty',_) = get_ty env ty in
-	    (binder_env, env', [s1, Some ty'])
+	match id_underscore with
+	| Underscore ext1 -> (binder_env, env, [])
+	| Ident(s1,ext1) ->
+	    let env' = StringMap.add s1 (EVar dummy_var) env in
+	    match tyopt with
+	      None -> 
+		if needtype then
+		  raise_error "type needed for this variable" ext1
+		else
+		  (binder_env, env', [s1, None])
+	    | Some ty ->
+		let (ty',_) = get_ty env ty in
+		(binder_env, env', [s1, Some ty'])
       end
   | PPatTuple l, _ ->
       check_pattern_list1 binder_env in_find_cond cur_array env true l
@@ -1471,14 +1474,21 @@ and check_br cur_array env prog ((_,ext) as id, tl) =
 (* Check pattern *)
 
 and check_pattern defined_refs_opt cur_array env prog tyoptres = function
-    PPatVar ((s1,ext1), tyopt), _ ->
-      begin
+    PPatVar (id_underscore, tyopt), _ ->
+      let (s1,ext1,is_underscore) =
+	match id_underscore with
+	| Ident(s1,ext1) -> (s1,ext1,false)
+	| Underscore ext1 -> (Terms.fresh_id "ignored",ext1,true)
+      in
+      let ty = 
 	match tyopt, tyoptres with
 	  None, None ->
-	    raise_error "type needed for this variable" ext1
-	| None, Some ty -> 
-	    let (env',b) = add_in_env env s1 ext1 ty cur_array in
-	    (env', PatVar b)
+	    if is_underscore then
+	      raise_error "type needed for _ pattern" ext1
+	    else
+	      raise_error "type needed for this variable" ext1
+	| None, Some ty ->
+	    ty
 	| Some tyb, None -> 
 	    let (ty',ext2) = get_ty env tyb in
 	    begin
@@ -1491,15 +1501,21 @@ and check_pattern defined_refs_opt cur_array env prog tyoptres = function
 		   wondering if I could relax this condition. *)
 	      |	_ -> ()
 	    end;
-	    let (env',b) = add_in_env env s1 ext1 ty' cur_array in
-	    (env', PatVar b)	    
+	    ty'
 	| Some tyb, Some ty ->
 	    let (ty',ext2) = get_ty env tyb in
 	    if ty != ty' then
 	      raise_error ("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname) ext2;
-	    let (env',b) = add_in_env env s1 ext1 ty' cur_array in
-	    (env', PatVar b)
-      end
+	    ty'
+      in
+      let (env',b) =
+	if is_underscore then
+	  let b = Terms.create_binder s1 ty cur_array in
+	  (StringMap.add s1 (EVar b) env, b)
+	else
+	  add_in_env env s1 ext1 ty cur_array
+      in
+      (env', PatVar b)
   | PPatTuple l, ext ->
       begin
 	match tyoptres with
@@ -1666,7 +1682,12 @@ let rec check_term_nobe env = function
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
-  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+  | PLetE((PPatVar(id_underscore,tyopt),ext2),t1,t2,None), ext ->
+      let (s1,ext1) =
+	match id_underscore with
+	| Ident id -> id
+	| Underscore(ext1) -> raise_error "_ pattern is forbidden in queries, equation, and collision statements" ext
+      in
       let t1' = check_term_nobe env t1 in
       begin
 	match tyopt with
@@ -2743,7 +2764,7 @@ let rec check_side_cond restr_may_be_equal forall restr env = function
       if not (List.memq v2' restr) then
 	raise_error "variables of which other variables are independent should be bound by \"new\" or \"<-R\"" ext2;
       (IC_Indep(v1', v2'), Terms.make_true())
-  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
       begin
 	match tyopt with
@@ -3233,6 +3254,10 @@ let rename_ident i =
 
 let rename_ie (i,ext) = (rename_ident i, ext)
 
+let rename_id_und = function
+  | Ident i -> Ident (rename_ie i)
+  | (Underscore _) as x -> x
+    
 let rename_channel (i, idx_opt) =
   (rename_ie i,
    match idx_opt with
@@ -3278,7 +3303,7 @@ let rec rename_term (t,ext) =
   (t',ext)
 
 and rename_pat = function
-    PPatVar(i,topt), ext -> PPatVar(rename_ie i, match topt with
+    PPatVar(i,topt), ext -> PPatVar(rename_id_und i, match topt with
       None -> None
     | Some t -> Some (rename_ty t)), ext
   | PPatTuple(l), ext -> PPatTuple(List.map rename_pat l), ext
@@ -3914,7 +3939,7 @@ let rec check_term_query1 env = function
       raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
       (check_term_query1 env t1) @ (check_term_query1 env t2)
-  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
       begin
 	match tyopt with
@@ -3963,7 +3988,7 @@ let rec check_term_query2 env = function
       QAnd(check_term_query2 env t1, check_term_query2 env t2)
   | POr(t1,t2), ext ->
       QOr(check_term_query2 env t1, check_term_query2 env t2)
-  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
       begin
 	match tyopt with
@@ -3982,7 +4007,7 @@ let rec check_term_query2 env = function
       QTerm x'
 
 let rec check_term_query3 env = function
-  | PLetE((PPatVar((s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
       begin
 	match tyopt with
@@ -4298,8 +4323,12 @@ let rec collect_id_term accu (t,ext) =
 	
 and collect_id_pat accu (pat,ext) =
   match pat with
-    PPatVar(b,tyopt) ->
-      add_id accu b;
+    PPatVar(id_und,tyopt) ->
+      begin
+	match id_und with
+	| Ident b -> add_id accu b
+	| Underscore _ -> ()
+      end;
       begin
 	match tyopt with
 	  None -> ()

@@ -98,9 +98,11 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 &\nonterm{vartype} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
 &\nonterm{vartypeb} ::= \neseq{ident} \texttt{:}\nonterm{ident}\\
 &\phantom{\nonterm{vartypeb} =}\mid \neseq{ident} \texttt{ <= }\nonterm{ident}\\
-&\nonterm{basicpat} ::= \nonterm{ident}\\
-&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident}\texttt{:}\nonterm{ident}\\
-&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident}\texttt{ <= }\nonterm{ident}\\[-1mm]
+&\nonterm{ident\_underscore} ::= \nonterm{ident}\\
+&\phantom{\nonterm{ident\_underscore} =}\mid \texttt{\_}\\
+&\nonterm{basicpat} ::= \nonterm{ident\_underscore}\\
+&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident\_underscore}\texttt{:}\nonterm{ident}\\
+&\phantom{\nonterm{basicpat} =}\mid \nonterm{ident\_underscore}\texttt{ <= }\nonterm{ident}
 \end{align*}
 \end{minipage}
 \begin{minipage}{7cm}
@@ -112,7 +114,7 @@ $\neseq{X}$ is a non-empty sequence of $X$: $\neseq{X} = (\nonterm{X}\texttt{,})
 &\phst \nonterm{simpleterm} \texttt{ = } \nonterm{simpleterm} \\
 &\phst \nonterm{simpleterm} \texttt{ <> } \nonterm{simpleterm} \\
 &\phst \nonterm{simpleterm} \texttt{ || } \nonterm{simpleterm} \\
-&\phst \nonterm{simpleterm} \texttt{ \&\& } \nonterm{simpleterm} 
+&\phst \nonterm{simpleterm} \texttt{ \&\& } \nonterm{simpleterm} \\[1.2mm]
 \end{align*}
 \end{minipage}\\
 \begin{align*}
@@ -435,6 +437,9 @@ The pattern $p$ can be:
 \item $x[\texttt{:}T]$ variable, possibly with its type. Matches any bitstring
 (in type $T$), and stores it in $x$.
 
+\item $\texttt{\_}[\texttt{:}T]$ underscore, possibly with a type. Matches any bitstring
+(in type $T$), and ignores its value.
+
 \item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
 where the function symbol $f$ is declared 
 \texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
@@ -458,6 +463,8 @@ stores the result of $M$  in $x$
 and returns the result of $M'$. This is equivalent
 to the construct 
 $\texttt{let }x[:T] \texttt{ = }M\texttt{ in }M'$.
+\texttt{\_} is allowed instead of $x$, and in this case the value of $M$
+is simply ignored.
 
 \item \texttt{if} $\mathit{cond}$ \texttt{then} $M$ \texttt{else} $M'$ is 
 syntactic sugar for $\texttt{find suchthat }\mathit{cond}$ \texttt{then} $M$ \texttt{else} $M'$.
@@ -674,6 +681,9 @@ The pattern $p$ can be:
 \item $x[\texttt{:}T]$ variable, possibly with its type. Matches any bitstring
 (in type $T$), and stores it in $x$.
 
+\item $\texttt{\_}[\texttt{:}T]$ underscore, possibly with a type. Matches any bitstring
+(in type $T$), and ignores its value.
+
 \item $f\texttt{(}p_1, \ldots, p_n\texttt{)}$ 
 where the function symbol $f$ is declared 
 \texttt{[data]}. Matches bitstrings $M$ equal to $f(M_1, \ldots, M_n)$
@@ -700,6 +710,8 @@ stores the result of term $M$ in $x$ and executes $P$.
 $M$ must be of type $T$ when $T$ is mentioned.
 This is equivalent to the construct $\texttt{let } x[\texttt{:}T] 
 \texttt{ = }M\texttt{ in }P$.
+\texttt{\_} is allowed instead of $x$, and in this case the value of $M$
+is simply ignored.
 
 \item \texttt{if} $\mathit{cond}$ \texttt{then} $P$ \texttt{else} $P'$ is 
 syntactic sugar for $\texttt{find suchthat }\mathit{cond}$ \texttt{then} $P$ \texttt{else} $P'$.

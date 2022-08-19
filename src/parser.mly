@@ -14,6 +14,7 @@ let return_channel = (dummy_channel, None)
 
 %}
 
+%token UNDERSCORE
 %token COMMA
 %token LPAREN
 %token RPAREN
@@ -1007,12 +1008,18 @@ optelse:
 |
         { PYield, parse_extent() }
 
+ident_underscore:
+    IDENT
+    { Ident $1 }
+|   UNDERSCORE
+    { Underscore(parse_extent()) }
+    
 basicpattern:
-        IDENT
+        ident_underscore
         { PPatVar($1,None), parse_extent() }
-|       IDENT COLON IDENT
+|       ident_underscore COLON IDENT
         { PPatVar($1, Some (Tid $3)), parse_extent() }
-|       IDENT LEQ IDENT
+|       ident_underscore LEQ IDENT
         { PPatVar($1, Some (TBound $3)), parse_extent() }
     
 pattern:

@@ -184,7 +184,7 @@ let add_var find_cond (s_b, ext_b) ty_opt cur_array =
     end
 	
 let rec check_pattern1 find_cond cur_array env tyoptres = function
-    PPatVar ((s1,ext1), tyopt), _ ->
+    PPatVar (id_und, tyopt), _ ->
       begin
 	let tyopt =
 	  match tyopt, tyoptres with
@@ -194,10 +194,12 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
 	      let (ty',ext2) = get_ty env tyb in
 	      begin
 		match ty'.tcat with
-		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
+		  Interv _ -> raise (Error("Cannot input a term of interval type or extract one from a tuple", ext2))
 	        (* This condition simplifies greatly the theory:
 	           otherwise, one needs to compute which channels the adversary
-	           knows... *)
+	           knows...
+		   8/12/2017: I no longer understand this comment, and I am
+		   wondering if I could relax this condition. *)
 		|	_ -> ()
 	      end;
 	      Some ty'
@@ -207,7 +209,10 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
 		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
 	      Some ty
 	in
-	add_var find_cond (s1, ext1) tyopt cur_array 
+	match id_und with
+	| Underscore _ -> ()
+	| Ident id ->
+	    add_var find_cond id tyopt cur_array 
       end
   | PPatTuple l, ext ->
       begin
@@ -584,7 +589,7 @@ and check_br defined_refs cur_array env ((s,ext), tl) =
     raise (Error(s ^ " not defined", ext))
 
 let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
-    PPatVar ((s1,ext1), tyopt), _ ->
+    PPatVar (id_und, tyopt), _ ->
       begin
 	let tyopt =
 	  match tyopt, tyoptres with
@@ -594,10 +599,12 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 	      let (ty',ext2) = get_ty env tyb in
 	      begin
 		match ty'.tcat with
-		  Interv _ -> raise (Error("Cannot input a term of interval type", ext2))
+		  Interv _ -> raise (Error("Cannot input a term of interval type or extract one from a tuple", ext2))
 	        (* This condition simplifies greatly the theory:
 	           otherwise, one needs to compute which channels the adversary
-	           knows... *)
+	           knows...
+		   8/12/2017: I no longer understand this comment, and I am
+		   wondering if I could relax this condition. *)
 		|	_ -> ()
 	      end;
 	      Some ty'
@@ -607,7 +614,19 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 		raise (Error("Pattern is declared of type " ^ ty'.tname ^ " and should be of type " ^ ty.tname, ext2));
 	      Some ty
 	in
-	let b = get_var find_cond env (s1, ext1) tyopt cur_array in
+	let (s1,b) =
+	  match id_und with
+	  | Ident ((s1,_) as id) ->
+	      let b = get_var find_cond env id tyopt cur_array in
+	      (s1,b)
+	  | Underscore ext1 ->
+	      match tyopt with
+	      | None -> raise (Error("type needed for _", ext1))
+	      | Some ty ->
+		  let s1 = Terms.fresh_id "ignored" in
+		  let b = Terms.create_binder s1 ty cur_array in
+		  (s1, b)
+	in
 	let env' = StringMap.add s1 (EVar b) env in
 	(env', PatVar b)
       end
