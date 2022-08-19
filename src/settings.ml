@@ -1,6 +1,8 @@
 open Ptree
 open Types
 
+let underscore_var_name = "ignored"
+  
 type frontend =
     Channels
   | Oracles

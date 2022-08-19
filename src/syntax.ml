@@ -1478,7 +1478,7 @@ and check_pattern defined_refs_opt cur_array env prog tyoptres = function
       let (s1,ext1,is_underscore) =
 	match id_underscore with
 	| Ident(s1,ext1) -> (s1,ext1,false)
-	| Underscore ext1 -> (Terms.fresh_id "ignored",ext1,true)
+	| Underscore ext1 -> (Settings.underscore_var_name,ext1,true)
       in
       let ty = 
 	match tyopt, tyoptres with

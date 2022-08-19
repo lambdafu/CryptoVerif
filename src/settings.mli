@@ -1,5 +1,7 @@
 open Types
 
+val underscore_var_name : string
+  
 type frontend =
     Channels
   | Oracles

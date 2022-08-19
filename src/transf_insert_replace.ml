@@ -623,7 +623,7 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
 	      match tyopt with
 	      | None -> raise (Error("type needed for _", ext1))
 	      | Some ty ->
-		  let s1 = Terms.fresh_id "ignored" in
+		  let s1 = Settings.underscore_var_name in
 		  let b = Terms.create_binder s1 ty cur_array in
 		  (s1, b)
 	in
