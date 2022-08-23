@@ -29,5 +29,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(e2) ==> false; event(e1) ==> false.
-0.080s (user 0.080s + system 0.000s), max rss 15876K
+0.072s (user 0.068s + system 0.004s), max rss 15724K
 END *)

@@ -359,5 +359,5 @@ process
 
 (* EXPECTED
 All queries proved.
-0.328s (user 0.316s + system 0.012s), max rss 22544K
+0.344s (user 0.344s + system 0.000s), max rss 22560K
 END *)

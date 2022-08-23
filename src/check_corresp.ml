@@ -94,14 +94,14 @@ let guess_by_matching_same_root next_f (simp_facts,_,_,_,_) t t' =
   | Var _ | ReplIndex _ | TestE _ | FindE _ | LetE _ | ResE _ | EventAbortE _ | EventE _ | GetE _ | InsertE _ ->
       Parsing_helper.internal_error "Var with arguments, replication indices, if, find, let, new, event, event_abort, get, insert should not occur in guess_by_matching"
 
-(* [collect_vars accu t] adds to the reference [accu] 
-   all variables that occur in [t]. *)
+(* [is_instantiated t] returns true when all variables that occur in [t]
+   are linked. *)
 
-let rec collect_vars accu t =
+let rec is_instantiated t =
   match t.t_desc with
-    Var(b,[]) -> accu := b :: (!accu)
-  | FunApp(f,l) -> List.iter (collect_vars accu) l
-  | _ -> Parsing_helper.internal_error "expecting variable or function in collect_vars"
+    Var(b,[]) -> b.link != NoLink
+  | FunApp(f,l) -> List.for_all is_instantiated l
+  | _ -> Parsing_helper.internal_error "expecting variable or function in is_instantiated"
 
 (* [show_fact known_facts fact] tries to prove [fact] from [known_facts],
    by adding the negation of [fact] and obtaining a contradiction.
@@ -414,11 +414,9 @@ let prove_by_matching next_check (((_,facts,_),_,_,_,_) as known_facts) injinfo 
 		Display.display_term fact;
 		print_newline();
 	      end;
-	    (* Check that all variables of fact are instantiated *)
-	    let vars_fact = ref [] in
-	    collect_vars vars_fact fact;
-	    if not ((List.for_all (fun b -> (b.link != NoLink)) (!vars_fact)) &&
-                    (* ... and that fact' is equal to fact *)
+	    (* Check that all variables of [fact] are instantiated *)
+	    if not ((is_instantiated fact) &&
+                    (* ... and that [fact'] is equal to [fact] *)
 	            show_fact known_facts (Terms.make_equal fact' (Terms.copy_term Terms.Links_Vars fact)))
 	    then raise NoMatch;
 	    if is_inj then 
@@ -475,9 +473,7 @@ let rec check_term next_check known_facts injinfo = function
 	    Proba.restore_state tmp_proba_state;
 	     (* If failed, try to prove t2 by contradiction,
 	        when t2 is fully instantiated *)
-	    let vars_t2 = ref [] in
-	    collect_vars vars_t2 t2;
-	    if (List.for_all (fun b -> (b.link != NoLink)) (!vars_t2)) &&
+	    if (is_instantiated t2) &&
 	      (show_fact known_facts (Terms.copy_term Terms.Links_Vars t2))
 	    then
 	      next_check injinfo
@@ -823,14 +819,13 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
   | None -> 
 	
   Depanal.reset [] g;
-  let vars_t1 = ref [] in
-  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
+  let vars_t1 = Terms.collect_vars_hyp t1 in
   let vars_t1' = List.map (fun b ->
     b.def <- [];
     ignore (Terms.set_def [b] DNone DNone None);
     let b' = Terms.new_binder b in
     Terms.link b (TLink (Terms.term_from_binder b'));
-    b') (!vars_t1)
+    b') vars_t1
   in
   let injinfo = ref [] in
   let r =
@@ -1065,14 +1060,13 @@ let proved_inj event_accu (t1,t2,pub_vars) g =
       Display.display_query (QEventQ(t1,t2,pub_vars), g)
     end;
   Depanal.reset [] g;
-  let vars_t1 = ref [] in
-  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
+  let vars_t1 = Terms.collect_vars_hyp t1 in
   let vars_t1' = List.map (fun b ->
     b.def <- [];
     ignore (Terms.set_def [b] DNone DNone None);
     let b' = Terms.new_binder b in
     Terms.link b (TLink (Terms.term_from_binder b'));
-    b') (!vars_t1)
+    b') vars_t1
   in
   let injinfo = ref [] in
   let r =
@@ -1146,15 +1140,14 @@ let remove_inj event_accu g q =
 let well_formed = function
   | QSecret _ | QEquivalence _ | QEquivalenceFinal _ | AbsentQuery -> ()
   | QEventQ(psi,phi,_pub_vars) ->
-      let vars_psi = ref [] in
-      List.iter (fun (_, t) -> collect_vars vars_psi t) psi;
+      let vars_psi = Terms.collect_vars_hyp psi in
       let subst = List.map (fun b ->
 	b.def <- [];
 	ignore (Terms.set_def [b] DNone DNone None);
 	let b' = Terms.new_binder b in
 	ignore (Terms.set_def [b'] DNone DNone None);
 	(b, Terms.term_from_binder b')
-	  ) (!vars_psi)
+	  ) vars_psi
       in
       let eq_facts = List.concat (List.map (fun (_,t) ->
 	match t.t_desc with

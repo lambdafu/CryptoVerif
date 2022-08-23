@@ -923,18 +923,18 @@ ifdef(`COMPROMISE_V',`, dV0')
 ifdef(`COMPROMISE_U',`
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 1
 All queries proved.
-967.728s (user 967.544s + system 0.184s), max rss 464880K
+909.116s (user 908.928s + system 0.188s), max rss 457816K
 END *)
 ')
 ifdef(`COMPROMISE_V',`
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 2
 All queries proved.
-657.092s (user 656.932s + system 0.160s), max rss 354188K
+596.384s (user 596.220s + system 0.164s), max rss 349016K
 END *)
 ')
 ifdef(`NO_COMPROMISE',`
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.AUTHENTICATION.m4.cv TAG: 3
 All queries proved.
-457.088s (user 456.968s + system 0.120s), max rss 256868K
+1147.164s (user 1147.052s + system 0.112s), max rss 304856K
 END *)
 ')

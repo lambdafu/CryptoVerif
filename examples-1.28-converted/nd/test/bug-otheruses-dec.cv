@@ -116,5 +116,5 @@ out(c8, ());
 
 (* EXPECTED
 RESULT Could not prove event(termS) ==> false.
-0.076s (user 0.072s + system 0.004s), max rss 11600K
+0.060s (user 0.048s + system 0.012s), max rss 12628K
 END *)

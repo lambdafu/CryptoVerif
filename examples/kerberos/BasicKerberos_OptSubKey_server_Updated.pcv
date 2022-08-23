@@ -303,7 +303,7 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of OPkeyC.
-2.352s (user 2.328s + system 0.024s), max rss 40972K
+2.820s (user 2.808s + system 0.012s), max rss 40972K
 END *)
 
 (* EXPECTPV
@@ -315,5 +315,5 @@ RESULT event(fullCS(S,T,z,y,w)) ==> event(fullSC(C,x,y',w)) public_vars OPkeyC,O
 RESULT secret OPkeyC is true.
 RESULT secret OPkeyC is true.
 RESULT secret OPkeyS is true.
-2.016s (user 1.964s + system 0.052s), max rss 63240K
+1.736s (user 1.712s + system 0.024s), max rss 63800K
 END *)

@@ -437,26 +437,26 @@ ifdef(`FS',`
 
 ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 1
+(* EXPECTED FILENAME: examplesnd/textsecure-2/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-64.836s (user 64.784s + system 0.052s), max rss 121584K
+35.732s (user 35.692s + system 0.040s), max rss 120132K
 END *)
 ',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 2
+(* EXPECTED FILENAME: examplesnd/textsecure-2/TextSecure-AB-BA.m4.cv TAG: 2
 All queries proved.
-41.740s (user 41.692s + system 0.048s), max rss 83124K
+23.372s (user 23.344s + system 0.028s), max rss 93188K
 END *)
 ')
 ',`
 ifdef(`STD',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 3
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
-61.160s (user 61.080s + system 0.080s), max rss 121584K
+(* EXPECTED FILENAME: examplesnd/textsecure-2/TextSecure-AB-BA.m4.cv TAG: 3
+RESULT Could not prove forall m: bitstring, a2, a1, sb, b0, a0: G, bs, as: pkey; inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> exists a12: G; (inj-event(Send3(a0, as, b0, bs, sb, a12, a2, m)) && (pow8(a1) = pow8(a12))) with public variables secb.
+34.296s (user 34.244s + system 0.052s), max rss 120152K
 END *)
 ',`
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 4
+(* EXPECTED FILENAME: examplesnd/textsecure-2/TextSecure-AB-BA.m4.cv TAG: 4
 All queries proved.
-39.176s (user 39.124s + system 0.052s), max rss 83120K
+21.392s (user 21.348s + system 0.044s), max rss 82364K
 END *)
 ')
 ')

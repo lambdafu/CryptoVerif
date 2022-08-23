@@ -115,6 +115,6 @@ out(finish, ());
 
    
 (* EXPECTED
-RESULT Could not prove event(client_accept(x, y)) ==> event(server_reply(x, y)).
-0.044s (user 0.036s + system 0.008s), max rss 11068K
+RESULT Could not prove forall y, x: bitstring; event(client_accept(x, y)) ==> event(server_reply(x, y)).
+0.032s (user 0.032s + system 0.000s), max rss 11372K
 END *)

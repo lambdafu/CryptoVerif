@@ -37,5 +37,5 @@ out(c, pl)
 
 (* EXPECTED
 RESULT Could not prove event(e) ==> false.
-0.036s (user 0.028s + system 0.008s), max rss 16596K
+0.056s (user 0.056s + system 0.000s), max rss 16596K
 END *)

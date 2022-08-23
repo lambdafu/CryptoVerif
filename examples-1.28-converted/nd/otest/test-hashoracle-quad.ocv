@@ -89,5 +89,5 @@ return(pk);
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of b1.
-0.036s (user 0.028s + system 0.008s), max rss 11252K
+0.080s (user 0.068s + system 0.012s), max rss 12116K
 END *)

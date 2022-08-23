@@ -236,6 +236,6 @@ out(c20, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(partTC(C, k, mk, x, y)) ==> event(partCT(T, k, mk, x', y)).
-1.612s (user 1.612s + system 0.000s), max rss 20688K
+RESULT Could not prove forall y, x: maxmac, mk: mkey, k: key; event(partTC(C, k, mk, x, y)) ==> exists x': maxmac; event(partCT(T, k, mk, x', y)).
+1.660s (user 1.644s + system 0.016s), max rss 22660K
 END *)

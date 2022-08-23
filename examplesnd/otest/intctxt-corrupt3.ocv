@@ -92,5 +92,5 @@ query_equiv(int_ctxt_corrupt(enc))
 
 (* EXPECTED
 RESULT Could not prove indistinguishability between game 1 and game 2.
-0.036s (user 0.036s + system 0.000s), max rss 16656K
+0.088s (user 0.080s + system 0.008s), max rss 16644K
 END *)

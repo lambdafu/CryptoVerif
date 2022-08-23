@@ -161,6 +161,6 @@ process
 	 (! N2 processK(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
-0.908s (user 0.900s + system 0.008s), max rss 19168K
+RESULT Could not prove forall k: key, n: nonce, y, x: host; inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
+0.928s (user 0.924s + system 0.004s), max rss 19344K
 END *)

@@ -550,6 +550,6 @@ out(c25, (pkC, spkC, spkK, pkCA, collkey));
 
 
 (* EXPECTED
-RESULT Could not prove event(fullCS(S, T, K, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-38.300s (user 38.256s + system 0.044s), max rss 83068K
+RESULT Could not prove forall w, y, z: maxmac; event(fullCS(S, T, K, z, y, w)) ==> exists y', x: maxmac; event(fullSC(C, x, y', w)) with public variables b1; forall y, z: maxmac; event(partSC(C, z, y)) ==> exists w, v', v, x: maxmac, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
+34.272s (user 34.228s + system 0.044s), max rss 82388K
 END *)

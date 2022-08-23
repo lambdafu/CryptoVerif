@@ -128,5 +128,5 @@ out(c11, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB.
-0.288s (user 0.284s + system 0.004s), max rss 16588K
+0.256s (user 0.252s + system 0.004s), max rss 16844K
 END *)

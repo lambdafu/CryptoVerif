@@ -69,5 +69,5 @@ equivalence single multiple
 
 (* EXPECTED
 All queries proved.
-0.080s (user 0.076s + system 0.004s), max rss 16812K
+0.100s (user 0.092s + system 0.008s), max rss 17028K
 END *)

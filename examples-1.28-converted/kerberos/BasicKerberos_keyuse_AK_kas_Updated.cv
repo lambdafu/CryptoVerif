@@ -367,6 +367,6 @@ out(c25, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-1.340s (user 1.324s + system 0.016s), max rss 27108K
+RESULT Could not prove forall w, y, z: bitstring; event(fullCS(S, T, z, y, w)) ==> exists y', x: bitstring; event(fullSC(C, x, y', w)) with public variables b1; forall y, z: bitstring; event(partSC(C, z, y)) ==> exists w, v', v, x: bitstring, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
+1.248s (user 1.240s + system 0.008s), max rss 27204K
 END *)

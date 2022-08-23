@@ -209,6 +209,6 @@ Proved secrecy of sk_s && sk_u up to probability
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(termS(x, X, y, Ystar, a, k)) ==> (inj-event(acceptU(x, X, y, Ystar, a, k)) || event(corrupt)) with public variables sk_u_secret; secrecy of sk_u_secret.
-5.248s (user 5.232s + system 0.016s), max rss 45796K
+RESULT Could not prove forall k: hash0, a: hash1, Ystar, X: G, y, x: host; inj-event(termS(x, X, y, Ystar, a, k)) ==> (inj-event(acceptU(x, X, y, Ystar, a, k)) || event(corrupt)) with public variables sk_u_secret; secrecy of sk_u_secret.
+20.860s (user 20.812s + system 0.048s), max rss 112132K
 END *)

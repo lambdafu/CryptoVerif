@@ -315,6 +315,6 @@ out(outprin, (pubA, pubB));
 
 
 (* EXPECTED
-RESULT Could not prove secrecy of secb; event(Recv(a, b, m)) ==> event(Send(a, b, m)) with public variables secb.
-1.796s (user 1.784s + system 0.012s), max rss 27124K
+RESULT Could not prove secrecy of secb; forall m: bitstring, b, a: prin; event(Recv(a, b, m)) ==> event(Send(a, b, m)) with public variables secb.
+2.012s (user 2.000s + system 0.012s), max rss 27200K
 END *)

@@ -69,5 +69,5 @@ out(c0, pk);
 
 (* EXPECTED
 All queries proved.
-0.060s (user 0.052s + system 0.008s), max rss 11116K
+0.040s (user 0.040s + system 0.000s), max rss 11780K
 END *)

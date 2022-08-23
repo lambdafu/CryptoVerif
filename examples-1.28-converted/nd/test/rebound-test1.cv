@@ -140,6 +140,6 @@ out(c9, ());
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
-0.104s (user 0.100s + system 0.004s), max rss 12648K
+RESULT Could not prove forall k: key, n: nonce, y, x: host; inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB.
+0.120s (user 0.112s + system 0.008s), max rss 13556K
 END *)

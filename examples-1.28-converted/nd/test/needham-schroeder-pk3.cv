@@ -191,5 +191,5 @@ out(c15, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA.
-2.436s (user 2.432s + system 0.004s), max rss 16616K
+2.620s (user 2.604s + system 0.016s), max rss 16980K
 END *)

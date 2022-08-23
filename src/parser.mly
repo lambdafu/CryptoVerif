@@ -46,6 +46,7 @@ let return_channel = (dummy_channel, None)
 %token DIFF
 %token FUN
 %token FORALL
+%token EXISTS
 %token EQUATION
 %token BUILTIN
 %token PARAM
@@ -215,7 +216,7 @@ let return_channel = (dummy_channel, None)
 %type <Ptree.command list> proofoptsemi
 
     %start focusquery
-    %type <(Ptree.ident * Ptree.ty(*type*)) list * Ptree.query list> focusquery
+    %type <(Ptree.ident * Ptree.ty(*type*)) list * Ptree.query_e list> focusquery
 
     %start move_array_coll
     %type <Ptree.special_equiv_coll_t> move_array_coll
@@ -567,7 +568,7 @@ proofcommand:
     { CGlobal_dep_anal($2, $3) }
 |   SARENAME idst
     { CSArename($2) }
-|   SARENAME NEW
+|   SARENAME RANDOM
     { CSArenameNew }
 |   MERGE_BRANCHES
     { CMerge_branches }
@@ -734,18 +735,8 @@ newarg: /* For compatibility with ProVerif; ignored by CryptoVerif */
 | LBRACKET neidentlist RBRACKET
     { Some ($2) }
 
-vartype:
-    neidentlist COLON IDENT
-    { List.map (fun x -> (x,$3)) $1 }
-    
-nevartypelist:
-        vartype
-        { $1 }
-|       vartype COMMA nevartypelist
-        { $1 @ $3 }
-
 neforallvartype:
-    FORALL nevartypelist SEMI
+    FORALL nevartypeilist SEMI
     { $2 }
 
 forallvartype:
@@ -828,6 +819,8 @@ term:
     { PAnd($1, $3), parse_extent() }
 | term IMPLIES term
     { PBefore($1, $3), parse_extent() }
+| EXISTS nevartypeilist SEMI term
+    { PExists($2, $4), parse_extent() }
 |       IDENT INDEPOF IDENT
         { PIndepOf($1, $3), parse_extent() }
     
@@ -1055,9 +1048,9 @@ queryseq:
 
 query:
     SECRET IDENT optpublicvars options
-    { PQSecret ($2,$3,$4) }
-|   term optpublicvars
-    { PQEventQ([], $1, $2) }
+    { PQSecret ($2,$3,$4), parse_extent() }
+|   forallvartype term optpublicvars
+    { PQEventQ(ExplicitQuantifiers, $1, $2, $3), parse_extent() }
     
 optpublicvars:
     

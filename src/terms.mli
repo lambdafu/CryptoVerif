@@ -149,7 +149,9 @@ val exists_subiproc :
 val exists_suboproc :
   (process -> bool) -> (term -> bool) -> (binderref -> bool) ->
   (pattern -> bool) -> (inputprocess -> bool) -> process -> bool
-
+val exists_qterm :
+  (qterm -> bool) -> (term -> bool) -> qterm -> bool
+    
 val may_abort : term -> bool
 val may_abort_counted : game option -> term -> bool
 
@@ -489,6 +491,11 @@ val refers_to_fungroup :  binder -> fungroup -> bool
 val refers_to_nodef : binder -> term -> bool
 val refers_to_process_nodef : binder -> process -> bool
 
+val refers_to_qterm : binder -> qterm -> bool
+
+val collect_vars_hyp : (bool * term) list -> binder list
+val collect_vars_corresp : (bool * term) list -> qterm -> binder list * binder list
+    
 val vars_from_pat : binder list -> pattern -> binder list
 val vars_from_pat_list : binder list -> pattern list -> binder list
 val occurs_in_pat : binder -> pattern -> bool

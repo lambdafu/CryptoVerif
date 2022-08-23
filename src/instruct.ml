@@ -2068,12 +2068,7 @@ let rec interpret_command interactive state = function
 	 not perfect, but better than nothing. *)
       let lparsed = List.concat (List.map (fun (s, ext_s) ->
 	let (vars, ql) = Syntax.parse_from_string Parser.focusquery (s,ext_s) in
-	List.map (function
-	  PQEventQ(vars', t, pub_vars) ->
-	    assert(vars' == []);
-	    (PQEventQ(vars, t, pub_vars), ext_s)
-	| q -> (q, ext_s)
-	      ) ql
+	Syntax.queries_map_vars vars ql
 	  ) l)
       in
       let query_vars = Settings.get_public_vars state.game.current_queries in
@@ -2083,7 +2078,7 @@ let rec interpret_command interactive state = function
 	    ) Stringmap.empty_binder_env query_vars);
       let lq =
 	try
-	  List.map (fun (q, ext) -> (Syntax.check_query q, ext)) lparsed
+	  List.map (fun q -> (Syntax.check_query q, snd q)) lparsed
 	with Stringmap.Undefined(i,ext) ->
 	  raise (Error (i ^ " not defined in a query", ext))
       in

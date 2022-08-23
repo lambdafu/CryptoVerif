@@ -31,5 +31,5 @@ out(c, concat(concat(zero, one), concat(two, concat(one, zero))))
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.012s + system 0.008s), max rss 10460K
+0.020s (user 0.012s + system 0.008s), max rss 10740K
 END *)

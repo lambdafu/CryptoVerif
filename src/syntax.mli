@@ -8,8 +8,9 @@ val read_file : string -> (statement list) * (collision list) * (equiv_gen list)
 
 (* Transform a parsed query into a query as used by CryptoVerif
    Raises Error in case of error. *)
-val check_query : Ptree.query -> query
-
+val check_query : Ptree.query_e -> query
+val queries_map_vars : (ident * Ptree.ty) list -> Ptree.query_e list -> Ptree.query_e list
+    
 val check_special_equiv_coll : Stringmap.env_type -> expect_t -> Ptree.special_equiv_coll_t -> special_equiv_collision
 
 val check_eqstatement : bool -> Ptree.eqstatement -> equiv_gen

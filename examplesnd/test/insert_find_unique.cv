@@ -15,5 +15,5 @@ process
 	(in(d,y:bitstring); out(d,y))
 
 (* EXPECTED
-0.080s (user 0.080s + system 0.000s), max rss 15876K
+0.080s (user 0.068s + system 0.012s), max rss 15724K
 END *)

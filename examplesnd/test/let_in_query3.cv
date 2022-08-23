@@ -144,8 +144,8 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
-3.832s (user 3.804s + system 0.028s), max rss 36808K
+RESULT Could not prove forall x: bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+3.636s (user 3.624s + system 0.012s), max rss 36668K
 END *)
 
 (* EXPECTPV

@@ -565,6 +565,8 @@ let rec check_term defined_refs cur_array env = function
       raise (Error("event(...) and inj-event(...) allowed only in queries", ext))
   | PBefore _,ext ->
       raise_error "==> allowed only in queries" ext
+  | PExists _, ext ->
+      raise_error "exists allowed only in queries" ext
   | PIndepOf _, ext ->
       raise (Error("independent-of allowed only in side-conditions of collisions", ext))
 

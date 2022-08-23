@@ -114,6 +114,6 @@ out(c9, ());
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB; inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) with public variables keyA, keyB; event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) with public variables keyA, keyB; event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA.
-0.520s (user 0.512s + system 0.008s), max rss 13880K
+RESULT Could not prove forall k: key, n: nonce, y, x: host; inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)) with public variables keyA, keyB; forall k: key, n: nonce, y, x: host; inj-event(endA(x, y, n, k)) ==> inj-event(beginB(x, y, n)) with public variables keyA, keyB; forall k: key, n: nonce, y, x: host; event(endB(x, y, n, k)) ==> event(beginA(x, y, n)) with public variables keyA, keyB; forall k: key, n: nonce, y, x: host; event(endA(x, y, n, k)) ==> event(beginB(x, y, n)) with public variables keyA, keyB; secrecy of keyB; secrecy of keyA.
+0.804s (user 0.796s + system 0.008s), max rss 14952K
 END *)

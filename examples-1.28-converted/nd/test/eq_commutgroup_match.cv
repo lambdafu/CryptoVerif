@@ -63,5 +63,5 @@ out(c, j(mult(inv(mult(neut, one)), mult(two, mult(one, neut)))))
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.016s + system 0.012s), max rss 10580K
+0.028s (user 0.024s + system 0.004s), max rss 10832K
 END *)

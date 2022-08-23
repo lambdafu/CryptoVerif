@@ -178,5 +178,5 @@ out(cstart, (pkA, pkB));
 
 (* EXPECTED
 RESULT Could not prove secrecy of payloadB; secrecy of payloadA.
-0.568s (user 0.556s + system 0.012s), max rss 17812K
+0.596s (user 0.596s + system 0.000s), max rss 18340K
 END *)

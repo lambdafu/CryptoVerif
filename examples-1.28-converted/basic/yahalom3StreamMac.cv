@@ -169,6 +169,6 @@ out(c12, ());
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(endA(x, y, k)) ==> inj-event(beginBkey(x, y, k)); event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
-1.752s (user 1.744s + system 0.008s), max rss 22644K
+RESULT Could not prove forall k: key, y, x: host; inj-event(endA(x, y, k)) ==> inj-event(beginBkey(x, y, k)); forall k: key, y, x: host; event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
+1.712s (user 1.708s + system 0.004s), max rss 22684K
 END *)

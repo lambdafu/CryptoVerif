@@ -733,11 +733,11 @@ process
 ifdef(`REPLAY_PROT',`
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.SECRECY.m4.cv TAG: 1
 All queries proved.
-396.460s (user 396.148s + system 0.312s), max rss 354144K
+469.508s (user 469.308s + system 0.200s), max rss 348936K
 END *)
 ',`
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.SECRECY.m4.cv TAG: 2
 All queries proved.
-318.392s (user 318.268s + system 0.124s), max rss 309576K
+387.564s (user 387.440s + system 0.124s), max rss 348944K
 END *)
 ')

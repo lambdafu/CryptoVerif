@@ -2663,8 +2663,8 @@ In this case, it designates all variables that match the regular expression,
 and the command \texttt{SArename} is executed for each of these variables in
 turn.
 
-\item $\texttt{SArename new}$: Renames all variables defined by \texttt{new}
-  (or \texttt{<-R}) that have several definitions and no array accesses
+\item $\texttt{SArename random}$: Renames all variables defined by \texttt{new}
+  or \texttt{<-R} that have several definitions and no array accesses
   to distinct names.
   
 \item \texttt{all\string_simplify}: perform several simplifications 
@@ -2674,7 +2674,7 @@ on the game, as if
 \item \texttt{move all} if \texttt{autoMove = true}, 
 \item \texttt{remove\string_assign useless} if \texttt{autoRemoveAssignFindCond = false}, \\
   \texttt{remove\string_assign findcond} if \texttt{autoRemoveAssignFindCond = true},
-\item \texttt{SArename new} if \texttt{autoSARename = true},
+\item \texttt{SArename random} if \texttt{autoSARename = true},
 \item and \texttt{merge\string_branches} if \texttt{autoMergeBranches = true}
 \end{itemize}
 had been called.

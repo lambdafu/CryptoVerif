@@ -314,11 +314,11 @@ process
 ifdef(`ONEKEY',`
 (* EXPECTED FILENAME: implementation/ssh/ssh-secrecy-key.m4.ocv TAG: 1
 All queries proved.
-1.240s (user 1.232s + system 0.008s), max rss 27296K
+1.184s (user 1.180s + system 0.004s), max rss 28796K
 END *)
 ',`
 (* EXPECTED FILENAME: implementation/ssh/ssh-secrecy-key.m4.ocv TAG: 2
 All queries proved.
-1410.476s (user 1410.352s + system 0.124s), max rss 236836K
+1591.740s (user 1591.248s + system 0.492s), max rss 232520K
 END *)
 ')

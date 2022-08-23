@@ -371,6 +371,6 @@ out(c25, ());
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of b1; event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-1.296s (user 1.292s + system 0.004s), max rss 27100K
+RESULT Could not prove one-session secrecy of b1; forall w, y, z: bitstring; event(fullCS(S, T, z, y, w)) ==> exists y', x: bitstring; event(fullSC(C, x, y', w)) with public variables b1; forall y, z: bitstring; event(partSC(C, z, y)) ==> exists w, v', v, x: bitstring, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
+1.368s (user 1.356s + system 0.012s), max rss 27204K
 END *)

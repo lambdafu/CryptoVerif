@@ -126,5 +126,5 @@ return(pkA, pkB);
 
 (* EXPECTED
 All queries proved.
-0.840s (user 0.832s + system 0.008s), max rss 19236K
+0.884s (user 0.884s + system 0.000s), max rss 19348K
 END *)

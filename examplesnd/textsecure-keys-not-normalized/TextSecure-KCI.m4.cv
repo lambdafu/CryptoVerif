@@ -313,11 +313,11 @@ process
 ifdef(`REPLAY_PROT',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 1
 All queries proved.
-62.348s (user 62.260s + system 0.088s), max rss 206064K
+63.284s (user 63.248s + system 0.036s), max rss 203276K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure-keys-not-normalized/TextSecure-KCI.m4.cv TAG: 2
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(sb) = pow8(sb2)) && (pow8(a1) = pow8(a12)))).
-60.928s (user 60.872s + system 0.056s), max rss 180496K
+RESULT Could not prove forall m: bitstring, a2, a1, sb, b0, a0: G, bs, as: pkey; inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> exists a12, sb2: G; (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(sb) = pow8(sb2)) && (pow8(a1) = pow8(a12)))).
+61.588s (user 61.504s + system 0.084s), max rss 189160K
 END *)
 ')

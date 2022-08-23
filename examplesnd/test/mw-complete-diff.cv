@@ -115,6 +115,6 @@ equivalence single multiple
 
 (* EXPECTED
 All queries proved.
-0.096s (user 0.080s + system 0.016s), max rss 16844K
+0.152s (user 0.140s + system 0.012s), max rss 18560K
 END *)
 

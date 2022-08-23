@@ -21,5 +21,5 @@ query_equiv
 
 (* EXPECTED
 RESULT Could not prove indistinguishability between game 1 and game 2.
-0.080s (user 0.080s + system 0.000s), max rss 16704K
+0.056s (user 0.056s + system 0.000s), max rss 16468K
 END *)

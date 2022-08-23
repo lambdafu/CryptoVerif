@@ -41,5 +41,5 @@ out(c, h(x))
 
 (* EXPECTED
 All queries proved.
-0.032s (user 0.032s + system 0.000s), max rss 10672K
+0.028s (user 0.020s + system 0.008s), max rss 11052K
 END *)

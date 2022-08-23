@@ -151,5 +151,5 @@ out(io2, ());
 
 (* EXPECTED
 All queries proved.
-0.052s (user 0.048s + system 0.004s), max rss 11136K
+0.052s (user 0.048s + system 0.004s), max rss 11552K
 END *)

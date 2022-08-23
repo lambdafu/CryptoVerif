@@ -139,8 +139,8 @@ process
 	 (! iK <= NK processK(Kas, Kbs)))
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyA, keyB; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyA, keyB; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyA, keyB.
-1.340s (user 1.324s + system 0.016s), max rss 29948K
+RESULT Could not prove forall k', k: key, x: bitstring; event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') with public variables keyA, keyB; forall x: bitstring, k: key; inj-event(fullA(B, k, x)) ==> inj-event(partB(A, x)) with public variables keyA, keyB; forall x: bitstring, k: key; inj-event(fullA(B, k, x)) ==> inj-event(fullB(A, k, x)) with public variables keyA, keyB; forall x: bitstring; inj-event(partB(A, x)) ==> inj-event(partA(B, x)) with public variables keyA, keyB.
+1.388s (user 1.368s + system 0.020s), max rss 30068K
 END *)
 
 (* EXPECTPV
@@ -158,5 +158,5 @@ RESULT inj-event(fullA(B,k_3,x)) ==> inj-event(partB(A,x)) public_vars keyA,keyB
 RESULT (query encoded as inj-event(fullA(B,k_3,x)) ==> inj-event(partB(A,x)))
 RESULT (even event(fullA(B,k_3,x)) ==> event(partB(A,x)) is false.)
 RESULT event(fullB(A,k_3,x)) && event(fullA(B,k',x)) ==> k_3 = k' public_vars keyA,keyB is false.
-1.032s (user 1.024s + system 0.008s), max rss 25980K
+0.652s (user 0.636s + system 0.016s), max rss 22264K
 END *)

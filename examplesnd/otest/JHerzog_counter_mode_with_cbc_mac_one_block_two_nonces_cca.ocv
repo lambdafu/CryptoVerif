@@ -168,5 +168,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of secret_bit.
-37.124s (user 37.096s + system 0.028s), max rss 29972K
+33.460s (user 33.440s + system 0.020s), max rss 30136K
 END *)

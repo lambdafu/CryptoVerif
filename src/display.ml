@@ -158,6 +158,16 @@ let display_find_info = function
   | Nothing -> ()
   | Unique -> print_string "[unique] "
   | UniqueToProve e -> print_string ("[unique?"^e.f_name^"] ")
+
+let display_type ty =
+  match ty.tcat with
+  | Interv n -> 
+      print_string " <= ";
+      print_string n.pname
+  | _ -> 
+      print_string ": ";
+      print_string ty.tname
+
 	
 let rec display_var b tl =
   let tl = 
@@ -183,13 +193,7 @@ and display_binder_with_array b =
 
 and display_binder_with_type b =
   display_binder_with_array b;
-  match b.btype.tcat with
-    Interv n -> 
-      print_string " <= ";
-      print_string n.pname
-  | _ -> 
-      print_string ": ";
-      print_string b.btype.tname
+  display_type b.btype
 
 and display_repl_index_with_type b =
   display_repl_index b;
@@ -433,16 +437,33 @@ and display_pattern_paren pat =
 
 let display_term t = display_term_paren AllInfix AllProcess t
 
+(* Display quantified variables *)
+
+let rec display_binder_list_with_type = function
+  | [] -> assert false
+  | b::bl ->
+      let (same_type, other_type) = List.partition (fun b' -> b'.btype == b.btype) bl in
+      display_list display_binder (b::same_type);
+      display_type b.btype;
+      if other_type != [] then
+	begin
+	  print_string ", ";
+	  display_binder_list_with_type other_type
+	end
+	       
+let display_quantified q bl =
+  if bl <> [] then
+    begin
+      print_string q;
+      display_binder_list_with_type bl;
+      print_string "; ";
+    end
+
 (* Statements *)
 
 let display_statement (bl, t, side_cond) =
   print_string "equation ";
-  if bl <> [] then
-    begin
-      print_string "forall ";
-      display_list display_binder_with_type bl;
-      print_string "; ";
-    end;
+  display_quantified "forall " bl;
   display_term t;
   if not (Terms.is_true side_cond) then
     begin
@@ -1014,12 +1035,7 @@ let display_collision c =
   List.iter (fun b -> display_restr b; print_string "; ") c.c_restr;
   if c.c_restr_may_be_equal then
     print_string " [random_choices_may_be_equal] ";
-  if c.c_forall != [] then
-    begin
-      print_string "forall ";
-      display_list display_binder_with_type c.c_forall;
-      print_string "; "
-    end;
+  display_quantified "forall " c.c_forall;
   print_string "return(";
   display_term c.c_redl;
   print_string ") <=(";
@@ -1458,9 +1474,12 @@ let display_query3 = function
 	print_string ("indistinguishability from game " ^
 		      (string_of_int g'.game_number));
       display_pub_vars pub_vars      
-  | QEventQ(t1,t2, pub_vars) -> 
+  | QEventQ(t1,t2, pub_vars) ->
+      let (forall, exists) = Terms.collect_vars_corresp t1 t2 in
+      display_quantified "forall " forall;
       display_query1 t1; 
       print_string " ==> ";
+      display_quantified "exists " exists;
       display_query2 t2;
       display_pub_vars pub_vars
 	

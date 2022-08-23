@@ -344,6 +344,6 @@ RESULT Could not prove event endB(na) ==> beginA(na).
 1.220s (user 1.204s + system 0.016s), max rss 0K
 END
 EXPECTED
-RESULT Could not prove secrecy of sNa; one-session secrecy of sNa; event(endB(na)) ==> event(beginA(na)) with public variables sNa.
-1.772s (user 1.772s + system 0.000s), max rss 24832K
+RESULT Could not prove secrecy of sNa; one-session secrecy of sNa; forall na: nonce; event(endB(na)) ==> event(beginA(na)) with public variables sNa.
+1.724s (user 1.716s + system 0.008s), max rss 24928K
 END *)

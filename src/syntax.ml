@@ -140,7 +140,7 @@ type macro_elem =
 let statements = ref ([]: statement list)
 let collisions = ref ([]: collision list)
 let equivalences = ref ([]: equiv_gen list)
-let queries_parse = ref ([]: Ptree.query list)
+let queries_parse = ref ([]: Ptree.query_e list)
 let proof = ref (None : Ptree.command list option)
 let non_unique_events = ref ([] : funsymb list)
 
@@ -231,6 +231,7 @@ let pinstruct_name = function
   | PQEvent _ -> "query event"
   | PIndepOf _ -> "independent of"
   | PBefore _ -> "==>"
+  | PExists _ -> "exists"
     
 let add_var_list env in_find_cond cur_array bindl =
   List.fold_left (fun env (s, tyopt) ->
@@ -417,6 +418,8 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
       raise_error "==> allowed only in queries" ext
+  | PExists _, ext ->
+      raise_error "exists allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 	
@@ -1451,6 +1454,8 @@ let rec check_term defined_refs_opt cur_array env prog = function
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
       raise_error "==> allowed only in queries" ext
+  | PExists _, ext ->
+      raise_error "exists allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 
@@ -1626,6 +1631,18 @@ let rec check_binder_list env = function
       let (env'',l') = check_binder_list env' l in
       (env'', b::l')
 	
+let rec check_binder_list_ty env = function
+    [] -> (env,[])
+  | ((s1,ext1),ty)::l ->
+      let t =
+	match ty with
+	| Tid(s2,ext2) -> get_type env s2 ext2
+	| TBound(_,ext2) -> raise_error "interval type not allowed here" ext2
+      in
+      let (env',b) = add_in_env_nobe env s1 ext1 t in
+      let (env'',l') = check_binder_list_ty env' l in
+      (env'', b::l')
+	
 let rec check_term_nobe env = function
     PIdent (s, ext), ext2 ->
       begin
@@ -1708,6 +1725,8 @@ let rec check_term_nobe env = function
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
       raise_error "==> allowed only at the top of queries" ext
+  | PExists _, ext ->
+      raise_error "exists allowed only after ==> in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions, under && or ||" ext
 
@@ -1716,7 +1735,7 @@ let check_statement env (l,t,side_cond) =
      Terms.create_binder0, so it does not rename the variables.
      That is why I do not save and restore the variable
      numbering state. *)
-  let (env',l') = check_binder_list env l in
+  let (env',l') = check_binder_list_ty env l in
   let t' = check_term_nobe env' t in
   begin
     match t'.t_desc with
@@ -1887,6 +1906,8 @@ let rec check_term_proba env = function
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
       raise_error "==> allowed only in queries" ext
+  | PExists _, ext ->
+      raise_error "exists allowed only in queries" ext
   | PIndepOf _, ext ->
       raise_error "independent-of allowed only in side-conditions of collisions" ext
 
@@ -2800,7 +2821,7 @@ let check_collision env (restr, forall, t1, proba, t2, side_cond, options) =
     if b.btype.toptions land Settings.tyopt_CHOOSABLE == 0 then
       raise_error ("Cannot choose randomly a bitstring from " ^ b.btype.tname) ext
       ) restr' restr;
-  let (env'',forall') = check_binder_list env' forall in
+  let (env'',forall') = check_binder_list_ty env' forall in
   let proba' = check_probability_formula2 ([], [], true) env'' proba in
   let t1' = check_term_nobe env'' t1 in
   if not (List.for_all (fun b -> Terms.refers_to b t1') (restr' @ forall')) then
@@ -2843,8 +2864,12 @@ let rec check_binder_expect_list env expect = function
       let (env'',l') = check_binder_expect_list env' expect l in
       (env'', b::l')
     
-let check_binder_moc env ((s,ext),(s2,ext2)) =
-  let t = get_type env s2 ext2 in
+let check_binder_moc env ((s,ext),ty) =
+  let t =
+    match ty with
+    | Tid (s2,ext2) -> get_type env s2 ext2
+    | TBound (_,ext2) -> raise_error "interval type not allowed here" ext2
+  in
   let b = Terms.create_binder s t [] in
   if (StringMap.mem s env) then
     input_warning ("identifier " ^ s ^ " rebound") ext;
@@ -3298,6 +3323,8 @@ let rec rename_term (t,ext) =
   | POr(t1,t2) -> POr(rename_term t1, rename_term t2)
   | PAnd(t1,t2) -> PAnd(rename_term t1, rename_term t2)
   | PBefore(t1,t2) -> PBefore(rename_term t1, rename_term t2)
+  | PExists(exists,t) -> PExists(List.map (fun (x,ty) -> (rename_ie x, rename_ty ty)) exists,
+				 rename_term t)
   | PIndepOf(i1,i2) -> PIndepOf(rename_ie i1, rename_ie i2)
   in
   (t',ext)
@@ -3422,10 +3449,10 @@ let rename_eqmember (l,ext1) =
   (List.map (fun (fg, mode, ext) -> (rename_fungroup fg, mode, ext)) l, ext1) (* Do not rename the mode! *)
 
 let rename_query = function
-    PQSecret (i, pub_vars, options) -> PQSecret (rename_ie i, List.map rename_ie pub_vars, options)
-  | PQEventQ(decl,t, pub_vars) -> 
-      PQEventQ(List.map (fun (x,t) -> (rename_ie x, rename_ty t)) decl, 
-	      rename_term t, List.map rename_ie pub_vars)
+    (PQSecret (i, pub_vars, options),ext) -> (PQSecret (rename_ie i, List.map rename_ie pub_vars, options),ext)
+  | (PQEventQ(syntax,decl,t, pub_vars),ext) -> 
+      (PQEventQ(syntax,List.map (fun (x,t) -> (rename_ie x, rename_ty t)) decl, 
+	      rename_term t, List.map rename_ie pub_vars),ext)
 
 
 
@@ -3467,7 +3494,7 @@ let rename_decl = function
          I can reuse their names later *)
       let rename_state = get_rename_state() in
       let renamed_statement =
-	Statement(List.map (fun (i,t) -> (rename_ie i, rename_ie t)) l,
+	Statement(List.map (fun (i,t) -> (rename_ie i, rename_ty t)) l,
 		  rename_term t, rename_term side_cond)
       in
       set_rename_state rename_state;
@@ -3490,7 +3517,7 @@ let rename_decl = function
       let rename_state = get_rename_state() in
       let renamed_coll_statement =
 	Collision(List.map (fun (x,t) -> (rename_ie x, rename_ie t)) restr,
-		  List.map (fun (x,t) -> (rename_ie x, rename_ie t)) forall,
+		  List.map (fun (x,t) -> (rename_ie x, rename_ty t)) forall,
 		  rename_term t1,
 		  rename_probaf p,
 		  rename_term t2,
@@ -3593,6 +3620,21 @@ let rec write_fun_options fu = function
       write_fun_options fu l'
   | [] -> ()
 
+let queries_map_vars vars l =
+  match vars with
+  | [] -> (* Explicit quantifiers is the default *)
+      l
+  | ((s1,ext1),_)::_ ->
+      (* The bound variables are defined globally for the group of queries [l].
+	 Put them for each queries that uses bound variables, that is, [PQEventQ] queries *)
+      List.map (function
+	  (PQEventQ(_, vars', t, pub_vars),ext) ->
+	    if vars' = [] then
+	      (PQEventQ(ImplicitQuantifiers, vars, t, pub_vars),ext)
+	    else
+	      raise_error "cannot mix implicit and explicit quantifiers in queries" ext1
+	| q -> q
+	      ) l
 
 let rec check_one = function
     ParamDecl((s,ext), options) ->
@@ -3831,14 +3873,7 @@ let rec check_one = function
   | Collision s ->
       check_collision (!env) s
   | Query (vars, l) ->
-      (* The bound variables are defined globally for the group of queries [l].
-	 Put them for each queries that uses bound variables, that is, [PQEventQ] queries *)
-      queries_parse := (List.map (function
-	  PQEventQ(vars', t, pub_vars) ->
-	    assert(vars' == []);
-	    PQEventQ(vars, t, pub_vars)
-	| q -> q
-	      ) l) @ (!queries_parse)
+      queries_parse := (queries_map_vars vars l) @ (!queries_parse)
   | PDef((s1,ext1),vardecl,p) ->
       add_not_found s1 ext1 (EProcess (!env, vardecl, p))
   | Proofinfo(pr, ext) ->
@@ -4006,35 +4041,6 @@ let rec check_term_query2 env = function
       check_type (snd x) x' Settings.t_bool;
       QTerm x'
 
-let rec check_term_query3 env = function
-  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
-      let t1' = check_term_nobe env t1 in
-      begin
-	match tyopt with
-	| None -> ()
-	| Some ty ->
-	    let (ty',_) = get_ty env ty in
-	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
-	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
-      end;
-      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
-      b.link <- TLink t1';
-      check_term_query3 env' t2
-  | PBefore(t1,t2),ext ->
-      let t1' = check_term_query1 env t1 in
-      let t2' = check_term_query2 env t2 in
-      (t1',t2')
-  | x -> 
-      let x' = check_term_query1 env x in
-      (x', QTerm (Terms.make_false()))
-	    
-let rec find_inj = function
-    QAnd(t1,t2) | QOr(t1,t2) -> find_inj t1 || find_inj t2
-  | QEvent(b,t) -> b
-  | QTerm t -> false
-
-let get_qpubvars l = List.map (get_global_binder "in public variables of a query") l
-
 let rec check_binder_list_typaram env = function
     [] -> (env,[])
   | ((s1,ext1),ty)::l ->
@@ -4049,9 +4055,50 @@ let rec check_binder_list_typaram env = function
       let (env'',l') = check_binder_list_typaram env' l in
       (env'', b::l')
 
+let check_term_query2_optexists syntax env = function
+  | PExists(vl,t),ext ->
+      if syntax = ImplicitQuantifiers then
+	raise_error "cannot mix implicit and explicit quantifiers in queries" ext;
+      let (env', l') = check_binder_list_typaram env vl in
+      let t' = check_term_query2 env' t in
+      List.iter2 (fun b ((_,ext_b),_) ->
+	if not (Terms.refers_to_qterm b t') then
+	  Parsing_helper.input_warning ("unused variable "^(Display.binder_to_string b)) ext_b
+	    ) l' vl;
+      t'
+  | t -> check_term_query2 env t
 	
+let rec check_term_query3 syntax env = function
+  | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
+      let t1' = check_term_nobe env t1 in
+      begin
+	match tyopt with
+	| None -> ()
+	| Some ty ->
+	    let (ty',_) = get_ty env ty in
+	    if (ty' != t1'.t_type) && (t1'.t_type != Settings.t_any) then
+	      raise_error ("Term of type "^(t1'.t_type.tname)^" stored in variable of type "^ty'.tname) ext
+      end;
+      let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
+      b.link <- TLink t1';
+      check_term_query3 syntax env' t2
+  | PBefore(t1,t2),ext ->
+      let t1' = check_term_query1 env t1 in
+      let t2' = check_term_query2_optexists syntax env t2 in
+      (t1',t2')
+  | x -> 
+      let x' = check_term_query1 env x in
+      (x', QTerm (Terms.make_false()))
+	    
+let rec find_inj = function
+    QAnd(t1,t2) | QOr(t1,t2) -> find_inj t1 || find_inj t2
+  | QEvent(b,t) -> b
+  | QTerm t -> false
+
+let get_qpubvars l = List.map (get_global_binder "in public variables of a query") l
+
 let check_query = function
-    PQSecret (i, pub_vars, options) ->
+    (PQSecret (i, pub_vars, options), ext_full) ->
       let onesession = ref false in
       List.iter (fun (s,ext) ->
 	if StringPlus.starts_with s "pv_" then
@@ -4064,17 +4111,26 @@ let check_query = function
 	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
       QSecret (get_global_binder "in a secrecy query" i,
 	       get_qpubvars pub_vars, !onesession)
-  | PQEventQ (vl,t, pub_vars) -> 
+  | (PQEventQ (syntax,vl,t, pub_vars),ext_full) ->
       let (env',l') = check_binder_list_typaram (!env) vl in
-      let t1',t2' = check_term_query3 env' t in
+      let t1',t2' = check_term_query3 syntax env' t in
       let has_inj_before_impl = List.exists (fun (b,_) -> b) t1' in
       let has_inj_after_impl = find_inj t2' in
       if has_inj_before_impl && not has_inj_after_impl then
 	raise_error "In this query, inj-event is present before ==> but not after ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t);
       if (not has_inj_before_impl) && has_inj_after_impl then
 	raise_error "In this query, inj-event is present after ==> but not before ==>.\ninj-event should be present either both before and after ==> or not at all." (snd t);
+      if syntax = ExplicitQuantifiers then
+	List.iter2 (fun b ((_,ext_b),_) ->
+	  if not (List.exists (fun (_,t) -> Terms.refers_to b t) t1') then
+	    if Terms.refers_to_qterm b t2' then
+	      raise_error ("In this query, the universally quantified variable "^(Display.binder_to_string b)^" occurs after ==> and not before ==>. Universally quantified variables should occur before ==>.") (snd t)
+	    else
+	      Parsing_helper.input_warning ("unused variable "^(Display.binder_to_string b)) ext_b
+	  ) l' vl;
       QEventQ(t1',t2', get_qpubvars pub_vars)
 
+	
 let get_impl ()=
   (* Return the used letfuns, in the order in which they have been declared *)
   let letfuns = List.rev (List.filter (fun (f,vardecl,res) -> f.f_impl = SepFun) (!impl_letfuns)) in
@@ -4317,6 +4373,9 @@ let rec collect_id_term accu (t,ext) =
   | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) | PBefore(t1,t2) ->
       collect_id_term accu t1;
       collect_id_term accu t2
+  | PExists(exists,t) ->
+      List.iter (fun (x,ty) ->  add_id accu x; collect_id_ty accu ty) exists;
+      collect_id_term accu t
   | PIndepOf(i1,i2) ->
       add_id accu i1;
       add_id accu i2
@@ -4506,10 +4565,10 @@ let collect_id_eqmember accu (l,ext) =
   List.iter (fun (fg, mode, ext) -> collect_id_fungroup accu fg) l
 
 let collect_id_query accu = function
-    PQSecret(i,pub_vars,options) ->
+    (PQSecret(i,pub_vars,options),_) ->
       add_id accu i;
       List.iter (add_id accu) pub_vars
-  | PQEventQ(decl,t,pub_vars) ->
+  | (PQEventQ(syntax,decl,t,pub_vars),_) ->
       List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) decl;
       collect_id_term accu t;
       List.iter (add_id accu) pub_vars
@@ -4540,7 +4599,7 @@ let collect_id_decl accu = function
       add_id accu s1;
       List.iter (add_id accu) l
   | Statement(l,t,side_cond) ->
-      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) l;
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) l;
       collect_id_term accu t;
       collect_id_term accu side_cond
   | BuiltinEquation(eq_categ, l_fun_symb) ->
@@ -4558,7 +4617,7 @@ let collect_id_decl accu = function
       end
   | Collision(restr, forall,  t1, p, t2, side_cond, options) ->
       List.iter (fun (x,t) ->  add_id accu x; add_id accu t) restr;
-      List.iter (fun (x,t) ->  add_id accu x; add_id accu t) forall;
+      List.iter (fun (x,t) ->  add_id accu x; collect_id_ty accu t) forall;
       collect_id_term accu t1;
       collect_id_probaf accu p;
       collect_id_term accu t2;

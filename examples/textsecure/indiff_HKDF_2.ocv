@@ -165,7 +165,7 @@ Target game after
 
 EXPECTED
 All queries proved.
-0.148s (user 0.144s + system 0.004s), max rss 17984K
+0.148s (user 0.140s + system 0.008s), max rss 18484K
 END
 
 *)

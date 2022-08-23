@@ -30,6 +30,7 @@ type term =
   | PAnd of term_e * term_e
   | PIndepOf of ident * ident
   | PBefore of term_e * term_e
+  | PExists of (ident * ty(*type*)) list * term_e
 		
 and term_e = term * Parsing_helper.extent
 
@@ -74,7 +75,7 @@ and process_e = process * Parsing_helper.extent
 
 (* Logical statements (most often equations) *)
 
-type statement = (ident * ident(*type*)) list * term_e * term_e
+type statement = (ident * ty(*type*)) list * term_e * term_e
 
 (* Equivalence statements *)
 
@@ -147,7 +148,7 @@ type eqstatement = Types.eqname * equiv_t * (int * ident list(*options*))
 
 (* Collisions *)
 
-type collision = (ident * ident) list(*restrictions*) * (ident * ident) list(*forall*) * term_e * probabilityf_e * term_e * term_e(*side condition*) * ident list(*options*)
+type collision = (ident * ident) list(*restrictions*) * (ident * ty) list(*forall*) * term_e * probabilityf_e * term_e * term_e(*side condition*) * ident list(*options*)
 
 
 
@@ -159,10 +160,17 @@ type pval =
 
 (* Queries *)
 
+type syntax_q =
+  | ExplicitQuantifiers
+  | ImplicitQuantifiers
+	
 type query = 
   | PQSecret of ident * ident list(*public variables*) * ident list(*options*)
-  | PQEventQ of (ident * ty(*type*)) list * term_e * ident list(*public variables*)
+  | PQEventQ of syntax_q * (ident * ty(*type*)) list * term_e * ident list(*public variables*)
 
+type query_e =
+    query * Parsing_helper.extent
+	
 (* Implementation *)
 
 type typeid = TypeSize of int | TypeName of ident
@@ -293,7 +301,7 @@ type decl =
   | Collision of collision
   | Setting of ident * pval
   | PDef of ident * (ident * ty) list * process_e
-  | Query of (ident * ty(*type*)) list * query list
+  | Query of (ident * ty(*type*)) list * query_e list
   | Define of ident * ident list * decl list
   | Expand of ident * ident list
   | Proofinfo of command list * Parsing_helper.extent
@@ -310,7 +318,7 @@ type final_process =
   | PQueryEquiv of eqstatement
 	
 type special_equiv_coll_t =
-    (ident * ident(*type*)) list(*bound variables*) *
+    (ident * ty(*type*)) list(*bound variables*) *
       (ident * ident(*type*)) list(*random variables*) *
       term_e
 

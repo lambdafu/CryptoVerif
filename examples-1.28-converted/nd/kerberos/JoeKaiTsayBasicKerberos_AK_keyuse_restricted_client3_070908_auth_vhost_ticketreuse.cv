@@ -363,6 +363,6 @@ out(c25, ());
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of b1; event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1.
-7.888s (user 7.880s + system 0.008s), max rss 40972K
+RESULT Could not prove one-session secrecy of b1; forall w, y, z: maxmac; event(fullCS(S, T, z, y, w)) ==> exists y', x: maxmac; event(fullSC(C, x, y', w)) with public variables b1.
+8.388s (user 8.368s + system 0.020s), max rss 40884K
 END *)

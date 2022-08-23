@@ -72,5 +72,5 @@ query_equiv(int_ctxt_corrupt(enc))
 
 (* EXPECTED
 All queries proved.
-0.040s (user 0.040s + system 0.000s), max rss 16752K
+0.044s (user 0.040s + system 0.004s), max rss 16804K
 END *)

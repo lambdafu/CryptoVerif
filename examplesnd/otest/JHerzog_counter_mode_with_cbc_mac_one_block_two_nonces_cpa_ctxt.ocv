@@ -138,5 +138,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(bad) ==> false; secrecy of secret_bit.
-1.084s (user 1.080s + system 0.004s), max rss 22792K
+1.084s (user 1.076s + system 0.008s), max rss 22748K
 END *)

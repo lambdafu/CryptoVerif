@@ -398,13 +398,13 @@ process
 
 ifdef(`key_AK',`
 (* EXPECTED FILENAME: examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv TAG: 1
-RESULT Could not prove event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y2, w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v2, z, w))) with public variables b1.
-1.772s (user 1.760s + system 0.012s), max rss 41040K
+RESULT Could not prove forall w, y, z: bitstring; event(fullCS(S, T, z, y, w)) ==> exists y2, x: bitstring; event(fullSC(C, x, y2, w)) with public variables b1; forall y, z: bitstring; event(partSC(C, z, y)) ==> exists w, v2, v, x: bitstring, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v2, z, w))) with public variables b1.
+1.780s (user 1.772s + system 0.008s), max rss 40832K
 END *)
 ')
 ifdef(`key_SK',`
 (* EXPECTED FILENAME: examples/kerberos/BasicKerberos_keyuse_Updated.m4.cv TAG: 2
 All queries proved.
-3.380s (user 3.376s + system 0.004s), max rss 40988K
+3.500s (user 3.484s + system 0.016s), max rss 40972K
 END *)
 ')

@@ -496,6 +496,6 @@ out(c25, (pkC, spkC, spkK, pkCA));
 
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of b1; event(fullCS(S, T, z, y, w)) ==> event(fullSC(C, x, y', w)) with public variables b1; event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
-9.712s (user 9.704s + system 0.008s), max rss 40968K
+RESULT Could not prove one-session secrecy of b1; forall w, y, z: maxmac; event(fullCS(S, T, z, y, w)) ==> exists y', x: maxmac; event(fullSC(C, x, y', w)) with public variables b1; forall y, z: maxmac; event(partSC(C, z, y)) ==> exists w, v', v, x: maxmac, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, v', z, w))) with public variables b1.
+9.912s (user 9.868s + system 0.044s), max rss 45636K
 END *)

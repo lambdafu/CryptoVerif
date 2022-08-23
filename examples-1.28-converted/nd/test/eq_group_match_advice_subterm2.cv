@@ -92,5 +92,5 @@ out(c, (mult(t_2, r1_9) = inv(r2_9)))
 
 (* EXPECTED
 All queries proved.
-0.104s (user 0.088s + system 0.016s), max rss 10872K
+0.096s (user 0.092s + system 0.004s), max rss 12620K
 END *)

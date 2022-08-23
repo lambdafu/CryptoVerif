@@ -1620,20 +1620,20 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.psk_dyn.AB.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 1
 All queries proved.
-1390.068s (user 1388.620s + system 1.448s), max rss 610244K
+1369.632s (user 1368.104s + system 1.528s), max rss 610060K
 END *)
 ',`
 (* WG.25519.psk_dyn.AB.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 2
 All queries proved.
-1005.544s (user 1004.608s + system 0.936s), max rss 401068K
+910.124s (user 908.756s + system 1.368s), max rss 401432K
 END *)
 ')
 ',`
 (* WG.25519.psk_dyn.AB.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 3
 All queries proved.
-3240.912s (user 3238.172s + system 2.740s), max rss 1213596K
+3050.044s (user 3047.180s + system 2.864s), max rss 1213328K
 END *)
 ')
 ',`
@@ -1642,20 +1642,20 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.psk_dyn.AB.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 4
 All queries proved.
-800.844s (user 799.476s + system 1.368s), max rss 530392K
+781.512s (user 780.180s + system 1.332s), max rss 530484K
 END *)
 ',`
 (* WG.25519.psk_dyn.AB.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 5
 All queries proved.
-564.200s (user 563.324s + system 0.876s), max rss 352736K
+531.324s (user 530.420s + system 0.904s), max rss 353152K
 END *)
 ')
 ',`
 (* WG.25519.psk_dyn.AB.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 6
 All queries proved.
-1430.532s (user 1428.156s + system 2.376s), max rss 1212240K
+1343.364s (user 1340.896s + system 2.468s), max rss 1212112K
 END *)
 ')
 ')
@@ -1666,20 +1666,20 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.psk_dyn.AB-BA.S_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 7
 All queries proved.
-1895.540s (user 1893.064s + system 2.476s), max rss 841588K
+1774.216s (user 1771.616s + system 2.600s), max rss 841696K
 END *)
 ',`
 (* WG.25519.psk_dyn.AB-BA.S_i_compr.E_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 8
 All queries proved.
-1473.960s (user 1472.056s + system 1.904s), max rss 800824K
+1300.364s (user 1298.504s + system 1.860s), max rss 800780K
 END *)
 ')
 ',`
 (* WG.25519.psk_dyn.AB-BA.E_i_compr.S_r_compr.replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 9
 All queries proved.
-4092.772s (user 4088.740s + system 4.032s), max rss 1835244K
+3754.168s (user 3750.096s + system 4.072s), max rss 1835236K
 END *)
 ')
 ',`
@@ -1688,20 +1688,20 @@ ifdef(`m4_S_r_compr',`
 (* WG.25519.psk_dyn.AB-BA.S_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 10
 All queries proved.
-1070.992s (user 1068.824s + system 2.168s), max rss 733688K
+987.000s (user 984.828s + system 2.172s), max rss 733500K
 END *)
 ',`
 (* WG.25519.psk_dyn.AB-BA.S_i_compr.E_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 11
 All queries proved.
-776.656s (user 774.940s + system 1.716s), max rss 697724K
+713.064s (user 711.376s + system 1.688s), max rss 697488K
 END *)
 ')
 ',`
 (* WG.25519.psk_dyn.AB-BA.E_i_compr.S_r_compr.no_replay_prot
 EXPECTED FILENAME: examples/wireguard/WG.25519.psk_dyn.m4.cv TAG: 12
 All queries proved.
-1861.060s (user 1857.424s + system 3.636s), max rss 1598676K
+1655.132s (user 1651.564s + system 3.568s), max rss 1598368K
 END *)
 ')
 ')

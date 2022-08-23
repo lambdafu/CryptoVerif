@@ -21,5 +21,5 @@ out(c, false)
 
 (* EXPECTED
 RESULT Could not prove event(e) ==> false.
-0.080s (user 0.080s + system 0.000s), max rss 15876K
+0.044s (user 0.040s + system 0.004s), max rss 15700K
 END *)

@@ -41,5 +41,5 @@ out(c, (xor(xor(zero, one), xor(two, xor(three, four))) = xor(xor(zero, one), xo
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.020s + system 0.008s), max rss 10416K
+0.028s (user 0.020s + system 0.008s), max rss 10820K
 END *)

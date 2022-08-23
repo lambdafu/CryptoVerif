@@ -182,5 +182,5 @@ equivalence
 
 (* EXPECTED FILENAME: examples/hpke/PRFODH/dhkem.auth.outsider-auth-lr.m4.ocv TAG: 1
 All queries proved.
-0.924s (user 0.916s + system 0.008s), max rss 30176K
+24.220s (user 24.176s + system 0.044s), max rss 64436K
 END *)

@@ -93,5 +93,5 @@ out(cEret[i_1], (beta, zeta))
 
 (* EXPECTED
 All queries proved.
-0.032s (user 0.028s + system 0.004s), max rss 10776K
+0.028s (user 0.028s + system 0.000s), max rss 11076K
 END *)

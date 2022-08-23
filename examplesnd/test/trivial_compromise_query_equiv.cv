@@ -60,5 +60,5 @@ query_equiv(uf_cma_corrupt(sign))
 All queries proved.
 EXPECTED
 RESULT Could not prove event(distinguish) ==> false.
-0.056s (user 0.040s + system 0.016s), max rss 17008K
+0.052s (user 0.048s + system 0.004s), max rss 17308K
 END *)

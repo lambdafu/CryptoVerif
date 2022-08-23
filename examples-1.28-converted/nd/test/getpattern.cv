@@ -12,5 +12,5 @@ out(c, y)
 
 (* EXPECTED
 All queries proved.
-0.028s (user 0.024s + system 0.004s), max rss 10484K
+0.016s (user 0.012s + system 0.004s), max rss 10672K
 END *)

@@ -96,5 +96,5 @@ out(c, (xor(t_2, r1_10) = r2_10))
 
 (* EXPECTED
 All queries proved.
-0.076s (user 0.068s + system 0.008s), max rss 11148K
+0.052s (user 0.048s + system 0.004s), max rss 12300K
 END *)

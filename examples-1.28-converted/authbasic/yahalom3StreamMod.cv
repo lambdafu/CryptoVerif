@@ -141,6 +141,6 @@ out(c12, ());
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
-1.356s (user 1.352s + system 0.004s), max rss 19164K
+RESULT Could not prove forall x: bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+1.372s (user 1.360s + system 0.012s), max rss 19372K
 END *)

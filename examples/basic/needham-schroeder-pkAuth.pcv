@@ -144,13 +144,13 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
-3.832s (user 3.804s + system 0.028s), max rss 36808K
+RESULT Could not prove forall x: bitstring; inj-event(fullB(A, x)) ==> inj-event(fullA(B, x)).
+3.636s (user 3.616s + system 0.020s), max rss 36684K
 END *)
 
 (* EXPECTPV
 RESULT inj-event(partA(B,x)) ==> inj-event(partB(A,x)) is true.
 RESULT inj-event(fullB(A,x)) ==> inj-event(fullA(B,x)) is false.
 RESULT (even event(fullB(A,x)) ==> event(fullA(B,x)) is false.)
-0.104s (user 0.096s + system 0.008s), max rss 13460K
+0.112s (user 0.092s + system 0.020s), max rss 13692K
 END *)

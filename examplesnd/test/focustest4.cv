@@ -187,6 +187,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
-0.336s (user 0.328s + system 0.008s), max rss 27244K
+RESULT Could not prove forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+0.436s (user 0.432s + system 0.004s), max rss 27304K
 END *)

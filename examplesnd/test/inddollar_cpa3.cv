@@ -913,6 +913,6 @@ else
 
 (* EXPECTED
 All queries proved.
-141.788s (user 141.516s + system 0.272s), max rss 109656K
+117.444s (user 117.192s + system 0.252s), max rss 95556K
 END *)
 

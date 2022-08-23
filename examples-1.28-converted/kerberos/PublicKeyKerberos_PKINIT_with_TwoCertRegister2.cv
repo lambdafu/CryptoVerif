@@ -421,6 +421,6 @@ out(c25, (pkC, spkC, spkK, pkCA, collkey));
 
 
 (* EXPECTED
-RESULT Could not prove event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, N, k', w, z, y)) ==> (k = k') with public variables keyAK.
-3.540s (user 3.516s + system 0.024s), max rss 36620K
+RESULT Could not prove forall z, y, x: maxmac, k', k: key, w: bitstring, N: nonce; event(fullCK(K, T, N, k, w, x, y)) && event(fullKC(C, T, N, k', w, z, y)) ==> (k = k') with public variables keyAK.
+3.620s (user 3.612s + system 0.008s), max rss 36572K
 END *)

@@ -227,5 +227,5 @@ LETFUN [pkS0 > pkS, skS0 > skS ] {
 
 (* EXPECTED
 All queries proved.
-2.776s (user 2.752s + system 0.024s), max rss 33104K
+2.796s (user 2.780s + system 0.016s), max rss 33096K
 END *)

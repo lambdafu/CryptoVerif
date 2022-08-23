@@ -150,5 +150,5 @@ out(ret, ());
 
 (* EXPECTED
 All queries proved.
-0.172s (user 0.172s + system 0.000s), max rss 12696K
+0.152s (user 0.148s + system 0.004s), max rss 13032K
 END *)

@@ -277,6 +277,6 @@ process
   )
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, na, nb)) ==> inj-event(beginA(x, y, na, nb)); inj-event(endA(x, y, na, nb)) ==> inj-event(beginB(x, y, na, nb)); event(endB(x, y, na, nb)) ==> event(beginA(x, y, na, nb)); event(endA(x, y, na, nb)) ==> event(beginB(x, y, na, nb)).
-0.200s (user 0.188s + system 0.012s), max rss 18136K
+RESULT Could not prove forall nb, na: nonce, y, x: address; inj-event(endB(x, y, na, nb)) ==> inj-event(beginA(x, y, na, nb)); forall nb, na: nonce, y, x: address; inj-event(endA(x, y, na, nb)) ==> inj-event(beginB(x, y, na, nb)); forall nb, na: nonce, y, x: address; event(endB(x, y, na, nb)) ==> event(beginA(x, y, na, nb)); forall nb, na: nonce, y, x: address; event(endA(x, y, na, nb)) ==> event(beginB(x, y, na, nb)).
+0.128s (user 0.120s + system 0.008s), max rss 18440K
 END *)

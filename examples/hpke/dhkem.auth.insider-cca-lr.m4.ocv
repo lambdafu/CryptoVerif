@@ -178,5 +178,5 @@ equivalence
 
 (* EXPECTED FILENAME: examples/hpke/dhkem.auth.insider-cca-lr.m4.ocv TAG: 1
 All queries proved.
-0.988s (user 0.980s + system 0.008s), max rss 30224K
+0.572s (user 0.548s + system 0.024s), max rss 30028K
 END *)

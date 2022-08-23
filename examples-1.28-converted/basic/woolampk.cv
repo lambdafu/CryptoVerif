@@ -122,6 +122,6 @@ out(c13, (pkA, pkB, pkS));
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, z)) ==> inj-event(beginA(y)); inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)); event(endB(x, y, z)) ==> event(beginA(y)); event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
-0.068s (user 0.068s + system 0.000s), max rss 11704K
+RESULT Could not prove forall z: nonce, y, x: host; inj-event(endB(x, y, z)) ==> inj-event(beginA(y)); forall z: nonce, y, x: host; inj-event(endB(x, y, z)) ==> inj-event(beginAfull(x, y, z)); forall z: nonce, y, x: host; event(endB(x, y, z)) ==> event(beginA(y)); forall z: nonce, y, x: host; event(endB(x, y, z)) ==> event(beginAfull(x, y, z)).
+0.096s (user 0.088s + system 0.008s), max rss 12972K
 END *)

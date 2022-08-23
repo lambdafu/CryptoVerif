@@ -746,5 +746,5 @@ process
 
 (* EXPECTED FILENAME: examples/arinc823/publickey/arinc823-public-key.fixed.SECRECY.m4.cv TAG: 1
 All queries proved.
-3665.932s (user 3665.444s + system 0.488s), max rss 925704K
+4212.028s (user 4211.636s + system 0.392s), max rss 911384K
 END *)

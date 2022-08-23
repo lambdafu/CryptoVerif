@@ -177,6 +177,6 @@ out(start, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
-1.708s (user 1.692s + system 0.016s), max rss 22600K
+RESULT Could not prove forall k: key, y, x: host; event(endA(x, y, k)) ==> event(beginBkey(x, y, k)).
+1.756s (user 1.744s + system 0.012s), max rss 22684K
 END *)

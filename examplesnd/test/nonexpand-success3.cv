@@ -18,6 +18,6 @@ process
    | (!N in(c,()); find j <= N suchthat defined(b[j],x[j],y[j]) then event e2(x[j]))
 
 (* EXPECTED
-RESULT Could not prove event(e2(x)) ==> event(e1(x)).
-0.084s (user 0.084s + system 0.000s), max rss 15868K
+RESULT Could not prove forall x: bitstring; event(e2(x)) ==> event(e1(x)).
+0.080s (user 0.076s + system 0.004s), max rss 15704K
 END *)

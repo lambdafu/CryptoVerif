@@ -120,6 +120,6 @@ out(c13, (pkA, pkB, pkS));
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
-0.064s (user 0.060s + system 0.004s), max rss 12524K
+RESULT Could not prove forall y: bitstring; inj-event(fullB(A, y)) ==> inj-event(fullA(B, y)).
+0.092s (user 0.088s + system 0.004s), max rss 12936K
 END *)

@@ -144,6 +144,6 @@ process
 	 (! N processS(Kas, mKas, Kbs, mKbs)))
 
 (* EXPECTED
-RESULT Could not prove inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)).
-0.192s (user 0.180s + system 0.012s), max rss 12640K
+RESULT Could not prove forall k: key, n: nonce, y, x: host; inj-event(endB(x, y, n, k)) ==> inj-event(beginA(x, y, n)).
+0.200s (user 0.192s + system 0.008s), max rss 13368K
 END *)

@@ -67,5 +67,5 @@ out(c0, pk);
 
 (* EXPECTED
 RESULT Could not prove event(non_unique) ==> false.
-0.080s (user 0.080s + system 0.000s), max rss 15876K
+0.052s (user 0.048s + system 0.004s), max rss 11784K
 END *)

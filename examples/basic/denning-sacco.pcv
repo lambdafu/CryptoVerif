@@ -94,11 +94,11 @@ event fullA(host, shkey, bitstring).
 event fullB(host, shkey, bitstring).
 
 query secret keyA.
-query x: bitstring, k: shkey;
+query forall x: bitstring, k: shkey;
   inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) public_vars keyA. (* WRONG: replay attack *)
-query x: bitstring, k: shkey;
+query forall x: bitstring, k: shkey;
   event(fullB(A, k, x)) ==> event(fullA(B, k, x)) public_vars keyA.
-query k': shkey, x: bitstring, k: shkey;
+query forall k': shkey, x: bitstring, k: shkey;
   event(fullB(A, k, x)) && event(fullA(B, k', x)) ==> (k = k') public_vars keyA.
   
 let processA(pkA: spkey, skA: sskey, pkS: spkey) =
@@ -173,8 +173,8 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
-0.796s (user 0.788s + system 0.008s), max rss 28308K
+RESULT Could not prove forall x: bitstring, k: shkey; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+0.756s (user 0.748s + system 0.008s), max rss 27392K
 END *)
 
 (* EXPECTPV

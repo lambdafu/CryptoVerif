@@ -163,5 +163,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB; secrecy of keyA.
-6.228s (user 6.204s + system 0.024s), max rss 36672K
+8.956s (user 8.936s + system 0.020s), max rss 36652K
 END *)

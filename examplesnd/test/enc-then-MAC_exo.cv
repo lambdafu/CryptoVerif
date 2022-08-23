@@ -17,5 +17,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove secrecy of b.
-0.076s (user 0.072s + system 0.004s), max rss 15740K
+0.056s (user 0.048s + system 0.008s), max rss 15644K
 END *)

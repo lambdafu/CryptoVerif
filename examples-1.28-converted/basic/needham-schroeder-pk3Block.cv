@@ -155,5 +155,5 @@ RESULT Could not prove secrecy of NbB, secrecy of NbA, one-session secrecy of Nb
 END
 EXPECTED
 RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA; one-session secrecy of NbB; one-session secrecy of NbA; one-session secrecy of NaB; one-session secrecy of NaA.
-6.208s (user 6.192s + system 0.016s), max rss 22648K
+6.372s (user 6.372s + system 0.000s), max rss 24884K
 END *)

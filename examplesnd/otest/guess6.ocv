@@ -389,5 +389,5 @@ process
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of k0.
-0.076s (user 0.076s + system 0.000s), max rss 16900K
+0.072s (user 0.064s + system 0.008s), max rss 16972K
 END *)

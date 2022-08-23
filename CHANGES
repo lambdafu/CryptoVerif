@@ -3,25 +3,30 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Allow explicit quantifiers in correspondence queries:
+  forall xi:Ti; ... ==> exists yj:T'j; ...  
+  (This is now the recommended syntax. The old syntax is still
+  accepted for compatibility.)
 - Allow _ in patterns.
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
 - Removed command "remove_assign all", useless in practice.
-- New command "SArename new", previously included in "remove_assign".
-- Display a warning when correspondence queries do not satisfy a well-formedness
-  condition (the conclusion of the correspondence must be uniquely determined
-  given the events in the hypothesis).
+- New command "SArename random", previously included in "remove_assign".
+- Display a warning when correspondence queries do not satisfy a
+  well-formedness condition (the conclusion of the correspondence must
+  be uniquely determined given the events in the hypothesis).
 - Fixed bugs related to the fact that terms may abort.
-- Fixed bugs in guess transformation: injectivity was proved in the initial
-  game instead of the current game; use compatibility information between
-  program points to prove injectivity.
+- Fixed bugs in guess transformation: injectivity was proved in the
+  initial game instead of the current game; use compatibility
+  information between program points to prove injectivity.
 - Fixed bug in guess_branch transformation: branches of find were not
   computed correctly.
-- Fixed bug in proof of injectivity when there are several events before ==>.
-- Fixed bug: events were not preserved in the initial transformation of
-  the RHS in equivalence proofs.
-- Fixed internal error in the command "success simplify" when there is no
-  query.
+- Fixed bug in proof of injectivity when there are several events
+  before ==>.
+- Fixed bug: events were not preserved in the initial transformation
+  of the RHS in equivalence proofs.
+- Fixed internal error in the command "success simplify" when there is
+  no query.
 
 Version 2.06
 

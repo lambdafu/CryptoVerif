@@ -638,24 +638,24 @@ ifdef(`REPLAY_PROT',`
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-AB-BA.m4.cv TAG: 1
 All queries proved.
-116.044s (user 115.908s + system 0.136s), max rss 354248K
+105.616s (user 105.484s + system 0.132s), max rss 348832K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-AB-BA.m4.cv TAG: 2
 All queries proved.
-59.344s (user 59.248s + system 0.096s), max rss 200144K
+59.256s (user 59.168s + system 0.088s), max rss 203276K
 END *)
 ')
 ',`
 ifdef(`STD',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-AB-BA.m4.cv TAG: 3
-RESULT Could not prove inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)) with public variables secb.
-132.228s (user 132.024s + system 0.204s), max rss 405560K
+RESULT Could not prove forall m: bitstring, a2, a1, sb, b0, a0: G, bs, as: pkey; inj-event(Recv3(a0, as, b0, bs, sb, a1, a2, m)) ==> inj-event(Send3(a0, as, b0, bs, sb, a1, a2, m)) with public variables secb.
+130.924s (user 130.780s + system 0.144s), max rss 399652K
 END *)
 ',`
 (* EXPECTED FILENAME: examplesnd/textsecure/TextSecure-AB-BA.m4.cv TAG: 4
 All queries proved.
-60.732s (user 60.608s + system 0.124s), max rss 180560K
+59.208s (user 59.132s + system 0.076s), max rss 189136K
 END *)
 ')
 ')

@@ -164,5 +164,5 @@ out(c15, (pkA, pkB, pkS));
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB; one-session secrecy of keyB.
-32.180s (user 32.172s + system 0.008s), max rss 41048K
+30.964s (user 30.936s + system 0.028s), max rss 41052K
 END *)

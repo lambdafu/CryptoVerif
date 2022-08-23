@@ -316,9 +316,9 @@ process
 
 
 
-(* EXPECTED FILENAME: examples/textsecure/TextSecure-AB-BA.m4.cv TAG: 1
+(* EXPECTED
 All queries proved.
-64.836s (user 64.784s + system 0.052s), max rss 121584K
+70.992s (user 70.948s + system 0.044s), max rss 105708K
 END *)
 
 

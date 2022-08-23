@@ -162,6 +162,6 @@ out(start, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(fullA(B, k, x)) && event(fullB(A, k', x)) ==> (k = k') with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA.
-0.920s (user 0.916s + system 0.004s), max rss 19148K
+RESULT Could not prove forall k', k: key, x: bitstring; event(fullA(B, k, x)) && event(fullB(A, k', x)) ==> (k = k') with public variables keyA; forall x: bitstring, k: key; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; forall x: bitstring; inj-event(partA(B, x)) ==> inj-event(partB(A, x)) with public variables keyA; forall x: bitstring, k: key; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA.
+1.024s (user 1.012s + system 0.012s), max rss 19384K
 END *)

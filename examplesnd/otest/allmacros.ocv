@@ -312,5 +312,5 @@ process O1() := return()
 
 (* EXPECTED
 All queries proved.
-0.340s (user 0.332s + system 0.008s), max rss 36712K
+0.308s (user 0.304s + system 0.004s), max rss 36560K
 END *)

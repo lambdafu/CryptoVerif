@@ -182,6 +182,6 @@ out(c7, (pkA, pkB, pkS));
 
 
 (* EXPECTED
-RESULT Could not prove event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
-1.444s (user 1.436s + system 0.008s), max rss 19128K
+RESULT Could not prove forall x: bitstring, k: shkey; event(fullB(A, k, x)) ==> event(fullA(B, k, x)) with public variables keyA; forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA; secrecy of keyA.
+1.480s (user 1.472s + system 0.008s), max rss 18072K
 END *)

@@ -28,5 +28,5 @@ out(c4, x)
 
 (* EXPECTED
 All queries proved.
-0.008s (user 0.008s + system 0.000s), max rss 10468K
+0.008s (user 0.004s + system 0.004s), max rss 10760K
 END *)

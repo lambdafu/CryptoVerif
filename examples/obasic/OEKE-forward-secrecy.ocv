@@ -272,5 +272,5 @@ Proved secrecy of sk_u_secret up to probability
 
 (* EXPECTED
 All queries proved.
-8.744s (user 8.728s + system 0.016s), max rss 72552K
+8.404s (user 8.384s + system 0.020s), max rss 72876K
 END *)

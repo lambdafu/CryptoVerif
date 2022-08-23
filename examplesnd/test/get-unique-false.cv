@@ -172,7 +172,7 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove event(non_unique_1) ==> false with public variables keyA; event(non_unique) ==> false with public variables keyA; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
-0.080s (user 0.080s + system 0.000s), max rss 15876K
+RESULT Could not prove event(non_unique_1) ==> false with public variables keyA; event(non_unique) ==> false with public variables keyA; forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> inj-event(fullA(B, k, x)) with public variables keyA.
+0.168s (user 0.164s + system 0.004s), max rss 22764K
 END *)
 

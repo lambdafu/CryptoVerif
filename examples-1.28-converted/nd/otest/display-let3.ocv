@@ -9,5 +9,5 @@ return(r)
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.016s + system 0.004s), max rss 10388K
+0.008s (user 0.004s + system 0.004s), max rss 10768K
 END *)

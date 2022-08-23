@@ -372,5 +372,5 @@ out(c25, ());
 
 (* EXPECTED
 RESULT Could not prove one-session secrecy of b1.
-3.748s (user 3.740s + system 0.008s), max rss 29792K
+3.916s (user 3.900s + system 0.016s), max rss 33016K
 END *)

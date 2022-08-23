@@ -287,6 +287,6 @@ out(c25, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(fullTC(C, S, N, k', x', z', v, y)) && event(fullCT(T, S, N, k, x, z, y)) ==> (k = k') with public variables keySK, keyTSK.
-0.608s (user 0.592s + system 0.016s), max rss 20656K
+RESULT Could not prove forall z, x, y, v, z', x': bitstring, k, k': key, N: nonce; event(fullTC(C, S, N, k', x', z', v, y)) && event(fullCT(T, S, N, k, x, z, y)) ==> (k = k') with public variables keySK, keyTSK.
+0.704s (user 0.688s + system 0.016s), max rss 20896K
 END *)

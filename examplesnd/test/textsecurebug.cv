@@ -495,8 +495,8 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove inj-event(Recv(a0, as, b0, bs, sb, ob, a1, a2, m)) ==> (inj-event(Send(a0, as, b0, bs, sb, ob2, a12, a2, m)) && ((pow8(ob) = pow8(ob2)) && (pow8(a1) = pow8(a12)))) with public variables secb.
-12.092s (user 12.068s + system 0.024s), max rss 64928K
+RESULT Could not prove forall m: bitstring, a2, a1, ob, sb, b0, a0: G, bs, as: pkey; inj-event(Recv(a0, as, b0, bs, sb, ob, a1, a2, m)) ==> exists a12, ob2: G; (inj-event(Send(a0, as, b0, bs, sb, ob2, a12, a2, m)) && ((pow8(ob) = pow8(ob2)) && (pow8(a1) = pow8(a12)))) with public variables secb.
+11.896s (user 11.876s + system 0.020s), max rss 64388K
 END *)
 
 

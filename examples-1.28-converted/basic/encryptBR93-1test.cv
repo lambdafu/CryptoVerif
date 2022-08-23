@@ -84,5 +84,5 @@ out(hret, ());
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.016s + system 0.004s), max rss 10840K
+0.024s (user 0.016s + system 0.008s), max rss 11288K
 END *)

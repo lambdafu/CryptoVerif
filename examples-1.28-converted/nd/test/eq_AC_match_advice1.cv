@@ -30,5 +30,5 @@ out(c, h(concat(z, t)))
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.016s + system 0.004s), max rss 10496K
+0.028s (user 0.016s + system 0.012s), max rss 10796K
 END *)

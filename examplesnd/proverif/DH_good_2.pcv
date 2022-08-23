@@ -14,10 +14,10 @@ process
 
 (* EXPECTED
 All queries proved.
-0.072s (user 0.068s + system 0.004s), max rss 15968K
+0.036s (user 0.032s + system 0.004s), max rss 16680K
 END *)
 
 (* EXPECTPV
 RESULT not event(bad) is true.
-0.020s (user 0.012s + system 0.008s), max rss 9544K
+0.016s (user 0.012s + system 0.004s), max rss 10588K
 END *)

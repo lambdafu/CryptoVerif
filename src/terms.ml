@@ -346,6 +346,11 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
   | Insert(tbl,tl,p) ->
       (List.exists f_term tl) || (f p)
 
+let exists_qterm f f_term = function
+  | QEvent(_,t) -> f_term t
+  | QTerm t -> f_term t
+  | QAnd(t1,t2) | QOr(t1,t2) ->
+      f t1 || f t2
 	
 (* Create an interval type from a parameter *)
 
@@ -2647,6 +2652,9 @@ let rec refers_to_fungroup b = function
       List.exists (refers_to_fungroup b) funlist
   | Fun(_,_,res,_) -> refers_to b res
 
+let rec refers_to_qterm b t = 
+  exists_qterm (refers_to_qterm b) (refers_to b) t
+	
 let refers_to_nodef b0 t =
   no_def := true;
   let res = refers_to b0 t in
@@ -2659,6 +2667,44 @@ let refers_to_process_nodef b0 p =
   no_def := false;
   res
 
+(* Collect variables from correspondence queries *)
+
+let rec collect_vars accu t =
+  match t.t_desc with
+    Var(b,[]) -> if not (List.memq b (!accu)) then accu := b :: (!accu)
+  | FunApp(f,l) -> List.iter (collect_vars accu) l
+  | _ -> Parsing_helper.internal_error "expecting variable or function in collect_vars"
+
+let collect_vars_hyp t1 =
+  let vars_t1 = ref [] in
+  List.iter (fun (_, t) -> collect_vars vars_t1 t) t1;
+  (!vars_t1)
+
+(* Collect universal and existential variables of a correspondence query for display *)
+    
+let collect_vars_event accu t =
+  match t.t_desc with
+  | FunApp(_,idx::l) ->
+      (* Do not display replication index variables *)
+      List.iter (collect_vars accu) l
+  | _ -> assert false
+    
+let rec collect_vars_qterm accu = function
+  | QEvent(_,t) -> collect_vars_event accu t 
+  | QTerm t -> collect_vars accu t
+  | QAnd(t1,t2) | QOr(t1,t2) -> 
+      collect_vars_qterm accu t1;
+      collect_vars_qterm accu t2
+
+let collect_vars_corresp t1 t2 =
+  let vars_t1 = ref [] in
+  List.iter (fun (_, t) -> collect_vars_event vars_t1 t) t1;
+  let vars_t1 = (!vars_t1) in
+  let vars_t2 = ref [] in
+  collect_vars_qterm vars_t2 t2;
+  let exists = List.filter (fun b -> not (List.memq b vars_t1)) (!vars_t2) in
+  (vars_t1, exists)
+					    
 (* Extract defined variables from a pattern *)
 
 let rec vars_from_pat accu = function
@@ -2671,7 +2717,7 @@ and vars_from_pat_list accu = function
   | (a::l) -> vars_from_pat_list (vars_from_pat accu a) l
 
 
-(* Test if a variable occurs in a pattern *)
+(* Test if a variable occurs (in pattern position) in a pattern *)
 
 let rec occurs_in_pat b = function
     PatVar b' -> b' == b

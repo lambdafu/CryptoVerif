@@ -129,5 +129,5 @@ process
 
 (* EXPECTED FILENAME: examples/hpke/hpke.auth.outsider-auth.m4.ocv TAG: 1
 All queries proved.
-0.696s (user 0.692s + system 0.004s), max rss 33280K
+0.596s (user 0.588s + system 0.008s), max rss 33068K
 END *)

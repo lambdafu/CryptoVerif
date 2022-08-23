@@ -41,5 +41,5 @@ out(c, (mult(mult(zero, one), inv(mult(two, mult(zero, one)))) = mult(mult(zero,
 
 (* EXPECTED
 All queries proved.
-0.024s (user 0.020s + system 0.004s), max rss 10568K
+0.028s (user 0.028s + system 0.000s), max rss 10812K
 END *)

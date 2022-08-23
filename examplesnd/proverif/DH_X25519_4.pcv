@@ -15,10 +15,10 @@ process
 
 (* EXPECTED
 RESULT Could not prove event(bad) ==> false.
-0.076s (user 0.076s + system 0.000s), max rss 16484K
+0.068s (user 0.064s + system 0.004s), max rss 16772K
 END *)
 
 (* EXPECTPV
 RESULT not event(bad) is false.
-0.028s (user 0.028s + system 0.000s), max rss 9600K
+0.020s (user 0.020s + system 0.000s), max rss 10616K
 END *)

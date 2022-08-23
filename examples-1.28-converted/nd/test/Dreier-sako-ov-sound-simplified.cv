@@ -61,5 +61,5 @@ event bad
  
 (* EXPECTED
 All queries proved.
-0.016s (user 0.016s + system 0.000s), max rss 10388K
+0.028s (user 0.020s + system 0.008s), max rss 10744K
 END *)

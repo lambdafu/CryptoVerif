@@ -371,11 +371,11 @@ process
 ifdef(`REPLAY_PROT',`
 (* EXPECTED FILENAME: examples/textsecure/TextSecure.m4.cv TAG: 1
 All queries proved.
-206.132s (user 206.084s + system 0.048s), max rss 139032K
+141.012s (user 140.964s + system 0.048s), max rss 136764K
 END *)
 ',`
 (* EXPECTED FILENAME: examples/textsecure/TextSecure.m4.cv TAG: 2
-RESULT Could not prove inj-event(Recv3(Bcorrupted, a0, as, b0, bs, sb, a1, a2, m)) ==> (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(a1) = pow8(a12)) && ((pow8(sb) = pow8(sb2)) && (Bcorrupted || (sb = sb2))))) with public variables secb.
-194.980s (user 194.932s + system 0.048s), max rss 139124K
+RESULT Could not prove forall m: bitstring, a2, a1, sb, b0, a0: G, bs, as: pkey, Bcorrupted: bool; inj-event(Recv3(Bcorrupted, a0, as, b0, bs, sb, a1, a2, m)) ==> exists a12, sb2: G; (inj-event(Send3(a0, as, b0, bs, sb2, a12, a2, m)) && ((pow8(a1) = pow8(a12)) && ((pow8(sb) = pow8(sb2)) && (Bcorrupted || (sb = sb2))))) with public variables secb.
+133.152s (user 133.076s + system 0.076s), max rss 136748K
 END *)
 ')

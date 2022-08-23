@@ -472,7 +472,7 @@ process
 
 (* EXPECTED
 All queries proved.
-16.192s (user 16.164s + system 0.028s), max rss 94136K
+17.204s (user 17.156s + system 0.048s), max rss 93324K
 END *)
 
 (* EXPECTPV
@@ -481,5 +481,5 @@ RESULT event(partTC(C,x,y_1)) ==> event(partCT(T,x',y_1)) && event(fullKC(C,T,N,
 RESULT inj-event(fullCT(K,T,S,N,x,z,y_1)) ==> inj-event(fullTC(C,S,N,x',z',v_2,y_1)) is true.
 RESULT event(partSC(C,z,y_1)) ==> event(partCS(S,T,x,y_1)) && event(fullTC(C,S,N,v_2,v',z,w)) is true.
 RESULT event(fullCS(S,T,K,z,y_1,w)) ==> event(fullSC(C,x,y'_1,w)) is true.
-287.900s (user 284.944s + system 2.956s), max rss 4038860K
+259.168s (user 257.736s + system 1.432s), max rss 2938236K
 END *)

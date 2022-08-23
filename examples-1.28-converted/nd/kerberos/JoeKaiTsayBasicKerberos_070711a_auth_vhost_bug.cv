@@ -292,6 +292,6 @@ out(c20, ());
 
 
 (* EXPECTED
-RESULT Could not prove event(partSC(C, z, y)) ==> (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, z, v', w))).
-3.944s (user 3.920s + system 0.024s), max rss 36580K
+RESULT Could not prove forall y, z: maxmac; event(partSC(C, z, y)) ==> exists w, v', v, x: maxmac, N: nonce; (event(partCS(S, T, x, y)) && event(fullTC(C, S, N, v, z, v', w))).
+3.912s (user 3.884s + system 0.028s), max rss 36524K
 END *)

@@ -150,5 +150,5 @@ out(c, ());
 
 (* EXPECTED
 RESULT Could not prove secrecy of keyB; secrecy of keyA.
-1.672s (user 1.664s + system 0.008s), max rss 20724K
+1.692s (user 1.692s + system 0.000s), max rss 20788K
 END *)

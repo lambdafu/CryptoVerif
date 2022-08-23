@@ -121,5 +121,5 @@ else
 
 (* EXPECTED
 RESULT Could not prove secrecy of bv.
-0.032s (user 0.024s + system 0.008s), max rss 10796K
+0.012s (user 0.012s + system 0.000s), max rss 11148K
 END *)

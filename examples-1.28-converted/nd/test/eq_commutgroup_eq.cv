@@ -36,5 +36,5 @@ out(c, (mult(zero, mult(one, two)) = inv(mult(zero, mult(one, two)))))
 
 (* EXPECTED
 All queries proved.
-0.020s (user 0.020s + system 0.000s), max rss 10452K
+0.016s (user 0.012s + system 0.004s), max rss 10804K
 END *)

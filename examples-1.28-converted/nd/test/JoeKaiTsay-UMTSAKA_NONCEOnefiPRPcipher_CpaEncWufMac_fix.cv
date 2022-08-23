@@ -356,5 +356,5 @@ out(start, ());
  
 (* EXPECTED
 RESULT Could not prove one-session secrecy of keyS2; one-session secrecy of keyS1; one-session secrecy of keyU2; one-session secrecy of keyU1.
-0.948s (user 0.924s + system 0.024s), max rss 22084K
+0.948s (user 0.948s + system 0.000s), max rss 22736K
 END *)

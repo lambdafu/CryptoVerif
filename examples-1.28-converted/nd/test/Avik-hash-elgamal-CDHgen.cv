@@ -114,5 +114,5 @@ out(cPK[i_1], alpha);
 
 (* EXPECTED
 All queries proved.
-0.044s (user 0.032s + system 0.012s), max rss 11064K
+0.032s (user 0.028s + system 0.004s), max rss 11416K
 END *)
