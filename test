@@ -9,9 +9,9 @@ then
     exit 2
 fi
 
-if [ -d /local/$USER/tmp ]
+if [ -d /local/"$USER"/tmp ]
 then
-    TMPPARENT=/local/$USER/tmp
+    TMPPARENT=/local/"$USER"/tmp
 else
     TMPPARENT=.
 fi
