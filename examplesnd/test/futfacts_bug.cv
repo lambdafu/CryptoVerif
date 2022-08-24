@@ -1,0 +1,31 @@
+(* The correspondence event(e1) ==> event(e2) is wrong because
+   the find[unique] may abort, so e2 may not be executed.
+   Event e2 is still present in the future facts of "event e1".
+   Is that a bug?
+   The final result output by CV is that the property is not
+   proved, because find[unique] is not proved, so it may actually
+   not be a bug... *)
+
+param N.
+
+channel c.
+
+event e1.
+event e2.
+
+query event(e1) ==> event(e2).
+
+process
+  !N
+  in(c, x:bitstring);
+  event e1;
+  find[unique] j <= N suchthat defined(y[j],x[j]) && x[j] = x then
+     (let y:bool = true in
+     event e2)
+  else
+     event e2
+
+(* EXPECTED
+RESULT Could not prove event(non_unique) ==> false.
+0.084s (user 0.076s + system 0.008s), max rss 16680K
+END *)
