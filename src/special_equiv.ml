@@ -39,7 +39,7 @@ let rec instan_time get_time p =
   in
   Polynom.p_sum (List.map (function
     | SetProba p -> aux p
-    | SetEvent _ | SetAssume -> assert false) p)
+    | SetEvent _ -> assert false) p)
 
 (* Generate the equivalence for the command "move array" *)
   
@@ -82,7 +82,7 @@ let simplify_indep_new (s,ext_s) (forall, restr_l, t1) =
 	  let (t2', dep_types, indep_types) = Depanal.is_indep Terms.simp_facts_id bdepinfo t2 in
 	  (* We eliminate collisions because t1 characterizes restr and t2 does not depend on restr *)
 	  (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-	  if Depanal.add_term_collisions ([], [], Terms.make_true()) t1'' t2' restr (Some []) (probaf, dep_types, t2.t_type, indep_types) then
+	  if Depanal.add_term_collisions ([], lazy [], Terms.make_true()) t1'' t2' restr (Some []) (probaf, dep_types, t2.t_type, indep_types) then
 	    Some (Terms.make_false())
 	  else
             None

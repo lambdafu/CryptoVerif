@@ -245,7 +245,7 @@ let rec make_and_efl_list = function
    [var_list] *)
 
 let refers_to_fact b (bl, def_list, tl) = 
-  List.exists (Terms.refers_to_br b) def_list ||
+  Terms.refers_to_def_list b def_list ||
   List.exists (Terms.refers_to b) tl
   
 let filter_efl var_list f =
@@ -431,7 +431,7 @@ let refers_to_fact b = function
   | FTerm t -> Terms.refers_to b t
   | FDefined br -> Terms.refers_to_br b br
   | FElseFind(bl, def_list, t) ->
-      (List.exists (Terms.refers_to_br b) def_list) ||
+      (Terms.refers_to_def_list b def_list) ||
       (Terms.refers_to b t)
 	
 let filter_sure var_list f =
@@ -453,10 +453,13 @@ let rec refers_to_ri ri0 t =
 	TLink t -> refers_to_ri ri t
       | _ -> false)
   | _ -> false) ||
-  (Terms.exists_subterm (refers_to_ri ri0) (refers_to_ri_br ri0) (refers_to_ri_pat ri0) t)
+  (Terms.exists_subterm (refers_to_ri ri0) (refers_to_ri_def_list ri0) (refers_to_ri_pat ri0) t)
 
 and refers_to_ri_br ri0 (_,l) =
   List.exists (refers_to_ri ri0) l
+
+and refers_to_ri_def_list ri0 def_list =
+  List.exists (refers_to_ri_br ri0) def_list
 
 and refers_to_ri_pat ri0 pat =
   Terms.exists_subpat (refers_to_ri ri0) (refers_to_ri_pat ri0) pat
@@ -465,7 +468,7 @@ let refers_to_ri_fact ri0 = function
   | FTerm t -> refers_to_ri ri0 t
   | FDefined br -> refers_to_ri_br ri0 br
   | FElseFind(bl, def_list, t) ->
-      (List.exists (refers_to_ri_br ri0) def_list) ||
+      (refers_to_ri_def_list ri0 def_list) ||
       (refers_to_ri ri0 t)
 	
 let filter_sure_ri ri_list f =

@@ -542,9 +542,7 @@ let get_time() =
     
 let rec collect_array_indexes accu t =
   match t.t_desc with
-    ReplIndex(b) ->
-	if not (List.memq b (!accu)) then
-	  accu := b:: (!accu)
+    ReplIndex(b) -> Terms.addq_ref accu b
   | Var(b,l) -> List.iter (collect_array_indexes accu) l
   | FunApp(f,l) -> List.iter (collect_array_indexes accu) l
   | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in collect_array_indexes"
@@ -916,7 +914,7 @@ let add_proba_red coll_statement restr_indep_map any_var_map =
 let rec is_time = function
   | Proba _ | Count _ | OCount _ | Card _ | Maxlength _ | TypeMaxlength _
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | Length _
-  | Zero | Cst _ | Power _ ->
+  | Zero | Cst _ | Power _ | Advt _ | ProbaAssume ->
       false
   | AttTime | Time _ | ActTime _ -> true	
   | Add(x,y) | Sub(x,y) | Mul(x,y) | OptimIf(_,x,y) -> 

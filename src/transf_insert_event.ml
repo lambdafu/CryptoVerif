@@ -13,8 +13,9 @@ let no_insert_eventt state t =
   if (state.occ >= t.t_occ) && (state.occ <= t.t_max_occ) then
     raise (Parsing_helper.Error("Cannot insert an event in a defined condition or in a channel of input", state.ext_o))
   
-let no_insert_eventbr state (b,l) =
-  List.iter (no_insert_eventt state) l
+let no_insert_event_def_list state def_list =
+  List.iter (fun (b,l) -> List.iter (no_insert_eventt state) l) def_list;
+  def_list
   
 let rec insert_eventpat state = function
     PatVar b -> PatVar b
@@ -32,56 +33,19 @@ and insert_eventt state t =
     (* We are sure that [occ] is not inside [t] *) 
     t
   else
-    Terms.build_term t (
-    match t.t_desc with
-    | Var(b,l) -> Var(b, List.map (insert_eventt state) l)
-    | (ReplIndex _ | EventAbortE _) as x -> x
-    | FunApp(f,l) -> FunApp(f, List.map (insert_eventt state) l)
-    | ResE(b,p) -> ResE(b, insert_eventt state p)
-    | EventE(t,p) -> EventE(insert_eventt state t,
-			    insert_eventt state p)
-    | GetE _ | InsertE _ ->
-	Parsing_helper.internal_error "get, insert should not occur as term"
-    | TestE(t1,t2,t3) ->
-	TestE(insert_eventt state t1,
-	      insert_eventt state t2,
-	      insert_eventt state t3)
-    | LetE(pat,t1,t2,topt) ->
-	let t2' = insert_eventt state t2 in
-	let topt' = 
-	  match topt with
-	    None -> None
-	  | Some t3 -> Some (insert_eventt state t3)
-	in
-	let pat' = insert_eventpat state pat  in
-	let t1' = insert_eventt state t1 in
-	LetE(pat',t1',t2',topt')
-    | FindE(l0,t3, find_info) ->
-	let t3' = insert_eventt state t3 in
-	let l0' = List.map (fun (bl, def_list, tc, p)  ->
-	  List.iter (no_insert_eventbr state) def_list;
-	  (bl, def_list, insert_eventt state tc, insert_eventt state p)
-	    ) l0 
-	in
-	FindE(l0',t3',find_info))
+    Terms.build_term t (Terms.map_subterm (insert_eventt state)
+			  (no_insert_event_def_list state) (insert_eventpat state) t)
 
 let rec insert_eventi state p =
   if (state.occ < p.i_occ) || (state.occ > p.i_max_occ) then
     (* We are sure that [occ] is not inside [p] *) 
     p
   else
-    Terms.iproc_from_desc (
-    match p.i_desc with
-      Nil -> Nil
-    | Par(p1,p2) -> 
-	Par(insert_eventi state p1,
-	    insert_eventi state p2)
-    | Repl(b,p) ->
-	Repl(b, insert_eventi state p)
-    | Input((c,tl), pat, p) ->
+    Terms.iproc_from_desc
+      (Terms.map_subiproc (insert_eventi state) (fun (c,tl) pat p ->
 	List.iter (no_insert_eventt state) tl;
-	Input((c,tl), insert_eventpat state pat,
-	      insert_evento state p))
+	((c,tl), insert_eventpat state pat,
+	 insert_evento state p)) p)
 
 and insert_evento state p =
   if p.p_occ == state.occ then
@@ -93,33 +57,10 @@ and insert_evento state p =
     (* We are sure that [occ] is not inside [p] *) 
     p
   else
-    Terms.oproc_from_desc (
-    match p.p_desc with
-      Yield -> Yield
-    | EventAbort _ as x -> x
-    | Restr(b,p) -> Restr(b, insert_evento state p)
-    | Test(t,p1,p2) -> Test(insert_eventt state t,
-			    insert_evento state p1,
-			    insert_evento state p2)
-    | Find(l0,p2,find_info) ->
-	Find(List.map (fun (bl,def_list,t,p1) ->
-	  List.iter (no_insert_eventbr state) def_list;
-	  (bl,def_list,insert_eventt state t,
-	   insert_evento state p1)) l0,
-	     insert_evento state p2, find_info)
-    | Output((c,tl),t,p) ->
-	Output((c, List.map (insert_eventt state) tl),
-	       insert_eventt state t,
-	       insert_eventi state p)
-    | Let(pat,t,p1,p2) ->
-	Let(insert_eventpat state pat,
-	    insert_eventt state t,
-	    insert_evento state p1,
-	    insert_evento state p2)
-    | EventP(t,p) ->
-	EventP(insert_eventt state t,
-	       insert_evento state p)
-    | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here")
+    Terms.oproc_from_desc
+      (Terms.map_suboproc (insert_evento state) (insert_eventt state)
+	 (no_insert_event_def_list state) (insert_eventpat state)
+	 (insert_eventi state) p)
 
 let get_event queries (s, ext_s) = 
   try

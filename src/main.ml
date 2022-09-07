@@ -4,15 +4,6 @@ let front_end_set = ref false
 
 (* Prepare the equation statements given by the user *)
 
-let rec get_vars accu t =
-  match t.t_desc with
-    Var(b,[]) -> 
-      if not (List.memq b (!accu)) then 
-	accu := b :: (!accu)
-  | FunApp(_,l) ->
-      List.iter (get_vars accu) l
-  | _ -> Parsing_helper.internal_error "statement terms should contain only Var and FunApp\n"
-
 let record_statement (vl, t1, t2, side_cond) =
   match t1.t_desc with
     FunApp(f, l) ->
@@ -81,8 +72,8 @@ let simplify_statement (vl, t, side_cond) =
       match t'.t_desc with
 	FunApp(f, [t1;t2]) when f.f_cat == Equal ->
 	  let vars = ref [] in
-	  get_vars vars t2;
-	  get_vars vars side_cond';
+	  Terms.collect_vars vars t2;
+	  Terms.collect_vars vars side_cond';
 	  if not (List.for_all (fun b ->
 	    Terms.refers_to b t1
 	      ) (!vars)) then
@@ -94,7 +85,7 @@ let simplify_statement (vl, t, side_cond) =
 	  record_statement (vl, t1, t2, side_cond') 
       | _ ->
 	  let vars = ref [] in
-	  get_vars vars side_cond';
+	  Terms.collect_vars vars side_cond';
 	  if not (List.for_all (fun b ->
 	    Terms.refers_to b t'
 	      ) (!vars)) then

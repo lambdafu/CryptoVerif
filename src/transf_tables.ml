@@ -419,8 +419,7 @@ let reduce_tables g =
   let (p,l) = transform_insert g_proc in
   Proba.reset [] g;
   let tables = ref [] in
-  List.iter (fun (tbl,_) ->
-    if not (List.memq tbl (!tables)) then tables := tbl :: (!tables)) l;
+  List.iter (fun (tbl,_) -> Terms.addq_ref tables tbl) l;
   let g1 = Terms.build_transformed_game (transform_get p l) g in
   let proba_transf_tables = Proba.final_add_proba [] in
   Array_ref.cleanup_array_ref();

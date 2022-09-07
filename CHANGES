@@ -15,12 +15,25 @@ Version
 - Display a warning when correspondence queries do not satisfy a
   well-formedness condition (the conclusion of the correspondence must
   be uniquely determined given the events in the hypothesis).
+- Minor precision improvement in "success simplify" with query
+  event(e(M)) ==> false.
+- Display probability when one-session secrecy is proved.
+- Double the probabilities earlier for (one-session) secrecy.
 - Fixed bugs related to the fact that terms may abort.
 - Fixed bugs in guess transformation: injectivity was proved in the
   initial game instead of the current game; use compatibility
-  information between program points to prove injectivity.
+  information between program points to prove injectivity;
+  apply guess also to the queries that prove find[unique];
+  fixed internal error in command "guess x" when x has array indices;
+  reprove unicity of find in case secrecy queries are present;
+  allow guessing value of a variable defined in a term;
+  improved probability when several correspondence queries can be
+  considered together, in guess variable and guess_branch.
 - Fixed bug in guess_branch transformation: branches of find were not
   computed correctly.
+- Fixed bug: use only facts independent from x when eliminating
+  indices in computation of probability of a collision that relies on
+  the random variable x.
 - Fixed bug in proof of injectivity when there are several events
   before ==>.
 - Fixed bug: events were not preserved in the initial transformation

@@ -1,0 +1,30 @@
+fun f(bitstring): bitstring.
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+query secret y.
+
+proof {
+  guess ix;
+  simplify;
+  success
+  }
+
+process
+!ix <= Nx
+in(c, x:bitstring);
+let y:bitstring = f(x) in
+find[unique] i <= Nx suchthat defined(y[i],x[i]) && x[i] = y[i] then
+event e;
+out(c, y)
+
+
+
+(* EXPECTED
+RESULT Could not prove event(non_unique) ==> false with public variables y; secrecy of y; event(e) ==> false.
+0.056s (user 0.048s + system 0.008s), max rss 16632K
+END *)

@@ -469,6 +469,7 @@ let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt prob
 	t_proba = Proba.optim_probaf probaf_mul_types }
     else
       (* Try to reduce the list of used indices. *)
+      let true_facts = Lazy.force true_facts in
       let initial_indices = order_indices all_indices used_indices in
       let really_used_indices = filter_indices_coll [] (t2::t1::side_condition::(get_terms_opt lopt)) true_facts used_indices initial_indices in
       (* OLD: I can forget the facts without losing precision when I removed no index
@@ -612,6 +613,50 @@ let rec depends_pat f_depends = function
       List.exists (depends_pat f_depends) l
   | PatEqual t ->
       f_depends t
+
+let rec make_indep keep_var simp_facts ((b0,depinfo) as bdepinfo) t =
+  match t.t_desc with
+  | FunApp(f, [t1;t2]) when f.f_cat == LetEqual ->
+	  (* Make sure that the left-hand side of LetEqual is not replaced:
+	     it must remain a variable. *)
+      Terms.build_term2 t (FunApp(f, [ make_indep true simp_facts bdepinfo t1;
+				       make_indep false simp_facts bdepinfo t2 ]))
+  | FunApp(f,l) ->
+      Terms.build_term2 t (FunApp(f, List.map (make_indep false simp_facts bdepinfo) l))
+  | ReplIndex(b) -> t
+  | Var(b,l) ->
+      if (List.exists (Terms.equal_terms t) depinfo.nodep) then
+	t
+      else if (b != b0 && Terms.is_restr b) ||
+      ((not depinfo.other_variables) &&
+       (not (List.exists (fun (b',_) -> b' == b) depinfo.dep)))
+      then
+	Terms.build_term2 t (Var(b, List.map (fun t' ->
+	  try
+	    make_indep false simp_facts bdepinfo t'
+	  with Not_found ->
+	    Terms.term_from_repl_index (Facts.new_repl_index_term t)
+	      ) l))
+      else if (b == b0) || keep_var then
+	raise Not_found 
+      else
+        let t' = Terms.try_no_var simp_facts t in
+	(* The next test aims to avoid a loop. 
+           In particular, it avoids looping when t is a subterm of t' or t = t' *)
+        if Terms.is_synt_subterm t t' then
+	  raise Not_found
+        else
+          make_indep false simp_facts bdepinfo t'
+  | _ -> Parsing_helper.internal_error "If/let/find/new unexpected in make_indep"
+
+let rec make_indep_facts simp_facts bdepinfo = function
+  | [] -> []
+  | f::l ->
+      let l' = make_indep_facts simp_facts bdepinfo l in
+      try 
+	(make_indep false simp_facts bdepinfo f) :: l'
+      with Not_found ->
+	l'
 
 let rec is_indep simp_facts ((b0, depinfo) as bdepinfo) t =
   match t.t_desc with
@@ -1101,7 +1146,8 @@ let rec dependency_collision_rec cur_array simp_facts get_dep_info t1 t2 t =
 		      ) (!collect_bargs_sc))
 		in
 	        (* add probability; returns true if small enough to eliminate collisions, false otherwise. *)
-		if add_term_collisions (cur_array, Facts.true_facts_from_simp_facts simp_facts, side_condition) t1' t2' b (Some l_simp_ind) (probaf, dep_types, t2.t_type, indep_types) then
+		let true_facts = lazy (make_indep_facts simp_facts (b,depinfo) (Facts.true_facts_from_simp_facts simp_facts)) in
+		if add_term_collisions (cur_array, true_facts, side_condition) t1' t2' b (Some l_simp_ind) (probaf, dep_types, t2.t_type, indep_types) then
 		  Some (Terms.make_or_list (List.map (fun l' ->   
 		    let t2'' = Terms.replace l' l t2_eq in
 		      Terms.make_and (Terms.make_and_list (List.map2 Terms.make_equal l l')) (Terms.make_equal t1 t2'')

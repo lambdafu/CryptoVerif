@@ -84,7 +84,9 @@ let merge_arrays = ref true
 let unique_branch = ref true
 let unique_branch_reorg = ref true
 let infer_unique = ref false
-                              
+
+let guess_remove_unique = ref false
+    
 let auto_sa_rename = ref true
 let auto_remove_assign_find_cond = ref true
 let auto_remove_if_find_cond = ref true
@@ -235,6 +237,7 @@ let do_set p v =
   | "uniqueBranch", _ -> parse_bool v unique_branch
   | "uniqueBranchReorganize", _ -> parse_bool v unique_branch_reorg
   | "inferUnique", _ -> parse_bool v infer_unique
+  | "guessRemoveUnique", _ -> parse_bool v guess_remove_unique
   | "autoMergeBranches", _ -> parse_bool v merge_branches
   | "autoMergeArrays", _ -> parse_bool v merge_arrays
   | "autoSARename", _ -> parse_bool v auto_sa_rename

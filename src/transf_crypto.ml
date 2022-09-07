@@ -1286,27 +1286,8 @@ let rec collect_all_names accu lm rm =
   | Fun _, Fun _ -> ()
   | _ -> Parsing_helper.internal_error "left and right members of equivalence do not match"
 
-let add_var accu b =
-  if not (List.memq b (!accu)) then
-    accu := b :: (!accu)
-	
 let rec letvars_from_term accu t =
   match t.t_desc with
-    Var(_,l) | FunApp(_,l) -> 
-      List.iter (letvars_from_term accu) l
-  | ReplIndex _ -> ()
-  | TestE(t1,t2,t3) ->
-      letvars_from_term accu t1;
-      letvars_from_term accu t2;
-      letvars_from_term accu t3
-  | LetE(pat,t1, t2, topt) -> 
-      vars_from_pat accu pat; letvars_from_term accu t1;
-      letvars_from_term accu t2; 
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> letvars_from_term accu t3
-      end
   | FindE(l0,t3,_) ->
       List.iter (fun (bl,def_list,t1,t2) ->
 	(* Nothing to do for def_list: it contains only Var and Fun.
@@ -1316,19 +1297,13 @@ let rec letvars_from_term accu t =
 	      ) l0;
       letvars_from_term accu t3      
   | ResE(b,t) ->
-      add_var accu b;
+      Terms.addq_ref accu b;
       letvars_from_term accu t
-  | EventAbortE(f) -> ()
-  | EventE(t,p) ->
-      letvars_from_term accu t;
-      letvars_from_term accu p
-  | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "get and insert should not occur in Transf_crypto.letvars_from_term"
+  | _ -> Terms.iter_subterm (letvars_from_term accu) (fun _ -> ()) (vars_from_pat accu) t
 	
 and vars_from_pat accu = function
-    PatVar b -> add_var accu b
-  | PatTuple (f,l) -> List.iter (vars_from_pat accu) l
-  | PatEqual t -> letvars_from_term accu t
+    PatVar b -> Terms.addq_ref accu b
+  | pat -> Terms.iter_subpat (letvars_from_term accu) (vars_from_pat accu) pat
 
 let new_binder2 b args_at_creation = 
   Terms.create_binder b.sname b.btype args_at_creation
@@ -2650,56 +2625,35 @@ let rec get_binders = function
    discharge, so that it can be left unchanged by the transformation *)
 
 let rec check_cterm t =
-  match t.t_desc with
-    Var(b,l) ->
-      if is_name_to_discharge b then
-	raise NoMatch;
-      List.iter check_cterm l
-  | ReplIndex _ -> ()
-  | FunApp(f,l) ->
-      if List.memq f (!symbols_to_discharge) then
-	raise NoMatch;
-      List.iter check_cterm l
-  | TestE(t1,t2,t3) ->
-      check_cterm t1;
-      check_cterm t2;
-      check_cterm t3
-  | FindE(l0,t3,_) ->
-      List.iter (fun (bl, def_list, t1, t2) ->
-	List.iter (fun (b,_) ->
-	  if is_name_to_discharge b then
-	    raise NoMatch) bl;
-	List.iter check_cbr def_list;
-	check_cterm t1;
-	check_cterm t2) l0;
-      check_cterm t3
-  | LetE(pat,t1,t2,topt) ->
-      check_cpat pat;
-      check_cterm t1;
-      check_cterm t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> check_cterm t3
-      end
-  | ResE(b,t) -> 
-      if is_name_to_discharge b then
-	raise NoMatch;
-      check_cterm t
-  | EventAbortE _ -> ()
-  | EventE(t,p) -> check_cterm t; check_cterm p
-  | GetE _ | InsertE _ ->
-      Parsing_helper.internal_error "get, insert should have been expanded"
+  begin
+    match t.t_desc with
+      Var(b,l) ->
+	if is_name_to_discharge b then
+	  raise NoMatch
+    | FunApp(f,l) ->
+	if List.memq f (!symbols_to_discharge) then
+	  raise NoMatch
+    | FindE(l0,t3,_) ->
+	List.iter (fun (bl, def_list, t1, t2) ->
+	  List.iter (fun (b,_) ->
+	    if is_name_to_discharge b then
+	      raise NoMatch) bl
+	    ) l0
+    | ResE(b,t) -> 
+	if is_name_to_discharge b then
+	  raise NoMatch
+    | _ -> ()
+  end;
+  Terms.iter_subterm check_cterm check_cdef_list check_cpat t
 
-and check_cbr (_,l) =
-  List.iter check_cterm l
+and check_cdef_list def_list =
+  List.iter (fun (_,l) -> List.iter check_cterm l) def_list
 
 and check_cpat = function
     PatVar b -> 
       if is_name_to_discharge b then
 	raise NoMatch
-  | PatTuple(f,l) -> List.iter check_cpat l
-  | PatEqual t -> check_cterm t
+  | pat -> Terms.iter_subpat check_cterm check_cpat pat
 
 (* For debugging *)
 
@@ -2738,7 +2692,7 @@ let rec check_any_term where_info ta_above accu cur_array defined_refs t =
 	      raise NoMatch) bl;
 	  let repl_indices = List.map snd bl in
 	  let (defined_refs_t1, defined_refs_t2) = Terms.defined_refs_find bl def_list defined_refs in
-	  List.iter check_cbr def_list;
+	  check_cdef_list def_list;
 	  accu_ref :=
 	     check_any_term where_info []
 	       (check_any_term FindCond [] (!accu_ref) (repl_indices @ cur_array) defined_refs_t1 t1)
@@ -2820,7 +2774,7 @@ and check_oprocess accu cur_array defined_refs p =
       List.iter (fun (bl, def_list, t, p1) ->
 	let repl_indices = List.map snd bl in
 	let (defined_refs_t, defined_refs_p1) = Terms.defined_refs_find bl def_list defined_refs in
-	List.iter check_cbr def_list;
+	check_cdef_list def_list;
 	accu_ref :=
 	   check_oprocess
 	     (check_any_term FindCond [] (!accu_ref) (repl_indices @ cur_array) defined_refs_t t)
@@ -5006,6 +4960,8 @@ let rec map_probaf env prob =
       else
 	aux under_complex_time p2
   | Time _ -> Parsing_helper.internal_error "Unexpected time"
+  | Advt _ -> Parsing_helper.internal_error "Unexpected advt"
+  | ProbaAssume -> Parsing_helper.internal_error "Unexpected assume"
   in
   aux false prob
     
@@ -5018,8 +4974,8 @@ let compute_proba ((_,_,_,set,_,_),_) =
 	  SetProba r ->
 	    let probaf' =  map_probaf (ref [], ref []) r in
 	    SetProba (Polynom.polynom_to_probaf probaf')
-	| SetEvent _ | SetAssume -> 
-	    Parsing_helper.internal_error "Event/assume should not occur in probability formula") set)
+	| SetEvent _ -> 
+	    Parsing_helper.internal_error "Event should not occur in probability formula") set)
   in
   (* Add the probabilities of the collisions eliminated to optimize the counts *)
   let proba_coll = Depanal.final_add_proba() in
@@ -5047,12 +5003,11 @@ and find_restro accu p =
       List.iter (fun (_,_,_,p1) -> find_restro accu p1) l0;
       find_restro accu p2
   | Restr(b,p) ->
-      if (not (List.memq b (!accu))) &&
-         (* Consider only the restrictions such that a restriction
+      if (* Consider only the restrictions such that a restriction
             of the same type occurs in the equivalence we want to apply. *)
          (List.exists (fun b_eq -> b.btype == b_eq.btype) (!equiv_names_lhs_flat))
       then
-	accu := b :: (!accu);
+	Terms.addq_ref accu b;
       find_restro accu p
   | Output(_,_,p) -> 
       find_restr accu p
@@ -5255,8 +5210,8 @@ let rec update_max_length_probaf ins = function
 let update_maxlength ins proba =
   List.map (function
     | SetProba r -> SetProba (update_max_length_probaf ins r)
-    | SetEvent _ | SetAssume -> 
-	Parsing_helper.internal_error "Event/assume should not occur in probability formula") proba
+    | SetEvent _ -> 
+	Parsing_helper.internal_error "Event should not occur in probability formula") proba
 
     
 type trans_res =

@@ -1,0 +1,31 @@
+type nonce [large,fixed].
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess ix;
+  simplify;
+  success
+  }
+
+process
+!ix <= Nx
+in(c, x:nonce);
+new y: nonce;
+out(c, y);
+in(c, ());
+find[unique] i <= Nx suchthat defined(y[i]) && x = y[i] then
+event e;
+out(c, y)
+
+
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.088s (user 0.068s + system 0.020s), max rss 16648K
+END *)

@@ -161,7 +161,7 @@ let rec undo_find_inactive_rec state =
   | Some (IFocus _,_,_,s') -> s'
   | Some (GuessBranch _,_,_,s') ->
       begin
-	match Transf_guess_branch.next_case state with
+	match Transf_guess.next_case state with
 	| Some next_g ->
             (* Prepare the new game as it is done after game transformations *)
 	    Terms.move_occ_game next_g;
@@ -177,10 +177,6 @@ let undo_find_inactive state =
   print_string "All active queries proved. Going back to the last focus or guess_branch command."; print_newline();
   undo_find_inactive_rec state
 	
-let eq_list l1 l2 =
-  (List.for_all (fun x -> List.memq x l1) l2) &&
-  (List.for_all (fun x -> List.memq x l2) l1)
-
 let has_common_elem l1 l2 =
   List.exists (fun x -> List.memq x l1) l2
 
@@ -297,7 +293,7 @@ let execute state ins =
     | Guess(arg) ->
 	Transf_guess.guess arg state g
     | GuessBranch(occ,ext_o) ->
-	Transf_guess_branch.guess_branch occ ext_o state g 
+	Transf_guess.guess_branch occ ext_o state g 
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
@@ -803,7 +799,7 @@ let display_state final state =
       begin
 	List.iter (function 
 	  | (AbsentQuery, g), poptref -> 
-	      poptref := Proved([], state)
+	      poptref := Proved([AbsentQuery], Zero, state)
 	  | q -> ()) eq_queries;
 	Success.update_full_proof state;
 	{ game = state.game;
@@ -1109,113 +1105,62 @@ let interpret_occ state occ_exp =
   | POccInt(occ) ->
       occ
 
-
-let add accu b =
-  let s = Display.binder_to_string b in
-  if not (Hashtbl.mem accu s) then
-    Hashtbl.add accu s b
-
-let rec find_binders_term accu t =
-  match t.t_desc with
-    Var(_,l) | FunApp(_,l) ->
-      List.iter (find_binders_term accu) l
-  | ReplIndex _ -> ()
-  | TestE(t1,t2,t3) ->
-      find_binders_term accu t1;
-      find_binders_term accu t2;
-      find_binders_term accu t3
-  | FindE(l0,t3,_) ->
-      List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (b,_) -> add accu b) bl;
-        List.iter (find_binders_br accu) def_list;
-	find_binders_term accu t1;
-	find_binders_term accu t2) l0;
-      find_binders_term accu t3
-  | ResE(b,t) ->
-      add accu b;
-      find_binders_term accu t
-  | EventAbortE _ -> ()
-  | LetE(pat, t1, t2, topt) ->
-      find_binders_pat accu pat;
-      find_binders_term accu t1;
-      find_binders_term accu t2;
-      begin
-      match topt with
-	None -> ()
-      |	Some t3 -> find_binders_term accu t3
-      end
-  | EventE(t,p) ->
-      find_binders_term accu t;
-      find_binders_term accu p
-  | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
-      
-and find_binders_pat accu = function
-    PatVar b -> add accu b
-  | PatTuple(_,l) -> List.iter (find_binders_pat accu) l
-  | PatEqual t -> find_binders_term accu t
-
-and find_binders_br accu (b,l) =
-  List.iter (find_binders_term_def_list accu) l;
-  add accu b
-
-and find_binders_term_def_list accu t =
-  match t.t_desc with
-    Var(b,l) -> 
-      List.iter (find_binders_term_def_list accu) l;
-      add accu b
-  | FunApp(_,l) ->
-      List.iter (find_binders_term_def_list accu) l
-  | ReplIndex _ -> ()
-  | _ -> 
-      Parsing_helper.internal_error "if/let/find/new forbidden in def_list"
-
-let rec find_binders_rec accu p =
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      find_binders_rec accu p1;
-      find_binders_rec accu p2
-  | Repl(b,p) -> find_binders_rec accu p
-  | Input((c, tl),pat,p) ->
-      List.iter (find_binders_term accu) tl;
-      find_binders_pat accu pat;
-      find_binders_reco accu p
-
-and find_binders_reco accu p =
-  match p.p_desc with
-    Yield | EventAbort _ -> ()
-  | Restr(b,p) -> 
-      add accu b;
-      find_binders_reco accu p
-  | Test(t,p1,p2) ->
-      find_binders_term accu t;
-      find_binders_reco accu p1;
-      find_binders_reco accu p2
-  | Find(l0,p2,_) ->
-      List.iter (fun (bl,def_list,t,p1) ->
-	List.iter (fun (b,_) -> add accu b) bl;
-        List.iter (find_binders_br accu) def_list;
-	find_binders_term accu t;
-	find_binders_reco accu p1) l0;
-      find_binders_reco accu p2
-  | Output((c, tl),t2,p) ->
-      List.iter (find_binders_term accu) tl;      
-      find_binders_term accu t2;
-      find_binders_rec accu p
-  | Let(pat, t, p1, p2) ->
-      find_binders_pat accu pat;
-      find_binders_term accu t;
-      find_binders_reco accu p1;
-      find_binders_reco accu p2
-  | EventP(t,p) ->
-      find_binders_term accu t;
-      find_binders_reco accu p
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
-
 let find_binders game =
   let p = Terms.get_process game in
   let accu = Hashtbl.create 7 in
-  find_binders_rec accu p;
+  let add b =
+    let s = Display.binder_to_string b in
+    if not (Hashtbl.mem accu s) then
+      Hashtbl.add accu s b
+  in
+  let rec aux_def_list_t t =
+    match t.t_desc with
+    | Var(b,l) -> 
+	List.iter aux_def_list_t l;
+	add b
+    | FunApp(_,l) ->
+	List.iter aux_def_list_t l
+    | ReplIndex _ -> ()
+    | _ -> 
+	Parsing_helper.internal_error "if/let/find/new forbidden in def_list"
+  in
+  let aux_def_list def_list =
+    List.iter (fun (b,l) -> List.iter aux_def_list_t l; add b) def_list
+  in
+  let rec aux_t t =
+    begin
+      match t.t_desc with
+      | FindE(l0,t3,_) ->
+	  List.iter (fun (bl,def_list,t1,t2) ->
+	    List.iter (fun (b,_) -> add b) bl;
+	    ) l0
+      | ResE(b,t) ->
+	  add b
+      | _ -> ()
+    end;
+    Terms.iter_subterm aux_t aux_def_list aux_pat t
+  and aux_pat = function
+    | PatVar b -> add b
+    | pat -> Terms.iter_subpat aux_t aux_pat pat
+  and aux_i p =
+    Terms.iter_subiproc aux_i (fun (c, tl) pat p ->
+      List.iter aux_t tl;
+      aux_pat pat;
+      aux_o p) p
+  and aux_o p =
+    begin
+      match p.p_desc with
+      | Restr(b,p) -> 
+	  add b
+      | Find(l0,p2,_) ->
+	  List.iter (fun (bl,def_list,t,p1) ->
+	    List.iter (fun (b,_) -> add b) bl;
+	    ) l0
+      | _ -> ()
+    end;
+    Terms.iter_suboproc aux_o aux_t aux_def_list aux_pat aux_i p
+  in
+  aux_i p;
   accu 
 
 let find_binder_list_one_id binders ((s,ext) as regexp_id) =
@@ -1244,48 +1189,25 @@ let find_binder binders ((s,ext) as id) =
   | [b] -> b
   | _ -> raise (Error("Regular expression " ^ s ^ " matches several identifiers", ext))
 
-let add_ri accu b =
-  let s = Display.repl_index_to_string b in
-  if not (Hashtbl.mem accu s) then
-    Hashtbl.add accu s b
-
-let rec find_repl_indices_rec accu p =
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      find_repl_indices_rec accu p1;
-      find_repl_indices_rec accu p2
-  | Repl(b,p) ->
-      add_ri accu b; 
-      find_repl_indices_rec accu p
-  | Input((c, tl),pat,p) ->
-      find_repl_indices_reco accu p
-
-and find_repl_indices_reco accu p =
-  match p.p_desc with
-    Yield | EventAbort _ -> ()
-  | Restr(b,p) -> 
-      find_repl_indices_reco accu p
-  | Test(t,p1,p2) ->
-      find_repl_indices_reco accu p1;
-      find_repl_indices_reco accu p2
-  | Find(l0,p2,_) ->
-      List.iter (fun (bl,def_list,t,p1) ->
-	find_repl_indices_reco accu p1) l0;
-      find_repl_indices_reco accu p2
-  | Output((c, tl),t2,p) ->
-      find_repl_indices_rec accu p
-  | Let(pat, t, p1, p2) ->
-      find_repl_indices_reco accu p1;
-      find_repl_indices_reco accu p2
-  | EventP(t,p) ->
-      find_repl_indices_reco accu p
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
 
 let find_repl_indices game =
   let p = Terms.get_process game in
   let accu = Hashtbl.create 7 in
-  find_repl_indices_rec accu p;
+  let add_ri b =
+    let s = Display.repl_index_to_string b in
+    if not (Hashtbl.mem accu s) then
+      Hashtbl.add accu s b
+  in
+  let rec aux_i p =
+    match p.i_desc with
+      Nil -> ()
+    | Par(p1,p2) -> aux_i p1; aux_i p2
+    | Repl(b,p) -> add_ri b; aux_i p
+    | Input(_ch,_pat,p) -> aux_o p
+  and aux_o p =
+    Terms.iter_suboproc aux_o (fun _ -> ()) (fun _ -> ()) (fun _ -> ()) aux_i p
+  in
+  aux_i p;
   accu 
 
 let find_guess_binder binders (id,ext) =
@@ -1299,7 +1221,12 @@ let find_repl_index_or_binder repl_indices binders (id,ext) =
     GuessRepl(Hashtbl.find repl_indices id, false, ext)
   with Not_found ->
     try
-      GuessVar((Hashtbl.find binders id,[]), ext)
+      let b' = Hashtbl.find binders id in
+      let l_b = List.length b'.args_at_creation in
+      if l_b != 0 then
+	raise (Error("Variable "^(Display.binder_to_string b')^" expects "^(string_of_int l_b)^
+		     " indices, but is here given no index", ext));
+      GuessVar((b',[]), ext)
     with Not_found ->
       raise (Error("Replication index or variable "^id^" not found", ext))
     
@@ -1331,8 +1258,7 @@ let find_equiv f equiv =
       (List.exists (fun (fg, _) -> find_funsymb_fg f fg) lm) ||
       (List.exists (function 
 	  SetProba r -> find_proba f r
-	| SetEvent(e,_,_,_) -> f = e.f_name
-	| SetAssume -> Parsing_helper.internal_error "Assume proba should not occur") set)
+	| SetEvent(e,_,_,_) -> f = e.f_name) set)
 
 let find_equiv_by_name f equiv =
   match equiv.eq_name with

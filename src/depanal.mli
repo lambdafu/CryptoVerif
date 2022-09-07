@@ -40,7 +40,7 @@ val subst_args_proba : binder -> term list -> find_compos_probaf -> find_compos_
 	
 (* Adds a term collision *)
 val add_term_collisions :
-  repl_index list * term list * term -> term -> term ->
+  repl_index list * term list Lazy.t * term -> term -> term ->
   binder -> term list option -> (find_compos_probaf * typet list * typet * typet list option) -> bool
 
 (* Computes the probability of term collisions *)
@@ -59,7 +59,12 @@ val depends : (binder * 'a depinfo) -> term -> bool
    It extends it to patterns: [depends_pat f_depends pat] returns true when the pattern [pat]
    may depend on [b]. *)
 val depends_pat : (term -> bool) -> pattern -> bool
-    
+
+(* [make_indep_facts simp_facts (b, depinfo) l] returns a list of terms
+   independent of [b], equal to terms of [l] up to equalities of [simp_facts]
+   and up to replacement of some array indices with fresh replication indices *)
+val make_indep_facts : simp_facts -> (binder * 'a depinfo) -> term list -> term list
+
 (* [is_indep simp_facts (b, depinfo) t] returns a triple 
    [(t', dep_types, indep_types_option)] where 
    - [t'] is a term independent of [b] in which some array 

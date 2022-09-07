@@ -1,0 +1,32 @@
+(* Number of indices of x was not properly checked *)
+
+type nonce [password,fixed].
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess x;
+  allowed_collisions noninteractive/password;
+  simplify coll_elim(types: nonce);
+  success
+  }
+
+process
+!ix <= Nx
+in(c, x:nonce);
+new y: nonce;
+out(c, y);
+in(c, ());
+find[unique] i <= Nx suchthat defined(y[i]) && x = y[i] then
+event e;
+out(c, y)
+
+(* EXPECTED
+Error: Variable x expects 1 indices, but is here given no index
+xtime: error in child process (status : 2)
+END *)

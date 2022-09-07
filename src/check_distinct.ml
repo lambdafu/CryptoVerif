@@ -119,7 +119,8 @@ let check_distinct collector b g =
      Simplify1.empty_improved_def_process false g.proc; *)
   if r then
     (* Add probability for eliminated collisions *)
-    (true, Proba.final_add_proba[])
+    let p = Proba.final_add_proba[] in 
+    (true, p @ p)
   else
     begin
       print_string ("Proof of secrecy of " ^ 

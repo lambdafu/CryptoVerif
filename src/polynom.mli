@@ -68,3 +68,12 @@ val p_min : minmax_accu -> probaf
 
 val probaf_to_polynom : probaf -> polynom
 val polynom_to_probaf : polynom -> probaf 
+
+(* [proba_from_set p] converts the probability [p] represented as
+a [setf list] into a probability represented as a [probaf].
+[p] must not contain [SetEvent]. *)
+val proba_from_set : setf list -> probaf
+
+(* [simplify_proba p] simplifies the probability [p],
+   using polynoms as intermediate steps *)
+val simplify_proba : probaf -> probaf

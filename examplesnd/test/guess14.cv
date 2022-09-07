@@ -1,0 +1,40 @@
+(* Variant of guess11 that allows eliminating collisions with probability
+   Nx^2/|nonce|, needed to prove [unique]: 
+   run many non-tested sessions to set values for y, until
+   there are two equal values of y (proba: 1/2 (Nx-1)^2/|nonce|),
+   then send that value of y as x in the tested session. 
+
+    *)
+
+type nonce [password,fixed].
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess ix;
+  allowed_collisions noninteractive^2/password;
+  simplify coll_elim(types: nonce);
+  success
+  }
+
+process
+!ix <= Nx
+in(c, x:nonce);
+new y: nonce;
+out(c, y);
+in(c, ());
+find[unique] i <= Nx suchthat defined(y[i]) && x = y[i] then
+event e;
+out(c, y)
+
+
+
+(* EXPECTED
+RESULT Could not prove event(e) ==> false.
+0.076s (user 0.068s + system 0.008s), max rss 16692K
+END *)

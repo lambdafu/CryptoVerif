@@ -8,7 +8,7 @@ TO DO next
 4) Implement the "diff" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
-   DONE, minor probability improvement still possible
+   DONE
 6) Extend the "move" instruction to allow precisely moving
    "let"/"new" from one point to another (when correct).
    (see point 7 in HIGH PRIORITY)
@@ -477,14 +477,6 @@ We could probably push this idea for noninterf x among S.
 I would need to guess the tested session, and apply DDH only
 in that session. 
 
-There is probably an imprecision in the computation of probabilities
-when I guess a variable or a tested session: if I have
-Pr[e1 || e2], it will probably be decomposed into
-Pr[e1] + Pr[e2] at the point of guessing, and Pr[e1] = |T| * Pr[e1 after guess]
-and the same for e2. It would be better to keep the ||:
-|T| Pr[e1 || e2] after guess. Does not seem that easy to implement
-given how the computation of probabilities is organized.
-
 => Sometimes, I derive a contradiction but I need to leave some
    code. Would it be better to use AdvLoses instead of Yield?
 
@@ -875,6 +867,9 @@ CryptoVerif then needs to show that the current game is
 indistinguishable from G(min) and that G(n) ~ G(n+1).
 The game at the end of the hybrid argument is G(max).
 
+The presence of oracle calls is also useful for implementing
+composition results of Charlie Jacomme.
+   
 7) More generally, allow some reordering of instructions:
 - move "let"s up, when that reduces the number of occurrences of
   crypto primitives to compute. Risk: we may compute the expression
@@ -1131,6 +1126,7 @@ to run that part of code by itself.
 It should adjust the probability computation by adding the runtime
 of the removed part to the runtime of the adversary.
 That allows to simplify the code.
+=> That's basically the composition results of Charlie Jacomme.
    
 15) Since the speed of Terms.equal_terms is so important, it
 is likely that a better structure for sets of terms,
@@ -6526,3 +6522,72 @@ DONE 28/7/2022
    Tried in examplesnd/notest/needham-schroeder-pkcorrKeyNa-guess.pcv
    Works for secrecy but does not work for correspondences yet.
 DONE 9/8/2022
+
+Fix bug in [Depanal.filter_indices_coll], see
+   examplesnd/test/guess11.cv
+Restrict true facts to terms independent of the variable charac by t1 and whose t2 is indep.
+FIXED 25/8/2022, still to test.
+Avoid creating too many variables, by restoring previous numbers? That may not work
+(the same term must be replaced by the same repl index)
+Avoid useless computations of true_facts (when the proba is small enough),
+but still avoid duplicating the computation of true_facts when there are several
+calls to add_term_collision inside add_term_collisions...
+=> Solved using Lazy
+
+Fix bug in guess transformations with (one-session) secrecy:
+all proved find[unique] should be transformed into non-proved
+find[unique] or into find, and all non-proved find[unique]
+should be readded in the query for (one-session) secrecy.
+(in the proof, we need to use Advt_{Q}(C, S), which
+involves non-unique events, instead of Advt_Q^{secrecy}(C))
+DONE 6/9/2022
+
+Generalize probability formulas to include Adv_G(C,D).
+Then MulQueryProba and proba_bound_rec are just probability formulas.
+However, that does not help for optimizing probabilities for guess,
+it may even conflict with that.
+
+There is an imprecision in the computation of probabilities
+when I guess a variable or a branch: if I have
+Pr[e1 || e2], it will be decomposed into
+Pr[e1] + Pr[e2] at the point of guessing, and Pr[e1] = |T| * Pr[e1 after guess]
+and the same for e2. It would be better to keep the ||:
+|T| Pr[e1 || e2] after guess. Does not seem that easy to implement
+given how the computation of probabilities is organized.
+(This optimization is not valid when guessing the tested session.)
+
+proof_t: Proved(query_list, probaf, state)
+proba_formula can contain Adv_G(ql) where ql is a list that can contain
+Q0 which stands for any disjunction of queries in query_list
+and other constant queries for events fi.
+The proof applies to any disjunction of queries in query_list
+(containing at most one query other than event(e) ==> false).
+
+type proof_tree =
+    { pt_game : game;
+      mutable pt_edges : pt_edge list }
+
+and pt_edge =
+ { pt_ins: instruct; (*remove? use pt_proba = Case(ql,p) instead of pt_ins = Proof(ql,p) *)
+   pt_proba: pt_proba_info;
+   pt_sons: proof_tree list;
+   mutable pt_queries: (query_specif * game) list }
+
+pt_proba_info =
+| Default of probaf * query list
+   (* Default(p,ql') means 2 p + Adv_G0(Q0::ql') for (one-session) secrecy
+                           p + Adv_G0(Q0::ql') otherwise
+      p must not use Adv_G(..)  
+      pt_sons must be [proof tree for G0] *)
+| Case of query list * probaf
+   (* Case(ql, p) means that the proof applies only to queries in [ql],
+      use another edge for other queries.
+      p is a probability formula that can contain Adv_Gi(Q0::ql')
+      pt_sons must be the list of proof trees for Gi.
+      pt_queries must contain a sublist of queries in [ql].
+      There can be several edges connecting the same father to the same
+      sons for disjoint [ql]. *)
+
+proof_t: Proved(ql,p,s) leads to an edge Case(ql,p) in the proof tree node
+corresponding to s.game
+DONE 6/9/2022

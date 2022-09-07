@@ -24,8 +24,7 @@ open Types
 let all_vars = ref []
 
 let add b =
-  if not (List.memq b (!all_vars)) then
-    all_vars := b :: (!all_vars)
+  Terms.addq_ref all_vars b
 
 let rec array_ref_term in_scope t = 
   match t.t_desc with
@@ -204,8 +203,7 @@ let has_array_ref_q b q =
 let all_vars_exclude = ref []
 
 let add_exclude b =
-  if not (List.memq b (!all_vars_exclude)) then
-    all_vars_exclude := b :: (!all_vars_exclude)
+  Terms.addq_ref all_vars_exclude b
 
 let rec exclude_array_ref_term in_scope t = 
   match t.t_desc with

@@ -1,0 +1,33 @@
+(* Number of indices of x was not properly checked *)
+
+type nonce [password,fixed].
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess x;
+  allowed_collisions noninteractive/password;
+  simplify coll_elim(types: nonce);
+  success
+  }
+
+process
+(!ix <= Nx
+in(c, ());
+new y: nonce;
+out(c, y))
+|(
+in(c, x:nonce);
+find[unique] i <= Nx suchthat defined(y[i]) && x = y[i] then
+event e;
+out(c, x))
+
+(* EXPECTED
+All queries proved.
+0.080s (user 0.080s + system 0.000s), max rss 16616K
+END *)

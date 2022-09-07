@@ -503,6 +503,110 @@ let display_time_id cat =
       print_string ")"
   | _ -> ()
 
+let display_pub_vars pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string " with public variables $";
+      display_list display_binder pub_vars;
+      print_string "$"
+    end
+
+let display_pub_vars_math_mode pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string "\\textrm{ with public variables }";
+      display_list display_binder pub_vars
+    end
+
+let display_event (b,t) =
+  print_string (if b then "\\kw{inj\\textrm{-}event}(" else "\\kw{event}(");
+  display_term t;
+  print_string ")"
+
+	
+let rec display_query1 = function
+    [] -> Parsing_helper.internal_error "List should not be empty"
+  | [x] -> display_event x
+  | x::l ->
+      display_event x;
+      print_string (if !nice_tex then " \\wedge " else "\\ \\&\\&\\ ");
+      display_query1 l
+
+let rec display_query2 = function
+    QEvent(b,t) ->
+      display_event (b,t)
+  | QTerm t ->
+      display_term t
+  | QOr(t1,t2) ->
+      print_string "(";
+      display_query2 t1;
+      print_string (if !nice_tex then " \\vee " else "\\ \\|\\|\\ ");
+      display_query2 t2;
+      print_string ")"
+  | QAnd(t1,t2) ->
+      print_string "(";
+      display_query2 t1;
+      print_string (if !nice_tex then " \\wedge " else "\\ \\&\\&\\ ");
+      display_query2 t2;
+      print_string ")"
+
+let display_query3 = function
+  | QSecret (b,pub_vars,onesession) -> 
+      if onesession then print_string "one-session ";
+      print_string "secrecy of $"; 
+      display_binder b; 
+      print_string "$";
+      display_pub_vars pub_vars
+  | QEventQ(t1,t2,pub_vars) ->
+      let (forall, exists) = Terms.collect_vars_corresp t1 t2 in
+      print_string "$";
+      display_quantified "\\forall " forall;
+      display_query1 t1;
+      print_string " \\Longrightarrow ";
+      display_quantified "\\exists " exists;
+      display_query2 t2;
+      print_string "$";
+      display_pub_vars pub_vars
+  | AbsentQuery ->
+      print_string "indistinguishability from the final game"
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability from game " ^ (Display.get_game_id g')); 
+      display_pub_vars pub_vars
+  | QEquivalence(state,pub_vars,_) ->
+      let g' = Display.get_initial_game state in
+      if g'.game_number = -1 then
+	print_string "indistinguishability from other input game"
+      else
+	print_string ("indistinguishability from game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars      
+
+	
+let display_query (q,g) = 
+  match q with 
+    AbsentQuery -> 
+      if g.game_number <> 1 then
+	print_string ("indistinguishability between game "^(Display.get_game_id g)^" and the final game")
+      else
+	print_string "indistinguishability between the input game and the final game"
+  | QEquivalence (state, pub_vars,_) ->
+      let g' = Display.get_initial_game state in
+      print_string ("indistinguishability between game " ^
+		    (Display.get_game_id g) ^
+		    " and game " ^
+		    (Display.get_game_id g'));
+      display_pub_vars pub_vars
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability between game " ^
+		    (Display.get_game_id g) ^
+		    " and game " ^
+		    (Display.get_game_id g')); 
+      display_pub_vars pub_vars
+  | _ ->
+      display_query3 q;
+      if g.game_number <> 1 then
+	print_string (" in game " ^ (Display.get_game_id g))  
+
 let rec display_proba ?(separate_time = false) level = function
     Proba (p,l) -> 
       print_id "\\var{" p.prname "}";
@@ -649,6 +753,36 @@ let rec display_proba ?(separate_time = false) level = function
       print_string "\\ \\kw{else}\\ ";
       display_proba ~separate_time 0 p2;
       print_string ")"
+  | Advt(g,cur_q,ql) ->
+      let (ql_otherq, ql_eventq) = List.partition (fun (q,_) ->
+	(Terms.get_event_query q == None)) ql
+      in
+      print_string (if cur_q || ql_otherq != [] then "\\mathsf{Adv}" else "\\Pr");
+      print_string "[\\mathrm{Game}\\ ";
+      print_string (Display.get_game_id g);
+      print_string "$: ";
+      if cur_q then
+	begin
+	  assert(ql_otherq == []);
+	  print_string "current\\_queries"
+	end
+      else
+	begin
+	  match ql_otherq with
+	  | [q,_] -> display_query3 q
+	  | [] -> ()
+	  | _ -> assert false
+	end;
+      print_string "$";
+      if (cur_q || ql_otherq != []) && ql_eventq != [] then print_string ", ";
+      display_list_sep " \\vee "
+	(fun (q,_) ->
+	  match Terms.get_event_query q with
+	  | Some f -> print_id "\\kwf{" f.f_name "}"
+	  | None -> assert false) ql_eventq;
+      print_string "]"
+  | ProbaAssume ->
+      print_string "\\Pr[COMMAND NOT CHECKED]"
 
 and display_optim_cond ~separate_time = function
   | OCProbaFun(s,[p1; p2]) ->
@@ -673,23 +807,6 @@ and display_optim_cond ~separate_time = function
       display_optim_cond ~separate_time c2
   | _ -> Parsing_helper.internal_error "display_optim_cond: probability fcts should be unary or binary, boolean fcts should be binary"
     
-let display_pub_vars pub_vars =
-  if pub_vars <> [] then
-    begin
-      print_string " with public variables $";
-      display_list display_binder pub_vars;
-      print_string "$"
-    end
-
-let display_pub_vars_math_mode pub_vars =
-  if pub_vars <> [] then
-    begin
-      print_string "\\textrm{ with public variables }";
-      display_list display_binder pub_vars
-    end
-
-let has_assume = List.exists (function SetAssume -> true | _ -> false)
-      
 let display_one_set ?separate_time = function
     SetProba r ->
       display_proba ?separate_time 0 r
@@ -698,9 +815,7 @@ let display_one_set ?separate_time = function
       print_string (Display.get_game_id g);
       display_pub_vars_math_mode pub_vars;
       print_string "]"
-  | SetAssume ->
-      print_string "\\Pr[COMMAND NOT CHECKED]"
-	
+
 let rec display_set ?separate_time = function
     [] -> print_string "0"
   | [a] -> display_one_set ?separate_time a
@@ -709,29 +824,17 @@ let rec display_set ?separate_time = function
       print_string " + ";
       display_set ?separate_time l
   
-let display_proba_set_m modify level s =
-  let proba = Display.proba_from_set_m modify s in
-  if has_assume s then
+let display_up_to_proba ?separate_time p =
+  if p <> Zero then
     begin
-      match proba with
-      | Zero | Cst 0.0 ->
-	  print_string "\\Pr[COMMAND NOT CHECKED]"
-      | _ ->
-	  if level > 1 then print_string "(";
-	  print_string "\\Pr[COMMAND NOT CHECKED]";
-	  print_string " + ";
-	  display_proba ~separate_time:true 1 proba;
-	  if level > 1 then print_string ")"	    
+      print_string " up to probability $";
+      display_proba ?separate_time 0 p;
+      print_string "$"
     end
-  else
-    display_proba ~separate_time:true level proba
+
+let display_up_to_proba_set ?separate_time s =
+  display_up_to_proba ?separate_time (Polynom.proba_from_set s)
   
-let display_proba_set level s =
-  display_proba_set_m Display.id level s
-
-let display_proba_set_may_double q s =
-  display_proba_set_m (Display.may_double q) 0 s
-
 (* Result of an oracle in an equivalence *)
 
 let rec display_procasterm t = 
@@ -1281,95 +1384,6 @@ let display_with_user_info user_info =
       display_user_info user_info;
       print_string "$"
 
-let display_event (b,t) =
-  print_string (if b then "\\kw{inj\\textrm{-}event}(" else "\\kw{event}(");
-  display_term t;
-  print_string ")"
-
-	
- let rec display_query1 = function
-    [] -> Parsing_helper.internal_error "List should not be empty"
-  | [x] -> display_event x
-  | x::l ->
-      display_event x;
-      print_string (if !nice_tex then " \\wedge " else "\\ \\&\\&\\ ");
-      display_query1 l
-
-let rec display_query2 = function
-    QEvent(b,t) ->
-      display_event (b,t)
-  | QTerm t ->
-      display_term t
-  | QOr(t1,t2) ->
-      print_string "(";
-      display_query2 t1;
-      print_string (if !nice_tex then " \\vee " else "\\ \\|\\|\\ ");
-      display_query2 t2;
-      print_string ")"
-  | QAnd(t1,t2) ->
-      print_string "(";
-      display_query2 t1;
-      print_string (if !nice_tex then " \\wedge " else "\\ \\&\\&\\ ");
-      display_query2 t2;
-      print_string ")"
-
-let display_query3 = function
-  | QSecret (b,pub_vars,onesession) -> 
-      if onesession then print_string "one-session ";
-      print_string "secrecy of $"; 
-      display_binder b; 
-      print_string "$";
-      display_pub_vars pub_vars
-  | QEventQ(t1,t2,pub_vars) ->
-      let (forall, exists) = Terms.collect_vars_corresp t1 t2 in
-      print_string "$";
-      display_quantified "\\forall " forall;
-      display_query1 t1;
-      print_string " \\Longrightarrow ";
-      display_quantified "\\exists " exists;
-      display_query2 t2;
-      print_string "$";
-      display_pub_vars pub_vars
-  | AbsentQuery ->
-      print_string "indistinguishability from the final game"
-  | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability from game " ^ (Display.get_game_id g')); 
-      display_pub_vars pub_vars
-  | QEquivalence(state,pub_vars,_) ->
-      let g' = Display.get_initial_game state in
-      if g'.game_number = -1 then
-	print_string "indistinguishability from other input game"
-      else
-	print_string ("indistinguishability from game " ^
-		      (string_of_int g'.game_number));
-      display_pub_vars pub_vars      
-
-	
-let display_query (q,g) = 
-  match q with 
-    AbsentQuery -> 
-      if g.game_number <> 1 then
-	print_string ("indistinguishability between game "^(Display.get_game_id g)^" and the final game")
-      else
-	print_string "indistinguishability between the input game and the final game"
-  | QEquivalence (state, pub_vars,_) ->
-      let g' = Display.get_initial_game state in
-      print_string ("indistinguishability between game " ^
-		    (Display.get_game_id g) ^
-		    " and game " ^
-		    (Display.get_game_id g'));
-      display_pub_vars pub_vars
-  | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability between game " ^
-		    (Display.get_game_id g) ^
-		    " and game " ^
-		    (Display.get_game_id g')); 
-      display_pub_vars pub_vars
-  | _ ->
-      display_query3 q;
-      if g.game_number <> 1 then
-	print_string (" in game " ^ (Display.get_game_id g))  
-
 let display_coll_elim = function
     CollVars l ->
       print_string "variables: ";
@@ -1455,13 +1469,8 @@ let display_instruct = function
   | Proof ql -> 
       print_string "proof of ";
       display_list (fun ((q,g), set) -> 
-	display_query3 q; 
-	if set != [] then
-	  begin
-	    print_string " up to probability $";
-	    display_set ~separate_time:true set;
-	    print_string "$"
-	  end) ql
+	display_query3 q;
+	display_up_to_proba_set ~separate_time:true set) ql
   | IFocus(ql) ->
       print_string "focus on queries";
       List.iter (fun q -> print_string "\\\\\n\\qquad -- "; display_query3 q) ql
@@ -1487,90 +1496,17 @@ let display_instruct = function
 	
 (* Explain probability formulas *)
 
-let display_qevent = function
-    Display.QEvent f,_ -> print_id "\\kwf{" f.f_name "}"
-  | _ -> Parsing_helper.internal_error "QEvent expected"
-
-let rec display_or_list = function
-    [] -> ()
-  | [a] -> display_qevent a
-  | (a::l) -> display_qevent a; print_string " \\vee ";
-      display_or_list l
-
-let display_adv ql game = 
-  let (ql_no_initq, ql_initq) = List.partition (function Display.InitQuery _,_ -> false | _ -> true) ql in
-  match ql_initq with
-    [Display.InitQuery q0,g0] ->
-      print_string "\\mathsf{Adv}[\\mathrm{Game}\\ ";
-      print_string (Display.get_game_id game);
-      print_string "$: ";
-      display_query3 q0;
-      print_string "$";
-      if ql_no_initq != [] then
-	begin
-	  print_string ", ";
-	  display_or_list ql_no_initq
-	end;
-      print_string "]"
-  | [] ->
-      print_string "\\Pr[\\mathrm{Game}\\ ";
-      print_string (Display.get_game_id game);
-      print_string "\\textrm{: }";
-      display_or_list ql_no_initq;
-      print_string "]"
-  | _ -> Parsing_helper.internal_error "Bad query list in display_adv"
-
-let rec display_proba_bound_rec level = function
-  | Display.BCst p ->
-      display_proba_set level p
-  | Display.BQuery(ql,g) ->
-      display_adv ql g
-  | Display.BMul(p,b) ->
-      display_proba 3 p;
-      print_string " \\times ";
-      display_proba_bound_rec 3 b
-  | Display.BSum l ->
-      match l with
-      | [] -> print_string "0"
-      | (a::r) ->
-	  if level > 1 then print_string "(";
-	  display_proba_bound_rec 1 a;
-	  List.iter (fun b ->
-	    print_string " + ";
-	    display_proba_bound_rec 1 b) r;
-	  if level > 1 then print_string ")"
-	  
-	    
 let display_proba_bound = function
-  | Display.BLeq((ql,g),b) ->
+  | Display.BLeq(a,b) ->
       print_string "$";
-      display_adv ql g;
+      display_proba ~separate_time:true 0 a;
       print_string " \\leq ";
-      display_proba_bound_rec 0 b;
+      display_proba ~separate_time:true 0 b;
       print_string "$\\\\\n"
-
-
-let compute_proba ((q0,g) as q) proba_info s =
-  let bounds = ref [] in
-  let p = Display.proba_from_proba_info_list (q0,s.game) bounds proba_info in
-  List.iter display_proba_bound (List.rev (!bounds));
-  begin
-    match q0 with
-    | QEquivalence(state,pub_vars,_) ->
-	print_string ("Game "^(Display.get_game_id s.game)^" is the same as game "^(Display.get_game_id state.game));
-	if p <> [] then
-	  begin
-            print_string " up to probability $";
-            display_proba_set 0 p;
-	    print_string "$"
-	  end;
-	print_string ".\\\\\n"
-    | _ -> ()
-  end;
-  let bounds = ref [] in
-  let fullp = Display.compute_proba_internal2 bounds q p s in
-  List.iter display_proba_bound (List.rev (!bounds));
-  fullp
+  | Display.BSameGame(g1,g2,p) -> 
+      print_string ("Game "^(Display.get_game_id g1)^" is the same as game "^(Display.get_game_id g2));
+      display_up_to_proba ~separate_time:true p;
+      print_string ".\\\\\n"
 
 let display_pat_simp t =
   print_string (match t with 
@@ -1938,12 +1874,7 @@ let rec display_state ins_next s =
 	  List.iter (fun ((q,g), p') -> 
 	    print_string "Proved ";
 	    display_query (q, s'.game);
-	    if p' != [] then
-	      begin
-		print_string " up to probability $";
-		display_proba_set_may_double (q, s'.game) p';
-		print_string "$"
-	      end;
+	    display_up_to_proba_set ~separate_time:true p';
 	    print_string "\\\\\n"
 	      ) ql;
 	  if p != [] then
@@ -1998,26 +1929,21 @@ let display_state s =
   let (non_unique_initial_queries, other_initial_queries) =
     List.partition Terms.is_nonunique_event_query initial_queries
   in
-  if List.for_all (fun (q,poptref) -> Display.is_full_poptref poptref) non_unique_initial_queries then
-    List.iter (fun (q,poptref) ->
-      if Display.is_full_poptref poptref then
+  if List.for_all (fun ((q,_),poptref) -> Display.is_full_poptref q poptref) non_unique_initial_queries then
+    List.iter (fun (((q,_) as q_g, poptref) as full_q) ->
+      if Display.is_full_poptref q poptref then
 	begin
-	  let (proba_info,s') = Display.get_proved poptref in
-          let p'' = compute_proba q proba_info s' in
-	  if has_assume p'' then
+          let (bounds, p'') = Display.compute_proba full_q in
+	  List.iter display_proba_bound bounds;	  
+	  if Display.has_assume p'' then
 	    begin
 	      print_string "RESULT Using unchecked commands, shown ";
 	      poptref := ToProve
 	    end
 	  else
             print_string "RESULT Proved ";
-          display_query q;
-	  if p'' != [] then
-	    begin
-	      print_string " up to probability $";
-	      display_proba_set 0 p'';
-	      print_string "$"
-	    end;
+          display_query q_g;
+	  display_up_to_proba ~separate_time:true (Polynom.simplify_proba p'');
 	  print_string "\\\\\n"
 	end
 	  ) other_initial_queries;

@@ -8,111 +8,48 @@ open Types
 
 let rec empty_def_term t =
   t.t_facts <- None;
-  match t.t_desc with
-    Var(b,l) ->
-      b.def <- [];
-      empty_def_term_list l
-  | ReplIndex _ -> ()
-  | FunApp(_,l) ->
-      empty_def_term_list l
-  | TestE(t1,t2,t3) ->
-      empty_def_term t2;
-      empty_def_term t3;
-      empty_def_term t1
-  | FindE(l0,t3,_) ->
-      List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (b1,b2) -> b1.def <- []) bl;
-	empty_def_term_def_list def_list;
-	empty_def_term t1;
-	empty_def_term t2) l0;
-      empty_def_term t3;
-  | LetE(pat, t1, t2, topt) ->
-      empty_def_pattern pat;
-      empty_def_term t1;
-      empty_def_term t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> empty_def_term t3
-      end
-  | ResE(b,t) -> b.def <- []; empty_def_term t
-  | EventAbortE _ -> ()
-  | EventE(t,p) ->
-      empty_def_term t;
-      empty_def_term p
-  | GetE(tbl,patl,topt,p1,p2,_) ->
-      List.iter empty_def_pattern patl;
-      (match topt with None -> () | Some t -> empty_def_term t);
-      empty_def_term p1;
-      empty_def_term p2
-  | InsertE(tbl,tl,p) -> 
-      List.iter empty_def_term tl;
-      empty_def_term p
-
+  begin
+    match t.t_desc with
+      Var(b,l) ->
+	b.def <- []
+    | FindE(l0,t3,_) ->
+	List.iter (fun (bl,def_list,t1,t2) ->
+	  List.iter (fun (b1,b2) -> b1.def <- []) bl) l0
+    | ResE(b,t) -> b.def <- []
+    | _ -> ()
+  end;
+  Terms.iter_subterm  empty_def_term empty_def_def_list empty_def_pattern t
+    
 and empty_def_term_list l = List.iter empty_def_term l
 
-and empty_def_br (b,l) = b.def <- []; empty_def_term_list l
-
-and empty_def_term_def_list def_list = 
-  List.iter empty_def_br def_list
+and empty_def_def_list def_list =
+  List.iter (fun (b,l) -> b.def <- []; empty_def_term_list l) def_list
 
 and empty_def_pattern = function
     PatVar b -> b.def <- []
-  | PatTuple (f,l) -> List.iter empty_def_pattern l
-  | PatEqual t -> empty_def_term t
+  | pat -> Terms.iter_subpat empty_def_term empty_def_pattern pat
 
 let rec empty_def_process p = 
   p.i_facts <- None;
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      empty_def_process p1;
-      empty_def_process p2
-  | Repl(b,p) ->
-      empty_def_process p
-  | Input((c,tl),pat,p) ->
+  Terms.iter_subiproc empty_def_process
+    (fun (c,tl) pat p -> 
       List.iter empty_def_term tl;
       empty_def_pattern pat;
-      empty_def_oprocess p
+      empty_def_oprocess p) p
 
 and empty_def_oprocess p = 
   p.p_facts <- None;
+  begin
   match p.p_desc with
-    Yield | EventAbort _ -> ()
   | Restr(b,p) ->
-      b.def <- [];
-      empty_def_oprocess p
-  | Test(t,p1,p2) ->
-      empty_def_term t;
-      empty_def_oprocess p1;
-      empty_def_oprocess p2
+      b.def <- []
   | Find(l0,p2,_) ->
       List.iter (fun (bl,def_list,t,p1) ->
-	List.iter (fun (b1,b2) -> b1.def <- []) bl;
-	empty_def_term_def_list def_list;
-	empty_def_term t;
-	empty_def_oprocess p1) l0;
-      empty_def_oprocess p2
-  | Output((c,tl),t',p) ->
-      List.iter empty_def_term tl;
-      empty_def_term t';
-      empty_def_process p
-  | Let(pat,t,p1,p2) ->
-      empty_def_term t;
-      empty_def_pattern pat;
-      empty_def_oprocess p1;
-      empty_def_oprocess p2
-  | EventP(t,p) ->
-      empty_def_term t;
-      empty_def_oprocess p
-  | Get(tbl,patl,topt,p1,p2,_) ->
-      List.iter empty_def_pattern patl;
-      (match topt with None -> () | Some t -> empty_def_term t);
-      empty_def_oprocess p1;
-      empty_def_oprocess p2
-  | Insert(tbl,tl,p) -> 
-      List.iter empty_def_term tl;
-      empty_def_oprocess p
+	List.iter (fun (b1,b2) -> b1.def <- []) bl) l0
+  | _ -> ()
+  end;
+  Terms.iter_suboproc empty_def_oprocess empty_def_term empty_def_def_list
+    empty_def_pattern empty_def_process p
 
 let rec empty_def_fungroup = function
     ReplRestr(repl_opt, restr, funlist) ->

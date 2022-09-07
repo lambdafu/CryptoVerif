@@ -419,28 +419,26 @@ and game =
 	   [proof = ToProve] when it is not proved yet;
 	   [proof = Inactive] when a [focus] command indicated not 
 	   to focus on this query (it is left to proof in another branch).
-	   [proof = Proved(proba_info, state)] when it is proved using the sequence of games [state],
-	   and [proba_info] defines the probability that query is broken in the last game of [state].
+	   [proof = Proved(ql, proba_info, state)] when it is proved using the sequence of games [state],
+	   and [proba_info] defines the probability that query is broken in the last game of [state]. This proof applies to all queries in the list [ql].
 	   Hence, the probability of breaking the initial query [query] is the sum of all 
 	   probability differences on the sequence from [game] to the final game of [state]
 	   plus [proba_info].
 	   However, this probability may depend on the probability of events
 	   introduced during the proof (which may not be bounded yet).
 	   [proba_info] can be either a constant probability [CstProba proba]
-	   or [MulQueryProba(N, (q,g), proof_ref)], which means [N] times the probability
-	   of breaking [q] in game [g]; [proof_ref] is the proof information for
-	   query [q]. This case is used by the transformation "guess", which guesses 
-	   the tested session. *)
+	   or [MulQueryProba(N, l)], which means [N] times the probability
+	   of breaking a query in [l], where [l] is a list of 
+	   [(q,g),proof_ref)] representing query [q] in game [g]; 
+	   [proof_ref] is the proof information for query [q]. This case is used 
+	   by the guess transformations, which guess 
+	   the tested session, some variable, or some branch. *)
     }
 
 and cur_queries_t = ((query * game) * proof_t ref) list
 
-and proba_info =
-  | CstProba of setf 
-  | MulQueryProba of probaf * (query * game) * proof_t ref
-      
 and proof_t =
-  | Proved of proba_info list * state
+  | Proved of query list * probaf * state
   | ToProve
   | Inactive
 
@@ -482,6 +480,8 @@ and probaf =
   | TypeMaxlength of typet
   | Length of funsymb * probaf list
   | OptimIf of optimcond * probaf * probaf
+  | Advt of game * bool(*true when the current queries should be added to the following list of queries*) * (query * proof_t ref) list
+  | ProbaAssume (* A command that may not be correct has been used *)
 
 and time_cat =
   | Game of game
@@ -506,7 +506,6 @@ and var_proba =
 and setf =
     SetProba of probaf
   | SetEvent of funsymb * game * binder list(*public variables*) * proof_t ref
-  | SetAssume (* A command that may not be correct has been used *)
 
 and equiv_gen =
     { eq_name : eqname;

@@ -104,6 +104,7 @@ val get_pcoll2_high : typet -> int
 (* [addq accu x] returns [accu] with [x] added if it is not already in 
    (for physical equality) *)
 val addq : 'a list -> 'a -> 'a list
+val addq_ref : 'a list ref -> 'a -> unit
     
 (* Intersection / Union *)
 
@@ -139,7 +140,7 @@ val get_actual_equiv : equiv_gen -> equiv_nm
     (* Exists *)
     
 val exists_subterm :
-  (term -> bool) -> (binderref -> bool) -> (pattern -> bool) -> term -> bool
+  (term -> bool) -> (binderref list -> bool) -> (pattern -> bool) -> term -> bool
 val exists_subpat :
   (term -> bool) -> (pattern -> bool) -> pattern -> bool
 val exists_subiproc :
@@ -147,11 +148,35 @@ val exists_subiproc :
   (channel * term list -> pattern -> process -> bool) ->
   inputprocess -> bool
 val exists_suboproc :
-  (process -> bool) -> (term -> bool) -> (binderref -> bool) ->
+  (process -> bool) -> (term -> bool) -> (binderref list -> bool) ->
   (pattern -> bool) -> (inputprocess -> bool) -> process -> bool
 val exists_qterm :
   (qterm -> bool) -> (term -> bool) -> qterm -> bool
+
+val iter_subterm :
+  (term -> unit) -> (binderref list -> unit) -> (pattern -> unit) -> term -> unit
+val iter_subpat :
+  (term -> unit) -> (pattern -> unit) -> pattern -> unit
+val iter_subiproc :
+  (inputprocess -> unit) ->
+  (channel * term list -> pattern -> process -> unit) ->
+  inputprocess -> unit
+val iter_suboproc :
+  (process -> unit) -> (term -> unit) -> (binderref list -> unit) ->
+  (pattern -> unit) -> (inputprocess -> unit) -> process -> unit
     
+val map_subterm :
+  (term -> term) -> (binderref list -> binderref list) -> (pattern -> pattern) -> term -> term_desc
+val map_subpat :
+  (term -> term) -> (pattern -> pattern) -> pattern -> pattern
+val map_subiproc :
+  (inputprocess -> inputprocess) ->
+  (channel * term list -> pattern -> process -> (channel * term list) * pattern * process) ->
+  inputprocess -> inputprocess_desc
+val map_suboproc :
+  (process -> process) -> (term -> term) -> (binderref list -> binderref list) ->
+  (pattern -> pattern) -> (inputprocess -> inputprocess) -> process -> process_desc
+
 val may_abort : term -> bool
 val may_abort_counted : game option -> term -> bool
 
@@ -281,6 +306,8 @@ val e_adv_loses : unit -> funsymb
 val e_bad_guess : unit -> funsymb
 val build_event_query : funsymb -> binder list -> query
 val is_event_query : funsymb -> (query * game) * 'a -> bool
+val get_event_query : query -> funsymb option
+val has_event_query : funsymb -> cur_queries_t -> bool
 val is_nonunique_event_query : (query * game) * 'a -> bool
 val get_nonunique_event_query : (query * game) * 'a -> funsymb option
     
@@ -483,6 +510,7 @@ val get_needed_deflist_oprocess : binderref list -> binderref list ref -> proces
 
 val refers_to : binder -> term -> bool
 val refers_to_br : binder -> binderref -> bool
+val refers_to_def_list : binder -> binderref list -> bool
 val refers_to_pat : binder -> pattern -> bool
 val refers_to_process : binder -> inputprocess -> bool
 val refers_to_oprocess : binder -> process -> bool
@@ -493,6 +521,7 @@ val refers_to_process_nodef : binder -> process -> bool
 
 val refers_to_qterm : binder -> qterm -> bool
 
+val collect_vars : binder list ref -> term -> unit
 val collect_vars_hyp : (bool * term) list -> binder list
 val collect_vars_corresp : (bool * term) list -> qterm -> binder list * binder list
     
@@ -567,7 +596,7 @@ val move_occ_game : game -> unit
    and creates a distinct physical copy for each term.
    (needed for [build_def_process]). *)
 val delete_info_term : term -> term
-val delete_info_br : binderref -> binderref
+val delete_info_def_list : binderref list -> binderref list
     
 val term_from_pat : pattern -> term
 val get_type_for_pattern : pattern -> typet
@@ -617,3 +646,4 @@ val update_args_at_creation : repl_index list -> term -> term
 
 val map_sub_probaf : (probaf -> probaf) -> probaf -> probaf
 val exists_sub_probaf : (probaf -> bool) -> probaf -> bool
+

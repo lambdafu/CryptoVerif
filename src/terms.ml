@@ -231,6 +231,9 @@ let get_pcoll2_low ty =
 let addq accu b =
   if List.memq b accu then accu else b::accu
 
+let addq_ref accu b =
+  if not (List.memq b (!accu)) then accu := b::(!accu)
+					   
 (* Compute intersections *)
 
 let mem eqtest a l = List.exists (eqtest a) l
@@ -272,7 +275,7 @@ let get_actual_equiv equiv =
 
 (* Exists *)
 	
-let rec exists_subterm f f_br f_pat t =
+let exists_subterm f f_def_list f_pat t =
   match t.t_desc with
     Var(_,tl) | FunApp(_,tl) ->
       List.exists f tl
@@ -284,7 +287,7 @@ let rec exists_subterm f f_br f_pat t =
   | FindE(l,t3,_) ->
       (f t3) ||
       (List.exists (fun (_,def_list,t1,t2) ->
-	(List.exists f_br def_list) || (f t1)|| (f t2)) l)
+	(f_def_list def_list) || (f t1)|| (f t2)) l)
   | LetE(pat,t1,t2,topt) ->
       (f_pat pat) ||
       (f t1) ||
@@ -318,10 +321,10 @@ let exists_subiproc f f_input p =
     Nil -> false
   | Par(p1,p2) -> (f p1) || (f p2)
   | Repl(b,p) -> f p
-  | Input((c,tl),pat,p) -> 
-      f_input (c,tl) pat p
+  | Input(ch,pat,p) -> 
+      f_input ch pat p
 
-let exists_suboproc f f_term f_br f_pat f_iproc p =
+let exists_suboproc f f_term f_def_list f_pat f_iproc p =
   match p.p_desc with
     Yield | EventAbort _ -> false
   | Restr(_,p) -> f p
@@ -329,7 +332,7 @@ let exists_suboproc f f_term f_br f_pat f_iproc p =
     (f p2)
   | Find(l0,p2, find_info) ->
       (List.exists (fun (bl,def_list,t,p1) ->
-	(List.exists f_br def_list) ||
+	(f_def_list def_list) ||
         (f_term t) || (f p1)) l0) || 
       (f p2)
   | Output((c,tl),t2,p) ->
@@ -351,6 +354,205 @@ let exists_qterm f f_term = function
   | QTerm t -> f_term t
   | QAnd(t1,t2) | QOr(t1,t2) ->
       f t1 || f t2
+
+(* Iter *)
+
+let iter_subterm f f_def_list f_pat t =
+  match t.t_desc with
+    Var(_,l) | FunApp(_,l) -> 
+      List.iter f l
+  | ReplIndex _ -> ()
+  | TestE(t1,t2,t3) ->
+      f t1;
+      f t2;
+      f t3
+  | LetE(pat,t1, t2, topt) -> 
+      f_pat pat; f t1;
+      f t2; 
+      begin
+	match topt with
+	  None -> ()
+	| Some t3 -> f t3
+      end
+  | FindE(l0,t3,_) ->
+      List.iter (fun (bl,def_list,t1,t2) ->
+	f_def_list def_list;
+	f t1;
+	f t2
+	      ) l0;
+      f t3      
+  | ResE(b,t) ->
+      f t
+  | EventAbortE _ -> ()
+  | EventE(t,p) ->
+      f t;
+      f p
+  | InsertE(_,tl,p) ->
+      List.iter f tl;
+      f p
+  | GetE(_, patl, topt, p1, p2, _) ->
+      List.iter f_pat patl;
+      (match topt with
+	  None -> ()
+	| Some t -> f t);
+      f p1;
+      f p2
+	
+let iter_subpat f f_pat = function
+    PatVar b -> ()
+  | PatTuple (f,l) -> List.iter f_pat l
+  | PatEqual t -> f t
+
+let iter_subiproc f f_input p =
+  match p.i_desc with
+    Nil -> ()
+  | Par(p1,p2) -> f p1; f p2
+  | Repl(b,p) -> f p
+  | Input(ch,pat,p) -> 
+      f_input ch pat p
+	
+let iter_suboproc f f_term f_def_list f_pat f_iproc p =
+  match p.p_desc with
+    Yield | EventAbort _ -> ()
+  | Restr(_,p) -> f p
+  | Test(t,p1,p2) ->
+      f_term t; f p1; f p2
+  | Find(l0,p2, find_info) ->
+      List.iter (fun (bl,def_list,t,p1) ->
+	f_def_list def_list;
+        f_term t; f p1) l0;
+      f p2
+  | Output((c,tl),t2,p) ->
+      List.iter f_term tl; f_term t2; f_iproc p
+  | EventP(t,p) ->
+      f_term t; f p
+  | Let(pat,t,p1,p2) ->
+      f_term t; f_pat pat;
+      f p1; f p2
+  | Get(tbl,patl,topt,p1,p2,_) ->
+      List.iter f_pat patl;
+      (match topt with None -> () | Some t -> f_term t);
+      f p1; f p2
+  | Insert(tbl,tl,p) ->
+      List.iter f_term tl; f p
+
+(* Map *)
+
+let map_subterm f f_def_list f_pat t =
+  match t.t_desc with
+  | Var(b,l) -> Var(b, List.map f l)
+  | ReplIndex i -> ReplIndex i
+  | FunApp(fs,l) -> FunApp(fs, List.map f l)
+  | TestE(t1,t2,t3) -> 
+      let t1' = f t1 in
+      let t2' = f t2 in
+      let t3' = f t3 in 
+      TestE(t1', t2', t3')
+  | FindE(l0,t3, find_info) -> 
+      let l0' = List.map (fun (bl,def_list,t1,t2) ->
+	let def_list' = f_def_list def_list in
+	let t1' = f t1 in
+	let t2' = f t2 in
+	(bl, def_list', t1', t2')) l0
+      in
+      let t3' = f t3 in
+      FindE(l0', t3', find_info)
+  | LetE(pat, t1, t2, topt) ->
+      let pat' = f_pat pat in
+      let t1' = f t1 in
+      let t2' = f t2 in
+      let topt' = match topt with
+	None -> None
+      | Some t3 -> Some (f t3)
+      in
+      LetE(pat', t1', t2', topt')
+  | ResE(b,t) ->
+      ResE(b, f t)
+  | EventAbortE f -> EventAbortE f 
+  | EventE(t,p) ->
+      let t' = f t in
+      let p' = f p in
+      EventE(t', p')
+  | GetE(tbl,patl,topt,p1,p2,find_info) -> 
+      let patl' = List.map f_pat patl in
+      let topt' = 
+	match topt with 
+	  Some t -> Some (f t) 
+	| None -> None
+      in
+      let p1' = f p1 in
+      let p2' = f p2 in	  
+      GetE(tbl,patl',topt',p1', p2',find_info)
+  | InsertE (tbl,tl,p) -> 
+      let tl' = List.map f tl in
+      let p' = f p in
+      InsertE(tbl, tl', p')
+
+let map_subpat f f_pat = function
+    PatVar b -> PatVar b
+  | PatTuple (fs,l) -> PatTuple(fs,List.map f_pat l)
+  | PatEqual t -> PatEqual(f t)
+
+let map_subiproc f f_input p =
+  match p.i_desc with
+    Nil -> Nil
+  | Par(p1,p2) -> 
+      let p1' = f p1 in
+      let p2' = f p2 in
+      Par(p1', p2')
+  | Repl(b,p) -> Repl(b, f p)
+  | Input(ch,pat,p) ->
+      let ch',pat',p' = f_input ch pat p in
+      Input(ch', pat', p')
+
+let map_suboproc f f_term f_def_list f_pat f_iproc p =
+  match p.p_desc with
+  | Yield -> Yield
+  | EventAbort f -> EventAbort f
+  | Restr(b,p) -> Restr(b, f p)
+  | Test(t,p1,p2) -> 
+      let t' = f_term t in
+      let p1' = f p1 in
+      let p2' = f p2 in
+      Test(t', p1', p2')
+  | Find(l0, p2, find_info) -> 
+      let l0' = List.map (fun (bl, def_list, t, p1) -> 
+	let def_list' = f_def_list def_list in
+	let t' = f_term t in
+	let p1' = f p1 in
+	(bl, def_list', t', p1')) l0
+      in
+      let p2' = f p2 in
+      Find(l0', p2', find_info)
+  | Let(pat,t,p1,p2) ->
+      let pat' = f_pat pat in
+      let t' = f_term t in
+      let p1' = f p1 in
+      let p2' = f p2 in	  
+      Let(pat', t', p1', p2')
+  | Output((c,tl),t2,p) ->
+      let tl' = List.map f_term tl in
+      let t2' = f_term t2 in
+      let p' = f_iproc p in
+      Output((c, tl'), t2', p')
+  | EventP(t,p) ->
+      let t' = f_term t in
+      let p' = f p in
+      EventP(t', p')
+  | Get(tbl,patl,topt,p1,p2,find_info) -> 
+      let patl' = List.map f_pat patl in
+      let topt' = 
+	match topt with 
+	  Some t -> Some (f_term t) 
+	| None -> None
+      in
+      let p1' = f p1 in
+      let p2' = f p2 in	  
+      Get(tbl,patl',topt',p1', p2', find_info)
+  | Insert (tbl,tl,p) -> 
+      let tl' = List.map f_term tl in
+      let p' = f p in
+      Insert(tbl, tl', p')
 	
 (* Create an interval type from a parameter *)
 
@@ -1425,6 +1627,9 @@ let equal_cat cat cat' =
   | Context(g), Context(g') -> g == g'
   | Game(g), Game(g') -> g == g'
   | _ -> false
+
+let equal_q (q1,popt_ref1) (q2,popt_ref2) =
+  (equal_query q1 q2) && (popt_ref1 == popt_ref2)
 	
 let rec equal_probaf p1 p2 =
   match p1, p2 with
@@ -1454,6 +1659,10 @@ let rec equal_probaf p1 p2 =
   | OptimIf(cond,p1,p2), OptimIf(cond',p1',p2') ->
       (equal_optim_cond cond cond') &&
       (equal_probaf p1 p1') && (equal_probaf p2 p2')
+  | Advt(g1, cur_q1, ql1), Advt(g2, cur_q2, ql2) ->
+      (g1 == g2) && (cur_q1 == cur_q2) &&
+      (equal_lists_sets equal_q ql1 ql2)
+  | ProbaAssume, ProbaAssume -> true
   | _ -> false
 
 and equal_optim_cond cond cond' =
@@ -1937,96 +2146,23 @@ let union_binderref s1 s2 =
 
 (* get def_list subterms *)
 
-let rec get_deflist_subterms accu t =
-  match t.t_desc with
-    Var(b,l) -> add_binderref (b,l) accu
-  | ReplIndex i -> ()
-  | FunApp(f,l) -> List.iter (get_deflist_subterms accu) l
+let get_deflist_subterms accu t =
+  let rec aux_t t = 
+    match t.t_desc with
+      Var(b,l) -> add_binderref (b,l) accu
+    | _ -> iter_subterm aux_t (fun _ -> ()) aux_pat t
 	(* The cases TestE, FindE, LetE, RestE, EventAbortE are probably not used *)
-  | TestE(t1,t2,t3) -> 
-      get_deflist_subterms accu t1;
-      get_deflist_subterms accu t2;
-      get_deflist_subterms accu t3
-  | FindE(l0,t3, find_info) ->
-      List.iter (fun (bl, def_list, t, t1) ->
-	get_deflist_subterms accu t;
-	get_deflist_subterms accu t1
-	) l0;
-      get_deflist_subterms accu t3
-  | LetE(pat,t1,t2,topt) ->
-      get_def_list_pat accu pat;
-      get_deflist_subterms accu t1;
-      get_deflist_subterms accu t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> get_deflist_subterms accu t3
-      end
-  | ResE(b,t) -> get_deflist_subterms accu t
-  | EventAbortE f -> ()
-  | EventE _ | InsertE _ | GetE _ ->
-      Parsing_helper.internal_error "event, get, and insert should not occur in get_deflist_subterms"
-
-and get_def_list_pat accu = function
-    PatVar _ -> ()
-  | PatTuple(f,l) -> List.iter (get_def_list_pat accu) l
-  | PatEqual t -> get_deflist_subterms accu t
-
+  and aux_pat pat =
+    iter_subpat aux_t aux_pat pat
+  in
+  aux_t t
+    
 (* Change the occurrences and make sure nodes associated with Find
    are distinct for different occurrences of Find *)
 
 let rec move_occ_term t = 
   let x_occ = new_occ() in
-  let desc = 
-    match t.t_desc with
-	Var(b,l) -> Var(b, List.map move_occ_term l)
-      |	ReplIndex i -> ReplIndex i
-      |	FunApp(f,l) -> FunApp(f, List.map move_occ_term l)
-      |	TestE(t1,t2,t3) -> 
-	  let t1' = move_occ_term t1 in
-	  let t2' = move_occ_term t2 in
-	  let t3' = move_occ_term t3 in 
-	  TestE(t1', t2', t3')
-      |	FindE(l0,t3, find_info) -> 
-	  let l0' = List.map (fun (bl,def_list,t1,t2) ->
-	    let def_list' = List.map move_occ_br def_list in
-	    let t1' = move_occ_term t1 in
-	    let t2' = move_occ_term t2 in
-	    (bl, def_list', t1', t2')) l0
-	  in
-	  let t3' = move_occ_term t3 in
-	  FindE(l0', t3', find_info)
-      |	LetE(pat, t1, t2, topt) ->
-	  let pat' = move_occ_pat pat in
-	  let t1' = move_occ_term t1 in
-	  let t2' = move_occ_term t2 in
-	  let topt' = match topt with
-		 None -> None
-	       | Some t3 -> Some (move_occ_term t3)
-	  in
-	  LetE(pat', t1', t2', topt')
-      |	ResE(b,t) ->
-	  ResE(b, move_occ_term t)
-      |	EventAbortE f -> EventAbortE f 
-      | EventE(t,p) ->
-	  let t' = move_occ_term t in
-	  let p' = move_occ_term p in
-	  EventE(t', p')
-      | GetE(tbl,patl,topt,p1,p2,find_info) -> 
-	  let patl' = List.map move_occ_pat patl in
-	  let topt' = 
-	    match topt with 
-	      Some t -> Some (move_occ_term t) 
-	    | None -> None
-	  in
-	  let p1' = move_occ_term p1 in
-	  let p2' = move_occ_term p2 in	  
-          GetE(tbl,patl',topt',p1', p2',find_info)
-      | InsertE (tbl,tl,p) -> 
-	  let tl' = List.map move_occ_term tl in
-	  let p' = move_occ_term p in
-          InsertE(tbl, tl', p')
-  in
+  let desc = map_subterm move_occ_term move_occ_def_list move_occ_pat t in
   { t_desc = desc;
     t_type = t.t_type;
     t_occ = x_occ;
@@ -2035,28 +2171,18 @@ let rec move_occ_term t =
     t_incompatible = Occ_map.empty;
     t_facts = None }
 
-and move_occ_pat = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple(f,List.map move_occ_pat l)
-  | PatEqual t -> PatEqual(move_occ_term t)
+and move_occ_pat pat =
+  map_subpat move_occ_term move_occ_pat pat
 
-and move_occ_br (b,l) = (b, List.map move_occ_term l)
+and move_occ_def_list def_list = List.map (fun (b,l) -> (b, List.map move_occ_term l)) def_list
 
 let rec move_occ_process p = 
   let x_occ = new_occ() in
-  let desc = 
-    match p.i_desc with
-	Nil -> Nil
-      | Par(p1,p2) -> 
-	  let p1' = move_occ_process p1 in
-	  let p2' = move_occ_process p2 in
-	  Par(p1', p2')
-      | Repl(b,p) -> Repl(b, move_occ_process p)
-      | Input((c,tl),pat,p) ->
-	  let tl' = List.map move_occ_term tl in
-	  let pat' = move_occ_pat pat in
-	  let p' = move_occ_oprocess p in
-	  Input((c, tl'), pat', p')
+  let desc = map_subiproc move_occ_process (fun (c,tl) pat p ->
+    let tl' = List.map move_occ_term tl in
+    let pat' = move_occ_pat pat in
+    let p' = move_occ_oprocess p in
+    ((c, tl'), pat', p')) p
   in
   { i_desc = desc;
     i_occ = x_occ; 
@@ -2067,54 +2193,8 @@ let rec move_occ_process p =
 
 and move_occ_oprocess p =
   let x_occ = new_occ() in
-  let desc = 
-    match p.p_desc with
-	Yield -> Yield
-      |	EventAbort f -> EventAbort f
-      | Restr(b,p) -> Restr(b, move_occ_oprocess p)
-      | Test(t,p1,p2) -> 
-	  let t' = move_occ_term t in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in
-	  Test(t', p1', p2')
-      | Find(l0, p2, find_info) -> 
-	  let l0' = List.map (fun (bl, def_list, t, p1) -> 
-	    let def_list' = List.map move_occ_br def_list in
-	    let t' = move_occ_term t in
-	    let p1' = move_occ_oprocess p1 in
-	    (bl, def_list', t', p1')) l0
-	  in
-	  let p2' = move_occ_oprocess p2 in
-	  Find(l0', p2', find_info)
-      | Let(pat,t,p1,p2) ->
-	  let pat' = move_occ_pat pat in
-	  let t' = move_occ_term t in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in	  
-	  Let(pat', t', p1', p2')
-      | Output((c,tl),t2,p) ->
-	  let tl' = List.map move_occ_term tl in
-	  let t2' = move_occ_term t2 in
-	  let p' = move_occ_process p in
-	  Output((c, tl'), t2', p')
-      | EventP(t,p) ->
-	  let t' = move_occ_term t in
-	  let p' = move_occ_oprocess p in
-	  EventP(t', p')
-      | Get(tbl,patl,topt,p1,p2,find_info) -> 
-	  let patl' = List.map move_occ_pat patl in
-	  let topt' = 
-	    match topt with 
-	      Some t -> Some (move_occ_term t) 
-	    | None -> None
-	  in
-	  let p1' = move_occ_oprocess p1 in
-	  let p2' = move_occ_oprocess p2 in	  
-          Get(tbl,patl',topt',p1', p2', find_info)
-      | Insert (tbl,tl,p) -> 
-	  let tl' = List.map move_occ_term tl in
-	  let p' = move_occ_oprocess p in
-          Insert(tbl, tl', p')
+  let desc = map_suboproc move_occ_oprocess move_occ_term move_occ_def_list
+      move_occ_pat move_occ_process p
   in
   { p_desc = desc;
     p_occ = x_occ;
@@ -2140,64 +2220,13 @@ let move_occ_game g =
    (needed for [build_def_process]). *)
 
 let rec delete_info_term t = 
-  let desc = 
-    match t.t_desc with
-	Var(b,l) -> Var(b, List.map delete_info_term l)
-      |	ReplIndex i -> ReplIndex i
-      |	FunApp(f,l) -> FunApp(f, List.map delete_info_term l)
-      |	TestE(t1,t2,t3) -> 
-	  let t1' = delete_info_term t1 in
-	  let t2' = delete_info_term t2 in
-	  let t3' = delete_info_term t3 in 
-	  TestE(t1', t2', t3')
-      |	FindE(l0,t3, find_info) -> 
-	  let l0' = List.map (fun (bl,def_list,t1,t2) ->
-	    let def_list' = List.map delete_info_br def_list in
-	    let t1' = delete_info_term t1 in
-	    let t2' = delete_info_term t2 in
-	    (bl, def_list', t1', t2')) l0
-	  in
-	  let t3' = delete_info_term t3 in
-	  FindE(l0', t3', find_info)
-      |	LetE(pat, t1, t2, topt) ->
-	  let pat' = delete_info_pat pat in
-	  let t1' = delete_info_term t1 in
-	  let t2' = delete_info_term t2 in
-	  let topt' = match topt with
-		 None -> None
-	       | Some t3 -> Some (delete_info_term t3)
-	  in
-	  LetE(pat', t1', t2', topt')
-      |	ResE(b,t) ->
-	  ResE(b, delete_info_term t)
-      |	EventAbortE f -> EventAbortE f 
-      | EventE(t,p) ->
-	  let t' = delete_info_term t in
-	  let p' = delete_info_term p in
-	  EventE(t', p')
-      | GetE(tbl,patl,topt,p1,p2,find_info) -> 
-	  let patl' = List.map delete_info_pat patl in
-	  let topt' = 
-	    match topt with 
-	      Some t -> Some (delete_info_term t) 
-	    | None -> None
-	  in
-	  let p1' = delete_info_term p1 in
-	  let p2' = delete_info_term p2 in	  
-          GetE(tbl,patl',topt',p1', p2',find_info)
-      | InsertE (tbl,tl,p) -> 
-	  let tl' = List.map delete_info_term tl in
-	  let p' = delete_info_term p in
-          InsertE(tbl, tl', p')
-  in
+  let desc = map_subterm delete_info_term delete_info_def_list delete_info_pat t in
   build_term t desc
 
-and delete_info_pat = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple(f,List.map delete_info_pat l)
-  | PatEqual t -> PatEqual(delete_info_term t)
+and delete_info_pat pat =
+  map_subpat delete_info_term delete_info_pat pat
 
-and delete_info_br (b,l) = (b, List.map delete_info_term l)
+and delete_info_def_list def_list = List.map (fun (b,l) -> (b, List.map delete_info_term l)) def_list
 
 (* Copy a term
    Preserves occurrences of the original term. This is useful so that
@@ -2329,49 +2358,9 @@ and copy_term transf t =
 		delete_info_term t' (* Delete information stored in [t'] *)
 	    | _ -> build_term2 t (Var(b,List.map (copy_term transf) l))
       end
-  | FunApp(f,l) ->
-      build_term2 t (FunApp(f, List.map (copy_term transf) l))
-  | TestE(t1,t2,t3) ->
-      build_term2 t (TestE(copy_term transf t1,
-				 copy_term transf t2, 
-				 copy_term transf t3))
-  | LetE(pat, t1, t2, topt) ->
-      let pat' = copy_pat transf pat in
-      let t1' = copy_term transf t1 in
-      let t2' = copy_term transf t2 in
-      let topt' = match topt with
-	None -> None
-      |	Some t3 -> Some (copy_term transf t3)
-      in
-      build_term2 t (LetE(pat', t1', t2', topt'))
-  | FindE(l0, t3, find_info) -> 
-      let l0' = List.map (fun (bl, def_list, t1, t2) ->
-	(bl,
-	 copy_def_list transf def_list,
-	 copy_term transf t1,
-	 copy_term transf t2)) l0
-      in
-      build_term2 t (FindE(l0', copy_term transf t3, find_info))
-  | ResE(b,t1) ->
-      build_term2 t (ResE(b, copy_term transf t1))
-  | EventAbortE(f) ->
-      build_term2 t (EventAbortE(f))
-  | EventE(t1,p) ->
-      build_term2 t (EventE(copy_term transf t1, 
-			    copy_term transf p))
-  | GetE(tbl, patl, topt, p1, p2,find_info) ->
-      let topt' =
-	match topt with
-	  None -> None
-	| Some t -> Some (copy_term transf t)
-      in
-      build_term2 t (GetE(tbl, List.map (copy_pat transf) patl,
-			  topt',
-			  copy_term transf p1,
-			  copy_term transf p2, find_info))
-  | InsertE(tbl,tl,p) ->
-      build_term2 t (InsertE(tbl, List.map (copy_term transf) tl,
-			     copy_term transf p))
+  | _ ->
+      build_term2 t (map_subterm (copy_term transf)
+		       (copy_def_list transf) (copy_pat transf) t)
 
 and copy_def_list transf def_list =
   let copy_br (b,l) = (b, List.map (copy_term transf) l) in
@@ -2435,10 +2424,8 @@ and copy_def_list transf def_list =
        (List.filter (fun (b,l) ->
           not ((b.link != NoLink) && (is_args_at_creation b l))) def_list)
       
-and copy_pat transf = function
-  PatVar b -> PatVar b
-| PatTuple (f,l) -> PatTuple(f,List.map (copy_pat transf) l)
-| PatEqual t -> PatEqual(copy_term transf t)
+and copy_pat transf pat =
+  map_subpat (copy_term transf) (copy_pat transf) pat
 
 (* Compute term { l / cur_array } *)
 
@@ -2464,63 +2451,15 @@ let copy_elsefind (bl, def_vars, t) =
   res
 
 let rec copy_process transf p = 
-  iproc_from_desc_loc p (
-  match p.i_desc with
-    Nil -> Nil
-  | Par(p1,p2) ->
-      Par(copy_process transf p1,
-	  copy_process transf p2)
-  | Repl(b,p) ->
-      Repl(b, copy_process transf p)
-  | Input((c,tl), pat, p) ->
-      Input((c, List.map (copy_term transf) tl),
-	    copy_pat transf pat,
-	    copy_oprocess transf p))
+  iproc_from_desc_loc p (map_subiproc (copy_process transf) (fun (c,tl) pat p ->
+    ((c, List.map (copy_term transf) tl),
+     copy_pat transf pat,
+     copy_oprocess transf p)) p)
 
 and copy_oprocess transf p =
-  oproc_from_desc_loc p (
-  match p.p_desc with
-    Yield -> Yield
-  | EventAbort f -> EventAbort f
-  | Restr(b, p) ->
-      Restr(b, copy_oprocess transf p)
-  | Test(t,p1,p2) ->
-      Test(copy_term transf t, 
-	   copy_oprocess transf p1,
-           copy_oprocess transf p2)
-  | Let(pat, t, p1, p2) ->
-      Let(copy_pat transf pat, 
-	  copy_term transf t, 
-	  copy_oprocess transf p1,
-          copy_oprocess transf p2)
-  | Output((c,tl),t2,p) ->
-      Output((c, List.map (copy_term transf) tl),
-	     copy_term transf t2,
-	     copy_process transf p)
-  | Find(l0, p2, find_info) ->
-      let l0' = List.map (fun (bl, def_list, t, p1) ->
-	(bl, 
-	 copy_def_list transf def_list, 
-	 copy_term transf t,
-	 copy_oprocess transf p1)) l0 in
-      Find(l0', copy_oprocess transf p2, find_info)
-  | EventP(t,p) ->
-      EventP(copy_term transf t, 
-	     copy_oprocess transf p)
-  | Get(tbl, patl, topt, p1, p2, find_info) ->
-      let topt' =
-	match topt with
-	  None -> None
-	| Some t -> Some (copy_term transf t)
-      in
-      Get(tbl, List.map (copy_pat transf) patl,
-	  topt',
-	  copy_oprocess transf p1,
-	  copy_oprocess transf p2, find_info)
-  | Insert(tbl,tl,p) ->
-      Insert(tbl, List.map (copy_term transf) tl,
-	     copy_oprocess transf p)
-  )
+  oproc_from_desc_loc p
+    (map_suboproc (copy_oprocess transf) (copy_term transf)
+       (copy_def_list transf) (copy_pat transf) (copy_process transf) p)
 
 let rec copy_fungroup transf = function
   | ReplRestr(repl_opt, restr, funlist) ->
@@ -2629,10 +2568,12 @@ let rec refers_to b0 t =
 	 TLink t -> refers_to b0 t
       | _ -> false)
   | _ -> false) ||
-  (exists_subterm (refers_to b0) (refers_to_br b0) (refers_to_pat b0) t)
+  (exists_subterm (refers_to b0) (refers_to_def_list b0) (refers_to_pat b0) t)
 
 and refers_to_br b0 (b,l) =
   ((not (!no_def)) && (b == b0)) || List.exists (refers_to b0) l
+      
+and refers_to_def_list b0 def_list = List.exists (refers_to_br b0) def_list
 
 and refers_to_pat b0 pat =
   exists_subpat (refers_to b0) (refers_to_pat b0) pat
@@ -2644,7 +2585,7 @@ let rec refers_to_process b0 p =
       ) p
 
 and refers_to_oprocess b0 p =
-  exists_suboproc (refers_to_oprocess b0) (refers_to b0) (refers_to_br b0)
+  exists_suboproc (refers_to_oprocess b0) (refers_to b0) (refers_to_def_list b0)
     (refers_to_pat b0) (refers_to_process b0) p
 
 let rec refers_to_fungroup b = function
@@ -2671,7 +2612,7 @@ let refers_to_process_nodef b0 p =
 
 let rec collect_vars accu t =
   match t.t_desc with
-    Var(b,[]) -> if not (List.memq b (!accu)) then accu := b :: (!accu)
+    Var(b,[]) -> addq_ref accu b 
   | FunApp(f,l) -> List.iter (collect_vars accu) l
   | _ -> Parsing_helper.internal_error "expecting variable or function in collect_vars"
 
@@ -3043,6 +2984,16 @@ let is_event_query f' ((q,_),_) =
       f' == f && is_false t_false
   | _ -> false
 
+let get_event_query = function
+  | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
+      if is_false t_false then Some f else None
+  | _ -> None
+	
+let has_event_query f' l =
+  List.exists (fun q ->
+    (Settings.get_query_status q == ToProve) && (is_event_query f' q)
+      ) l
+	
 let is_nonunique_event_query ((q,_),_) =
   match q with
   | QEventQ([false, { t_desc = FunApp(f,[_]) }], QTerm t_false, pub_vars) ->
@@ -3071,9 +3022,7 @@ let is_unique g_opt l0' find_info =
   | _ ->
       match find_info, g_opt with
       | UniqueToProve e, Some g ->
-	  if List.exists (fun (((_,_),poptref) as q) ->
-	    (!poptref == ToProve) && (is_event_query e q)
-	      ) g.current_queries then
+	  if has_event_query e g.current_queries then
 	    find_info
 	  else
 	    (* The event [e] is not to prove, we can consider the [find] as unique *)
@@ -3809,7 +3758,7 @@ let rec map_optim_cond f = function
 let map_sub_probaf f = function
   | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
-  | Maxlength _ as x -> x
+  | Maxlength _ | Advt _ | ProbaAssume as x -> x
   | Time(cnt,cat,p) -> Time(cnt,cat,f p)
   | Proba(p,l) -> Proba(p, List.map f l)
   | ActTime(f1,l) -> ActTime(f1, List.map f l)
@@ -3821,7 +3770,7 @@ let map_sub_probaf f = function
   | Power(x,n) -> Power(f x, n)
   | Max(l) -> Max(List.map f l)
   | Min(l) -> Min(List.map f l)
-  | OptimIf(cond,x,y) -> OptimIf(map_optim_cond f cond, f x, f y) 
+  | OptimIf(cond,x,y) -> OptimIf(map_optim_cond f cond, f x, f y)
 
 (* Exists *)
 
@@ -3832,7 +3781,7 @@ let rec exists_optim_cond f = function
 let exists_sub_probaf f = function
   | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
   | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
-  | Maxlength _ ->
+  | Maxlength _ | Advt _ | ProbaAssume ->
       false
   | Time(_,_,p) -> f p
   | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
@@ -3841,3 +3790,4 @@ let exists_sub_probaf f = function
       (f p1) || (f p2)
   | Power(p,n) -> f p
   | OptimIf(cond,x,y) -> (exists_optim_cond f cond) || (f x) || (f y)
+

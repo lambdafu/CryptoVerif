@@ -509,13 +509,16 @@ let check_secrecy collector b pub_vars =
     if !not_found_flag then raise Not_found;
     if (!advise) == [] then
       begin
+	let proba = Depanal.final_add_proba() in
+	let proba = proba @ proba in
 	print_string "Proved one-session secrecy of ";
 	Display.display_binder b;
+	Display.display_up_to_proba_set proba;
 	print_newline();
 	detected_leaks := [];
 	current_restr := None;
 	public_vars := [];
-	(true, Depanal.final_add_proba())
+	(true, proba)
       end
     else
       begin
@@ -614,11 +617,7 @@ let check_query collector event_accu = function
 	    let proba = proba1 @ proba2 in
 	    print_string "Proved secrecy of ";
 	    Display.display_binder b;
-	    if proba != [] then
-	      begin
-		print_string " Probability: ";
-		Display.display_set proba
-	      end;
+	    Display.display_up_to_proba_set proba;
 	    print_newline();
 	    (true, proba)
 	  end
@@ -644,11 +643,7 @@ let check_query collector event_accu = function
 	begin
 	  print_string "Proved query ";
 	  Display.display_query3 query;
-	  if proba != [] then
-	    begin
-	      print_string " Probability: ";
-	      Display.display_set proba
-	    end;
+	  Display.display_up_to_proba_set proba;
 	  print_newline();
 	  (true, proba)
 	end
@@ -673,7 +668,7 @@ let rec check_query_list collector event_accu state = function
 	  if res then
 	    begin
 	      (* The query is proved *)
-              poptref := Proved(List.map (fun p -> CstProba p) proba, state);
+              poptref := Proved([fst a], Polynom.proba_from_set proba, state);
 	      ((a,proba)::l', b)
 	    end
 	  else 
@@ -704,8 +699,8 @@ let rec update_full_proof state =
 	    if !poptref = ToProve then
 	      let poptref' = List.assq q state.game.current_queries in
 	      match !poptref' with
-	      | Proved(proba_info, state') ->
-		  if List.for_all Display.is_full_proba_info proba_info then
+	      | Proved(ql, proba_info, state') ->
+		  if Display.is_full_probaf (fst q) proba_info then
 		    poptref := !poptref'
 	      | _ -> ()
 		  ) s'.game.current_queries;

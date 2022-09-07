@@ -75,7 +75,9 @@ val merge_arrays : bool ref
 val unique_branch : bool ref
 val unique_branch_reorg : bool ref
 val infer_unique : bool ref
-                               
+
+val guess_remove_unique : bool ref
+    
 val auto_sa_rename : bool ref
 val auto_remove_assign_find_cond : bool ref
 val auto_remove_if_find_cond : bool ref

@@ -553,6 +553,109 @@ let display_time_id cat =
       print_string ")"
   | Complex -> ()
 	
+let display_pub_vars pub_vars =
+  if pub_vars <> [] then
+    begin
+      print_string " with public variables ";
+      display_list display_binder pub_vars
+    end
+	
+let display_event (b,t) =
+  if b then print_string "inj-";
+  print_string "event(";
+  display_term t;
+  print_string ")"
+ 
+let rec display_query1 = function
+    [] -> Parsing_helper.internal_error "List should not be empty"
+  | [x] -> display_event x
+  | x::l ->
+      display_event x;
+      print_string " && ";
+      display_query1 l
+
+let rec display_query2 = function
+    QEvent(b,t) ->
+      display_event (b,t)
+  | QTerm t ->
+      display_term t
+  | QOr(t1,t2) ->
+      print_string "(";
+      display_query2 t1;
+      print_string " || ";
+      display_query2 t2;
+      print_string ")"
+  | QAnd(t1,t2) ->
+      print_string "(";
+      display_query2 t1;
+      print_string " && ";
+      display_query2 t2;
+      print_string ")"
+
+let rec get_initial_game s =
+  match s.prev_state with
+    None -> s.game
+  | Some(_,_,_,s') -> get_initial_game s'
+      
+let display_query3 = function
+  | QSecret (b,pub_vars,onesession) ->
+      if onesession then print_string "one-session ";
+      print_string "secrecy of "; display_binder b;
+      display_pub_vars pub_vars
+  | AbsentQuery ->
+      print_string "indistinguishability from the final game"
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability from game " ^ (get_game_id g')); 
+      display_pub_vars pub_vars
+  | QEquivalence(state,pub_vars,_) ->
+      let g' = get_initial_game state in
+      if g'.game_number = -1 then
+	print_string "indistinguishability from other input game"
+      else
+	print_string ("indistinguishability from game " ^
+		      (string_of_int g'.game_number));
+      display_pub_vars pub_vars      
+  | QEventQ(t1,t2, pub_vars) ->
+      let (forall, exists) = Terms.collect_vars_corresp t1 t2 in
+      display_quantified "forall " forall;
+      display_query1 t1; 
+      print_string " ==> ";
+      display_quantified "exists " exists;
+      display_query2 t2;
+      display_pub_vars pub_vars
+	
+let display_query (q,g) = 
+  match q with 
+    AbsentQuery -> 
+      if g.game_number <> 1 then
+	print_string ("indistinguishability between game "^(get_game_id g)^" and the final game")
+      else
+	print_string "indistinguishability between the input game and the final game"
+  | QEquivalence (state, pub_vars, _) ->
+      let g' = get_initial_game state in
+      print_string ("indistinguishability between game " ^
+		    (get_game_id g) ^
+		    " and game " ^
+		    (get_game_id g'));
+      display_pub_vars pub_vars
+  | QEquivalenceFinal(g', pub_vars) ->
+      print_string ("indistinguishability between game " ^
+		    (get_game_id g) ^
+		    " and game " ^
+		    (get_game_id g'));
+      display_pub_vars pub_vars
+  | _ ->
+      display_query3 q;
+      if g.game_number <> 1 then
+	print_string (" in game " ^ (get_game_id g))  
+
+let query_from_q_g (q,_) =
+  (q, ref ToProve(*not needed for display*))
+    
+let build_advt g ql = 
+  Advt(g, false, List.map query_from_q_g ql)
+      
+	
 let rec display_proba ?(separate_time = false) level = function
     Proba(p,l) -> 
       print_string p.prname;
@@ -707,6 +810,35 @@ let rec display_proba ?(separate_time = false) level = function
       print_string " else ";
       display_proba ~separate_time 0 p2;
       print_string ")"
+  | Advt(g, cur_q, ql) -> 
+      let (ql_otherq, ql_eventq) = List.partition (fun (q,_) ->
+	(Terms.get_event_query q == None)) ql
+      in
+      print_string (if cur_q || ql_otherq != [] then "Adv" else "Pr");
+      print_string "[Game ";
+      print_string (get_game_id g);
+      print_string ": ";
+      if cur_q then
+	begin
+	  assert(ql_otherq == []);
+	  print_string "current_queries"
+	end
+      else
+	begin
+	  match ql_otherq with
+	  | [q,_] -> display_query3 q
+	  | [] -> ()
+	  | _ -> assert false
+	end;
+      if (cur_q || ql_otherq != []) && ql_eventq != [] then print_string ", ";
+      display_list_sep " || "
+	(fun (q,_) ->
+	  match Terms.get_event_query q with
+	  | Some f -> print_string f.f_name
+	  | None -> assert false) ql_eventq;
+      print_string "]"
+  | ProbaAssume ->
+      print_string "Pr[COMMAND NOT CHECKED]"
 
 and display_optim_cond ~separate_time = function
   | OCProbaFun(s,[p1; p2]) ->
@@ -733,15 +865,10 @@ let rec display_polynom = function
   | [a] -> display_monomial a
   | (a::l) -> display_monomial a; print_string " + "; display_polynom l
 
-let display_pub_vars pub_vars =
-  if pub_vars <> [] then
-    begin
-      print_string " with public variables ";
-      display_list display_binder pub_vars
-    end
+let rec has_assume = function
+  | ProbaAssume -> true
+  | proba -> Terms.exists_sub_probaf has_assume proba
 	
-let has_assume = List.exists (function SetAssume -> true | _ -> false)
-      
 let display_one_set ?separate_time = function
     SetProba p ->
       display_proba ?separate_time 0 p;
@@ -752,8 +879,6 @@ let display_one_set ?separate_time = function
       print_string (get_game_id g);
       display_pub_vars pub_vars;
       print_string "]"
-  | SetAssume ->
-      print_string "Pr[COMMAND NOT CHECKED]"
 
 let rec display_set ?separate_time = function
     [] -> print_string "0"
@@ -763,6 +888,15 @@ let rec display_set ?separate_time = function
       print_string " + ";
       display_set ?separate_time l
   
+let display_up_to_proba ?separate_time p =
+  if p <> Zero then
+    begin
+      print_string " up to probability ";
+      display_proba ?separate_time 0 p
+    end
+      
+let display_up_to_proba_set ?separate_time s =
+  display_up_to_proba ?separate_time (Polynom.proba_from_set s)
 
 (* Only for the oracles front-end *)
 
@@ -1419,95 +1553,6 @@ let display_with_user_info user_info =
       display_user_info user_info
 
 
-let display_event (b,t) =
-  if b then print_string "inj-";
-  print_string "event(";
-  display_term t;
-  print_string ")"
- 
-let rec display_query1 = function
-    [] -> Parsing_helper.internal_error "List should not be empty"
-  | [x] -> display_event x
-  | x::l ->
-      display_event x;
-      print_string " && ";
-      display_query1 l
-
-let rec display_query2 = function
-    QEvent(b,t) ->
-      display_event (b,t)
-  | QTerm t ->
-      display_term t
-  | QOr(t1,t2) ->
-      print_string "(";
-      display_query2 t1;
-      print_string " || ";
-      display_query2 t2;
-      print_string ")"
-  | QAnd(t1,t2) ->
-      print_string "(";
-      display_query2 t1;
-      print_string " && ";
-      display_query2 t2;
-      print_string ")"
-
-let rec get_initial_game s =
-  match s.prev_state with
-    None -> s.game
-  | Some(_,_,_,s') -> get_initial_game s'
-      
-let display_query3 = function
-  | QSecret (b,pub_vars,onesession) ->
-      if onesession then print_string "one-session ";
-      print_string "secrecy of "; display_binder b;
-      display_pub_vars pub_vars
-  | AbsentQuery ->
-      print_string "indistinguishability from the final game"
-  | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability from game " ^ (get_game_id g')); 
-      display_pub_vars pub_vars
-  | QEquivalence(state,pub_vars,_) ->
-      let g' = get_initial_game state in
-      if g'.game_number = -1 then
-	print_string "indistinguishability from other input game"
-      else
-	print_string ("indistinguishability from game " ^
-		      (string_of_int g'.game_number));
-      display_pub_vars pub_vars      
-  | QEventQ(t1,t2, pub_vars) ->
-      let (forall, exists) = Terms.collect_vars_corresp t1 t2 in
-      display_quantified "forall " forall;
-      display_query1 t1; 
-      print_string " ==> ";
-      display_quantified "exists " exists;
-      display_query2 t2;
-      display_pub_vars pub_vars
-	
-let display_query (q,g) = 
-  match q with 
-    AbsentQuery -> 
-      if g.game_number <> 1 then
-	print_string ("indistinguishability between game "^(get_game_id g)^" and the final game")
-      else
-	print_string "indistinguishability between the input game and the final game"
-  | QEquivalence (state, pub_vars, _) ->
-      let g' = get_initial_game state in
-      print_string ("indistinguishability between game " ^
-		    (get_game_id g) ^
-		    " and game " ^
-		    (get_game_id g'));
-      display_pub_vars pub_vars
-  | QEquivalenceFinal(g', pub_vars) ->
-      print_string ("indistinguishability between game " ^
-		    (get_game_id g) ^
-		    " and game " ^
-		    (get_game_id g'));
-      display_pub_vars pub_vars
-  | _ ->
-      display_query3 q;
-      if g.game_number <> 1 then
-	print_string (" in game " ^ (get_game_id g))  
-
 let display_coll_elim = function
     CollVars l -> print_string "variables: "; display_list print_string l
   | CollTypes l -> print_string "types: "; display_list print_string l 
@@ -1583,11 +1628,8 @@ let display_instruct = function
       print_string "proof of ";
       display_list (fun ((q,g), set) -> 
 	display_query3 q; 
-	if set != [] then
-	  begin
-	    print_string " up to probability ";
-	    display_set ~separate_time:true set
-	  end) ql
+	display_up_to_proba_set ~separate_time:true set
+	  ) ql
   | IFocus ql ->
       print_string "focus on queries";
       List.iter (fun q -> print_string "\n  - "; display_query3 q) ql
@@ -1611,176 +1653,98 @@ let display_instruct = function
       print_string "guess branch at ";
       print_int occ
 	
-type query_specif =
-    InitQuery of query
-  | QEvent of funsymb
-
-let equal_qs (qs1,g1) (qs2,g2) =
-  (g1 == g2) && (match qs1,qs2 with
-    InitQuery _, InitQuery _ -> true
-  | QEvent f1, QEvent f2 -> f1 == f2
-  | _ -> false)
-
-let display_qevent = function
-    QEvent f,_ -> print_string f.f_name
-  | _ -> Parsing_helper.internal_error "QEvent expected"
-
-let rec display_or_list = function
-    [] -> ()
-  | [a] -> display_qevent a
-  | (a::l) -> display_qevent a; print_string " || ";
-      display_or_list l
-
-let display_adv ql game = 
-  let (ql_no_initq, ql_initq) = List.partition (function InitQuery _,_ -> false | _ -> true) ql in
-  match ql_initq with
-    [InitQuery q0,g0] ->
-      print_string "Adv[Game ";
-      print_string (get_game_id game);
-      print_string ": ";
-      display_query3 q0;
-      if ql_no_initq != [] then
-	begin
-	  print_string ", ";
-	  display_or_list ql_no_initq
-	end;
-      print_string "]"
-  | [] ->
-      print_string "Pr[Game ";
-      print_string (get_game_id game);
-      print_string ": ";
-      display_or_list ql_no_initq;
-      print_string "]"
-  | _ -> Parsing_helper.internal_error "Bad query list in display_adv"
-
-
 let rec map_remove_empty f = function
   | [] -> []
   | a::l ->
       let l' = map_remove_empty f l in
       let a' = f a in
       if snd a' == [] then l' else a' :: l'
+
+let rec map_opt f = function
+  | [] -> []
+  | a::l ->
+      let l' = map_opt f l in
+      match f a with
+      | Some a' -> a' :: l'
+      | None -> l' 
 	
-let is_non_unique = function
-  | (QEvent f,_) -> f.f_cat == NonUniqueEvent
+let is_non_unique (q,_) =
+  match Terms.get_event_query q with
+  | Some f -> f.f_cat == NonUniqueEvent
   | _ -> false
 	
 let is_secrecy = function
-     (InitQuery (QSecret _), _) -> true
+  | (QSecret _), _ -> true
   | _ -> false
 
 let has_secrecy ql = List.exists is_secrecy ql
 
 let double_if_needed ql p =
-  if has_secrecy ql then p @ p else p
-
-let rec poly_from_set = function
-    [] -> Polynom.zero
-  | (SetProba r)::l -> Polynom.sum (Polynom.probaf_to_polynom r) (poly_from_set l)
-  | SetAssume :: l -> poly_from_set l
-  | _ -> Parsing_helper.internal_error "SetEvent should have been evaluated"
-
-let id p = p
-
-let may_double (q,g) p =
-  match q with
-    QSecret _ ->
-      (* For secrecy, we need to double the probability *)
-      Polynom.sum p p
-  | _ ->
-      p
-
-let proba_from_set_m modify s =
-  Polynom.polynom_to_probaf (modify (poly_from_set s))
-	
-let display_proba_set_m modify level s =
-  let proba = proba_from_set_m modify s in
-  if has_assume s then
-    begin
-      match proba with
-      | Zero | Cst 0.0 ->
-	  print_string "Pr[COMMAND NOT CHECKED]"
-      | _ ->
-	  if level > 1 then print_string "(";
-	  print_string "Pr[COMMAND NOT CHECKED]";
-	  print_string " + ";
-	  display_proba ~separate_time:true 1 proba;
-	  if level > 1 then print_string ")"	    
-    end
-  else
-    display_proba ~separate_time:true level proba
-  
-let display_proba_set level s =
-  display_proba_set_m id level s
-
-let display_proba_set_may_double q s =
-  display_proba_set_m (may_double q) 0 s
-
-type proba_bound_rec =
-  | BSum of proba_bound_rec list
-  | BCst of setf list
-  | BMul of probaf * proba_bound_rec
-  | BQuery of (query_specif * game) list * game
+  if has_secrecy ql then Mul(Cst 2.0, p) else p
 
 type proba_bound =
-  | BLeq of ((query_specif * game) list * game) * proba_bound_rec
+  | BLeq of probaf * probaf
+  | BSameGame of game * game * probaf
     
-(*type proba_bound =
-  | SumBound of (query_specif * game) list * game * setf list * (query_specif * game) list list * game
-  | MulBound of query_specif * game * probaf * query_specif * game*)
-
-let rec display_proba_bound_rec level = function
-  | BCst p ->
-      display_proba_set level p
-  | BQuery(ql,g) ->
-      display_adv ql g
-  | BMul(p,b) ->
-      display_proba 3 p;
-      print_string " * ";
-      display_proba_bound_rec 3 b
-  | BSum l ->
-      match l with
-      | [] -> print_string "0"
-      | (a::r) ->
-	  if level > 1 then print_string "(";
-	  display_proba_bound_rec 1 a;
-	  List.iter (fun b ->
-	    print_string " + ";
-	    display_proba_bound_rec 1 b) r;
-	  if level > 1 then print_string ")"
-	    
 let display_proba_bound = function
-  | BLeq((ql,g),b) ->
-      display_adv ql g;
+  | BLeq(a,b) ->
+      display_proba ~separate_time:true 0 a;
       print_string " <= ";
-      display_proba_bound_rec 0 b;
+      display_proba ~separate_time:true 0 b;
       print_newline()
+  | BSameGame(g1,g2,p) ->
+      print_string ("Game "^(get_game_id g1)^" is the same as game "^(get_game_id g2));
+      display_up_to_proba ~separate_time:true p;
+      print_string ".\n"
 
-let rec is_full_poptref poptref =
+let equal_q_g (q,g) (q',g') =
+  g == g' && Terms.equal_query q' q
+	
+let get_poptref g q =
+  try 
+    let (_,popt_ref) = List.find (fun (q_g',_) -> equal_q_g (q,g) q_g') g.current_queries in
+    popt_ref
+  with Not_found ->
+    display_query3 q;
+    print_string (" not found in game "^ (get_game_id g)^"\n");
+    assert false
+	
+let rec is_full_poptref q poptref =
   match !poptref with
   | Inactive | ToProve -> false
-  | Proved(proba_info, _) -> List.for_all is_full_proba_info proba_info
+  | Proved(ql,probaf, _) ->
+      is_full_probaf q probaf
 
-and is_full_proba_info = function
-  | CstProba(proba) ->
-      if not (is_full_proba proba) then
-	Parsing_helper.internal_error "Final success proba should not contain events";
-      true
-  | MulQueryProba(_,_,poptref) -> is_full_poptref poptref
-	      
+and is_full_probaf q probaf = not (is_not_full_probaf q probaf)
+
+and is_not_full_probaf q = function
+  | Advt(g,cur_q,ql) ->
+      (List.exists (fun (q,popt_ref) -> not (is_full_poptref q popt_ref)) ql) ||
+      (if cur_q then
+	let popt_ref = get_poptref g q in
+	not (is_full_poptref q popt_ref)
+      else false)
+  | probaf -> Terms.exists_sub_probaf (is_not_full_probaf q) probaf
+      
 and is_full_proba = function
-  | SetProba _ | SetAssume -> true
-  | SetEvent(f,g,pub_vars, poptref) -> is_full_poptref poptref
+  | SetProba _ (* Must not contain Advt *) -> true
+  | SetEvent(f,g,pub_vars, poptref) ->
+      let f_query = Terms.build_event_query f pub_vars in
+      is_full_poptref f_query poptref
 
 let get_proved poptref =
   match !poptref with
   | Inactive | ToProve -> Parsing_helper.internal_error "Probability not fully computed"
-  | Proved(proba_info, s) -> (proba_info, s)
+  | Proved(ql, proba_info, s) -> (ql, proba_info, s)
 
 let contains_event_q f s =
   List.exists (Terms.is_event_query f) s.game.current_queries 
-	
-let get_proved_maybe_other_side other_side_info f poptref =
+
+type maybe_other_side_ty =
+  | ThisSide of query list * probaf * state
+  | OtherSide of state
+    
+let get_proved_maybe_other_side other_side_info poptref =
   match !poptref with
   | Inactive | ToProve ->
       begin
@@ -1789,18 +1753,25 @@ let get_proved_maybe_other_side other_side_info f poptref =
 	    (* We accept unproved queries event(..) => false when we prove
 	       an equivalence between 2 games and we are not in the sequence
 	       of games in which the query was proved *)
-	    (true, [], middle_s)
+	    OtherSide(middle_s)
 	| _ -> Parsing_helper.internal_error "Probability not fully computed"
       end
-  | Proved(proba_info, s) -> (false, proba_info, s)
+  | Proved(ql, proba, s) -> ThisSide(ql, proba, s)
+
+let rec get_non_unique_q = function
+  | [] -> []
+  | q::l ->
+      let l' = get_non_unique_q l in
+      match Terms.get_nonunique_event_query q with
+      | None -> l'
+      | Some _ -> q::l'
 
 (* A proof tree is a tree in which
-   - nodes are games (field pt_game below) 
+   - nodes are games (field pt_game of pt_node below) 
    - edges correspond to game transformations. These edges are labelled with
-       * i: instruct, the instruction performed to obtain the son from the current game
-       * p: setf list, the probability difference
-       * pt_son: proof_tree, the obtained son
-       * ql: (query_specif * game) list ref, the list of properties proved by going through the
+       * pt_proba: pt_proba_info, the probability difference
+       * pt_sons: pt_node list, the obtained sons (there can be several sons for a single edge in case of the guess_branch transformation)
+       * pt_queries: (query_specif * game) list, the list of properties proved by going through the
          considered edge.
    We have a tree and not just a list of games, because events may be introduced by Shoup's lemma,
    and proved later to have negligible probability, so we may need to prove several properties
@@ -1809,39 +1780,92 @@ let get_proved_maybe_other_side other_side_info f poptref =
    The last edge (the one that proves a property) already deals with a single property.
    Other edges may be shared between the proofs of several properties. *)
 
-type proof_tree =
+type pt_proba_info =
+  | Default of probaf * (funsymb * binder list(*public vars*)) list
+      (* [Default(p,ql')] means [2 p + Adv_G0(Q0::ql')] for (one-session) secrecy
+                                [p + Adv_G0(Q0::ql')] otherwise
+	 [p] must not use Advt  
+	 [pt_sons] must be [proof tree for G0] *)
+  | Case of query list * probaf
+      (* [Case(ql, p)] means that the proof applies only to queries in [ql],
+	 use another edge for other queries.
+	 [p] is a probability formula that can contain Adv_Gi(Q0::ql')
+	 [pt_sons] must be the list of proof trees for Gi.
+	 [pt_queries] must contain a sublist of queries in [ql].
+	 There can be several edges connecting the same father to the same
+	 sons for disjoint [ql]. *)
+  | OtherSide of query
+      (* [OtherSide q] means that [q] has been proved on the other side of
+	 an equivalence query *)
+	
+type pt_node =
     { pt_game : game;
-      mutable pt_sons : (instruct * setf list * proof_tree * (query_specif * game) list ref) list }
+      mutable pt_edges : pt_edge list }
 
+and pt_edge =
+    { pt_proba: pt_proba_info;
+      pt_sons: pt_node list;
+      mutable pt_queries: (query * game) list }
+
+let equal_pt_proba_case p1 p2 =
+  match (p1,p2) with
+  | Case(ql1,proba1), Case(ql2,proba2) ->
+      (Terms.equal_lists_sets Terms.equal_query ql1 ql2) &&
+      (Terms.equal_probaf proba1 proba2)
+  | _ -> false
+      
 (* For debugging *)
 
+let display_short_query q =
+  match Terms.get_event_query q with
+  | Some f -> print_string f.f_name
+  | None -> display_query3 q
+
+let display_q_g (q,g) =
+  display_short_query q;
+  print_string " in game "; print_string (get_game_id g)
+	
 let rec display_proof_tree indent pt =
   print_string (indent ^ "Game " ^ (get_game_id pt.pt_game) ^"\n");
-  let display_son indent_next (i, p, pt_son, ql) =
-    begin
-      match i with
-	CryptoTransf(((_,_,_,_,_,Decisional),_),_) -> print_string (indent ^ "- Decisional step\n")
-      |	_ -> print_string (indent ^ "- Computational step\n")
-    end;
+  let display_edge indent_next edge =
     print_string (indent ^ "- Probability: ");
-    display_set p;
+    begin
+      match edge.pt_proba with
+      | Default(p,ql') ->
+	  display_proba 0 p;
+	  if ql' != [] then
+	    begin
+	      print_string " Additional events: ";
+	      display_list (fun (f,pub_vars) -> print_string f.f_name) ql'
+	    end
+      | Case(ql,p) ->
+	  display_proba 0 p;
+	  print_string " valid for queries ";
+	  display_list display_short_query ql
+      | OtherSide q ->
+	  print_string "query "; display_short_query q; print_string " proved on the other side"
+    end;
     print_newline();
     print_string (indent ^ "- Properties to prove: ");
-    display_list (function
-	(InitQuery _, _) -> print_string "Initial query"
-      |	(QEvent f, g) -> print_string "Event "; print_string f.f_name; 
-	  print_string " in game "; print_string (get_game_id g)) (!ql);
-    print_newline();    
-    display_proof_tree indent_next pt_son
+    display_list display_q_g edge.pt_queries;
+    print_newline();
+    match edge.pt_sons with
+    | [] -> print_string (indent ^ "No son\n")
+    | [s] ->
+	print_string (indent ^ "Son:\n");
+	display_proof_tree indent_next s
+    | _ ->
+	print_string (indent ^ "Sons:\n");
+	List.iter (display_proof_tree (indent ^ "  ")) edge.pt_sons
   in
-  match pt.pt_sons with
-    [] -> print_string (indent ^ "No son\n") 
-  | [s] -> 
-      print_string (indent ^ "Son:\n"); 
-      display_son indent s
+  match pt.pt_edges with
+    [] -> print_string (indent ^ "No outgoing edge\n") 
+  | [e] -> 
+      print_string (indent ^ "Outgoing edge:\n"); 
+      display_edge indent e
   | _ ->
-      print_string (indent ^ "Sons:\n");
-      List.iter (display_son (indent ^ "  ")) pt.pt_sons
+      print_string (indent ^ "Outgoing edges:\n");
+      List.iter (display_edge (indent ^ "  ")) pt.pt_edges
 
 (* Build the proof tree *)
 
@@ -1870,14 +1894,42 @@ let rec display_proof_tree indent pt =
 
    In other cases, [other_side_info = (None, None)].
    *)
+
+let rec collect_advt accu = function
+  | Advt(g,cur_q,ql) -> (g,cur_q,ql)::accu
+  | AttTime | Cst _ | Count _ | Zero | Card _ | TypeMaxlength _
+  | EpsFind | EpsRand _ | PColl1Rand _ | PColl2Rand _ | OCount _
+  | Maxlength _ | ProbaAssume -> accu
+  | Time(_,_,p) | Power(p,_) -> collect_advt accu p
+  | Proba(_,l) | Max(l) | Min(l) | ActTime(_,l) | Length(_,l) ->
+      List.fold_left collect_advt accu l
+  | Add(p1,p2) | Mul(p1,p2) | Sub(p1,p2) | Div(p1,p2) ->
+      collect_advt (collect_advt accu p1) p2
+  | OptimIf(cond,x,y) -> collect_advt (collect_advt (collect_advt_optim_cond accu cond) x) y
 	
-let rec build_proof_tree other_side_info bounds ((q0,g0) as q) non_unique_q p s =
+and collect_advt_optim_cond accu = function
+  | OCProbaFun(_,l) -> List.fold_left collect_advt accu l
+  | OCBoolFun(_,l) -> List.fold_left collect_advt_optim_cond accu l
+    
+
+	
+let rec build_proof_tree other_side_info g0 queries =
   let pt_init = { pt_game = g0;
-		  pt_sons = [] }
+		  pt_edges = [] }
   in
   let proof_tree_table = ref [(g0, pt_init)] in
-  let pt_final_proof = { pt_game = Terms.empty_game (* dummy_game *);
-			 pt_sons = [] }
+  let get_node_for_game g =
+    try
+      let pt_cur = List.assq g (!proof_tree_table) in
+      (* print_string ("Found " ^ (string_of_int g.game_number)); *)
+      (pt_cur, true)
+    with Not_found ->
+      let pt_cur = { pt_game = g;
+		     pt_edges = [] }
+      in
+      (* print_string ("Added game " ^ (string_of_int s.game.game_number)); *)
+      proof_tree_table := (g, pt_cur) :: (!proof_tree_table);
+      (pt_cur, false)
   in
   (* We need to ignore "Proof" steps because they do not change the game at all
      (the game is physically the same), which causes bugs if we don't ignore 
@@ -1892,90 +1944,140 @@ let rec build_proof_tree other_side_info bounds ((q0,g0) as q) non_unique_q p s 
   in
   (* Add a new query [q] in the list of proved properties, in a part of the 
      proof tree that is already built *)
-  let rec add_query q pt_cur s =
-    if s.game == snd q then () else 
+  let rec add_query ((q,g) as q_g) pt_cur s =
+    if s.game == g then () else 
     match father_ignore_proof s with
       None -> ()
     | Some (i,p,_,s') ->
-	add_query_here q pt_cur s'
-  and add_query_here q pt_cur s' = 
-    try
-      let pt_father = List.assq s'.game (!proof_tree_table) in
-      let (_,_,_,queries) = List.find (fun (_,_,pt,_) -> pt == pt_cur) pt_father.pt_sons in
-      if not (List.exists (equal_qs q) (!queries)) then
-	queries := q :: (!queries);
-      add_query q pt_father s'
-    with Not_found ->
-      Parsing_helper.internal_error "This game should always be found"
+	let pt_father =
+	  try
+	    List.assq s'.game (!proof_tree_table)
+	  with Not_found ->
+	    print_string ("Game "^(get_game_id s'.game)^" not found\n");
+	    Parsing_helper.internal_error "This game should always be found"
+	in
+	let e =
+	  try 
+	    List.find (fun e ->
+	      (List.memq pt_cur e.pt_sons) &&
+	      (match e.pt_proba with
+	      | Default _ -> true
+	      | Case(ql,_) -> List.exists (Terms.equal_query q) ql
+	      | OtherSide q0  -> Terms.equal_query q q0)
+		) pt_father.pt_edges
+	  with Not_found ->
+	    print_string "edge for query "; display_short_query q; print_string " not found\n";
+	    Parsing_helper.internal_error "This edge should always be found"
+	in
+	if not (List.exists (fun (q',_) -> Terms.equal_query q q') e.pt_queries) then
+	  e.pt_queries <- q_g :: e.pt_queries;
+	add_query q_g pt_father s'
   in
-  (* Build the proof tree for state [s], proving property [q]. [sons_to_add] is a list
-     of sons (edges, in fact) to add to the proof corresponding to state [s]. 
-     [sons_to_add] is either an empty list (when [s] is the last state, the one that proves [q]),
-     or a list containing one element (the next step in the proof of [q]). *)
-  let rec build_pt_rec sons_to_add q s =
-    try
-      let pt_cur = List.assq s.game (!proof_tree_table) in
-      pt_cur.pt_sons <- sons_to_add @ pt_cur.pt_sons;
-      (* print_string ("Found " ^ (string_of_int s.game.game_number) ^ "; adding sons ");
-      display_list (fun (_,_,pt,_) -> print_int pt.pt_game.game_number) sons_to_add;
-      print_newline(); *)
-      add_query q pt_cur s
-    with Not_found ->
-      let pt_cur = { pt_game = s.game;
-		     pt_sons = sons_to_add }
-      in
-      proof_tree_table := (s.game, pt_cur) :: (!proof_tree_table);
-      (* print_string ("Added game " ^ (string_of_int s.game.game_number) ^ " with sons ");
-      display_list (fun (_,_,pt,_) -> print_int pt.pt_game.game_number) sons_to_add;
-      print_newline(); *)
+  (* Build the proof tree for state [s], proving property [q]. [edge_to_add] is 
+     an edge to add to the proof corresponding to state [s]. *)
+  let rec build_pt_rec edge_to_add ((q,g) as q_g) s =
+    let (pt_cur,known_game) = get_node_for_game s.game in
+    (* print_string " adding sons ";
+      display_list (fun s -> print_int s.pt_game.game_number) edge_to_add.pt_sons;
+       print_newline(); *)
+    begin
+      try
+	let edge_old =
+	  List.find (fun edge_old ->
+	    match edge_old.pt_proba with
+	    | Case(ql_old, _) -> List.exists (Terms.equal_query q) ql_old
+	    | _ -> false) pt_cur.pt_edges
+	in
+	(* There is already an edge for query [q] *)
+	assert (equal_pt_proba_case edge_old.pt_proba edge_to_add.pt_proba);
+	assert (Terms.equal_lists_sets_q edge_old.pt_sons edge_to_add.pt_sons);
+	edge_old.pt_queries <- Terms.union equal_q_g edge_to_add.pt_queries edge_old.pt_queries
+      with Not_found -> 
+	pt_cur.pt_edges <- edge_to_add :: pt_cur.pt_edges
+    end;
+    if known_game then
+      add_query q_g pt_cur s
+    else
       match father_ignore_proof s with
 	None -> Parsing_helper.internal_error "Initial game should already have been entered in the proof tree"
       |	Some(i,p,_,s) ->
-	  build_pt_rec [(i,p,pt_cur, ref [q])] q s;
+	  let probaf = 
+	    Polynom.p_sum (map_opt (function
+	      | SetProba p -> Some p
+	      | SetEvent _ -> None) p)
+	  in
+	  let add_events =
+	    map_opt (function
+	      | SetProba _ -> None
+	      | SetEvent(f,g, pub_vars, popt') -> Some (f,pub_vars)) p
+	  in
+	  let edge =
+	    { pt_proba = Default(probaf, add_events);
+	      pt_sons = [pt_cur];
+	      pt_queries = [q_g] }
+	  in
+	  build_pt_rec edge q_g s;
 	  List.iter (function 
-	      SetProba _ | SetAssume -> ()
+	      SetProba _ -> ()
 	    | SetEvent(f,g, pub_vars, popt') ->
 		(* Build the query that tests for event f in game g *)
                 let f_query = Terms.build_event_query f pub_vars in
-		let q' = (f_query, g) in
-		handle_event (f, (q',popt'))
+		handle_query ((f_query, g),popt')
 		  ) p
-  and handle_event (f,((f_query,g) as q',popt')) =
-    (* Get the proof of the property "Event f is not executed in game g" *)
-    let (proved_other_side,proba_info,s') = get_proved_maybe_other_side other_side_info f popt' in
-    let p' = proba_from_proba_info_list (f_query, s'.game) bounds proba_info in
-
-    if proved_other_side then
-      add_query_here (QEvent f, g) pt_final_proof s'
-    else
-      let sons_to_add =
-	let pt_final_event_f_in_g =
-	  { pt_game = Terms.empty_game (* dummy_game *);
-	    pt_sons = [] }
+  and handle_query ((query,g) as q_g,popt') =
+    (* Get the proof of the property "query,g" *)
+    match get_proved_maybe_other_side other_side_info popt' with
+    | OtherSide s' -> 
+	let edge =
+	  { pt_proba = OtherSide query;
+	    pt_sons = [];
+	    pt_queries = [q_g] }
 	in
-	[(Proof [q',p'], p', pt_final_event_f_in_g, ref[QEvent f, g])]
-      in
-      build_pt_rec sons_to_add (QEvent f, g) s'
+	build_pt_rec edge q_g s'
+    | ThisSide(ql,probaf,s') -> 
+	let sons =
+	  let collected_advt = collect_advt [] probaf in
+	  List.map (fun (g_new, cur_q, ql) ->
+	    let (pt_cur,_) = get_node_for_game g_new in
+	    if cur_q then
+	      begin
+		let popt_new = get_poptref g_new query in
+		handle_query ((query,g_new),popt_new)
+	      end;
+	    List.iter (fun (q,popt) ->
+	      handle_query ((q,g_new),popt)
+		) ql;
+	    pt_cur
+	      ) collected_advt
+	in
+	let edge =
+	  { pt_proba = Case(ql, probaf);
+	    pt_sons = sons;
+	    pt_queries = [q_g] }
+	in
+	build_pt_rec edge q_g s'
   in
-  let sons_to_add =
-    [(Proof [q,p], p, pt_final_proof, ref [InitQuery q0, g0])]
-  in
-  build_pt_rec sons_to_add (InitQuery q0,g0) s;
-  List.iter handle_event non_unique_q;
+  List.iter handle_query queries;
   pt_init
 
-and evaluate_proba other_side_info bounds start_queries start_game above_proba ql pt =
+let rec evaluate_proba other_side_info bounds start_adv start_game above_proba ql pt =
   (* Sanity check: all elements of ql must occur in some edge in pt *)
-  List.iter (fun qs -> 
-    if not ((List.exists (fun (_,_,_,ql_ref) -> 
-      List.exists (equal_qs qs) (!ql_ref)
-	) pt.pt_sons) )
+  List.iter (fun q_g -> 
+    if not ((List.exists (fun e -> 
+      List.exists (equal_q_g q_g) e.pt_queries
+	) pt.pt_edges) )
     then
-      Parsing_helper.internal_error "Missing property in evaluate_proba"
+      begin
+	print_string "Game "; print_string (get_game_id pt.pt_game);
+	print_string ": missing ";
+	display_q_g q_g;
+	print_newline();
+	Parsing_helper.internal_error "Missing property in evaluate_proba"
+      end
 	) ql;
   (* Sanity check: the ql_ref are disjoint *)
-  let check_disjoint (_,_,_,ql_ref1) (_,_,_,ql_ref2) =
-    if List.exists (fun qs1 -> List.exists (equal_qs qs1) (!ql_ref2)) (!ql_ref1) then
+  let check_disjoint e1 e2 =
+    if List.exists (fun qg1 -> List.exists (equal_q_g qg1) e2.pt_queries) e1.pt_queries then
       Parsing_helper.internal_error "ql_ref not disjoint"
   in
   let rec check_disjoint_l pt1 = function
@@ -1986,14 +2088,14 @@ and evaluate_proba other_side_info bounds start_queries start_game above_proba q
       [] -> ()
     | (pt1::ptl) -> check_disjoint_l pt1 ptl; check_disjoint_ll ptl
   in
-  check_disjoint_ll pt.pt_sons;
+  check_disjoint_ll pt.pt_edges;
   (* Take into account tree branching (several sons): split [ql] according to what
      each son proves *)
-  match pt.pt_sons with
-    [(i,p,pt_son,ql_ref)] when (match i with Proof _ -> false | _ -> true) &&
-       (List.for_all (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p) ->
-	 evaluate_proba other_side_info bounds start_queries start_game ((double_if_needed ql p) @ above_proba) ql pt_son
+  match pt.pt_edges with
+    [ { pt_proba = Default(p,[]); pt_sons = [pt_son] } ] ->
+	 evaluate_proba other_side_info bounds start_adv start_game (Polynom.p_add(double_if_needed ql p, above_proba)) ql pt_son
   | _ ->
+      let above_proba = Polynom.simplify_proba above_proba in
       (* When [pt] has several sons, split the queries in [ql] according to which 
          son proves them.
 	 If we do not prove secrecy, Adv_Q(C,||_i D_i) <= sum_i Adv_Q(C,D_i)
@@ -2001,24 +2103,29 @@ and evaluate_proba other_side_info bounds start_queries start_game above_proba q
 	 where D_{i_0} is the element that contains the secrecy query and D{NUi} contains only the queries for non-unique events in D_i. *)
       let ql_list =
 	(* Compute the list of D_i with the associated [edge_info] in the proof tree. *)
-	map_remove_empty (fun ((i,p,pt_son,ql_ref) as edge_info) ->
-	  edge_info, List.filter (fun qs -> List.exists (equal_qs qs) ql) (!ql_ref)) pt.pt_sons
+	map_remove_empty (fun edge ->
+	  edge, List.filter (fun q_g -> List.exists (equal_q_g q_g) ql) edge.pt_queries) pt.pt_edges
       in
-      let nu_add =
-	(* Compute the list of D_{NUi} with the associated [edge_info] in the proof tree. *)
+      let ql_list_with_nu =
+	(* Add the list of D_{NUi} with the associated [edge] in the proof tree. *)
 	if has_secrecy ql then
-	  map_remove_empty (fun (edge_info, ql') ->
-	    if has_secrecy ql' then
-	      (* We do not compute D_{NUi} for i=i_0 *)
-	      (edge_info, [])
-	    else
-	      (edge_info, List.filter is_non_unique ql')) ql_list
+	  List.concat (List.map (fun (edge, ql') ->
+	      if has_secrecy ql' then
+	        (* We do not compute D_{NUi} for i=i_0 *)
+		[ (1.0, edge, ql') ]
+	      else if List.for_all is_non_unique ql' then
+		[ (2.0, edge, ql') ]
+	      else
+		let nu_ql' = List.filter is_non_unique ql' in
+		if nu_ql' = [] then
+		  [ (1.0, edge, ql') ]
+		else
+		  [ (1.0, edge, nu_ql'); (1.0, edge, ql') ]
+		    ) ql_list)
 	else
-	  (* When we do not prove secrecy, this list is empty *)
-	  []
+	  (* When we do not prove secrecy, there is nothing to add *)
+	  List.map (fun (edge, ql') -> (1.0, edge, ql')) ql_list
       in
-      (* Put together the list of D_i and the list of D_{NUi} *)
-      let ql_list = nu_add @ ql_list in
       begin
 	match other_side_info with
 	| (Some middle_s, _) when middle_s.game == pt.pt_game ->
@@ -2029,154 +2136,119 @@ and evaluate_proba other_side_info bounds start_queries start_game above_proba q
 	       proved but presented only for that sequence while we need 
 	       them for both sequences *)
 	    if middle_s.game != start_game then
-	      bounds := (BLeq((start_queries, start_game), BSum [BCst above_proba; BQuery(List.concat (List.map snd ql_list), pt.pt_game)])) :: (!bounds)
+	      bounds := (BLeq(start_adv, Polynom.p_add (above_proba, build_advt pt.pt_game ql))) :: (!bounds) 
 	| _ ->
-	    bounds := (BLeq((start_queries, start_game), BSum ((BCst above_proba) :: List.map (fun (edge_info, ql) -> BQuery(ql, pt.pt_game)) ql_list))) :: (!bounds)
+	    bounds := (BLeq(start_adv, Polynom.p_sum (above_proba :: List.map (fun (factor, edge, ql) -> Polynom.p_mul (Cst factor, build_advt pt.pt_game ql)) ql_list_with_nu))) :: (!bounds) 
       end;
-      above_proba @ 
-      (List.concat (List.map (fun ((i,p,pt_son,ql_ref), ql') ->
-    let rec compute_full_query_list = function
-	[] -> ql'
-      |	(SetProba _ | SetAssume)::l -> compute_full_query_list l
-      |	(SetEvent(f,g,pub_vars,_))::l -> (QEvent f, g) :: (compute_full_query_list l)
-    in
-    (* One transformation can consist of an arbitrary syntactic or cryptographic
-       transformation, that follows a series of event insertions (Shoup lemma).
-       In practice, the transformation is either:
-       - an event insertion alone
-       - or a cryptographic transformation with an event insertion (DDH).
-         The event insertion is indeed done before DDH.
-       - or a transformation without event insertion. *)
-    let ql'' = compute_full_query_list p in
-    let proba_p = List.filter (function SetProba _ | SetAssume -> true | SetEvent _ -> false) p in
-    match i with
-      Proof pl ->
-	(* The desired property is proved *)
-	begin
-	  match other_side_info,pl,ql' with
-	  | (Some middle_s, _),_,_
-	      when middle_s.game == pt.pt_game 
-	        && List.exists (function (InitQuery _,_) -> true | (QEvent _,_) -> false) ql' ->
-	      (* Do not display the proof of the initial equivalence query 
-		 in the middle game (the middle game may contain events
-		 and in this case, the probability of these events 
-		 must be taken into account in the final result, which
-		 would not be done here) *)
-	      double_if_needed ql' proba_p
-	  | _,[q,_],[q'] -> 
-	      let p = double_if_needed ql' proba_p in
-	      bounds := (BLeq((ql', pt.pt_game), BCst p)) :: (!bounds);
-	      p
-	  | _ -> Parsing_helper.internal_error "unexpected Proof element in proof tree"
-	end
-    | _ -> 
-	(* We consider the whole set of queries ql' at once, 
-	   and avoid counting several times the same events. *)
-	let p = double_if_needed ql' proba_p in
-	if ql'' == ql' then
-	  (* No event introduced *)
-	  evaluate_proba other_side_info bounds ql' pt.pt_game p ql'' pt_son
-	else
-	  begin
-	    (* An event has been introduced, display its probability separately *)
-	    bounds := (BLeq((ql', pt.pt_game), BSum [BCst p; BQuery (ql'', pt_son.pt_game)])) :: (!bounds);
-	    p @ (evaluate_proba other_side_info bounds ql'' pt_son.pt_game [] ql'' pt_son)
-	  end
-    ) ql_list))
+      Polynom.p_sum (above_proba :: (List.map (fun (factor, edge, ql') ->
+	let start_adv = build_advt pt.pt_game ql' in
+	let proba = 
+	  (* We consider the whole set of queries ql' at once, 
+	     and avoid counting several times the same events. *)
+	  match edge.pt_proba with
+	  | Default(p, ql) ->
+	      begin
+		match edge.pt_sons with
+		| [pt_son] ->
+		    let ql'' = (List.map (fun (f,pub_vars) -> (Terms.build_event_query f pub_vars, pt_son.pt_game)) ql) @ ql' in
+		    let p = Polynom.simplify_proba (double_if_needed ql' p) in
+		    if ql == [] then
+	              (* No event introduced *)
+		      evaluate_proba other_side_info bounds start_adv pt.pt_game p ql'' pt_son
+		    else
+		      begin
+	                (* An event has been introduced, display its probability separately *)
+			let adv' = build_advt pt_son.pt_game ql'' in
+			bounds := (BLeq(start_adv, Polynom.p_add(p, adv'))) :: (!bounds); 
+			Polynom.p_add (p, evaluate_proba other_side_info bounds adv' pt_son.pt_game Zero ql'' pt_son)
+		      end
+		| _ -> assert false
+	      end
+	  | Case(ql,p) ->
+	      (* Sanity check: [ql'] included in [ql] *)
+	      List.iter (fun (q',g) ->
+		if not (List.exists (Terms.equal_query q') ql) then
+		  Parsing_helper.internal_error "Query not in the right case in evaluate_proba"
+		    ) ql';
+	      (* Display bound *)
+	      let rec map_proba_formula = function
+		| Advt(g, cur_q, ql) ->
+		    let updated_ql =
+		      if cur_q then
+			(List.map query_from_q_g ql') @ ql
+		      else ql
+		    in
+		    Advt(g, false, updated_ql) 
+		| proba -> Terms.map_sub_probaf map_proba_formula proba
+	      in
+	      let p_img = map_proba_formula p in
+	      begin
+		match other_side_info with
+		| (Some middle_s, _)
+		    when middle_s.game == pt.pt_game 
+	            && List.exists (fun (q,_) -> Terms.get_event_query q == None) ql' ->
+	            (* Do not display the proof of the initial equivalence query 
+		       in the middle game (the middle game may contain events
+		       and in this case, the probability of these events 
+		       must be taken into account in the final result, which
+		       would not be done here) *)
+		      ()
+		| _ -> 
+		    bounds := (BLeq(start_adv, p_img)) :: (!bounds)	      
+	      end;
 
-and compute_proba_internal other_side_info bounds ((q0,g) as q) non_unique_q p s =
-  let pt = build_proof_tree other_side_info bounds q non_unique_q p s in
+	      (* Compute the actual proba *)
+	      let rec evaluate_proba_formula = function
+		| Advt(g, cur_q, ql) as adv ->
+		    assert (cur_q == false);
+		    let pt_son = List.find (fun pt -> pt.pt_game == g) edge.pt_sons in
+		    let ql_g = List.map (fun (q,_) -> (q,g)) ql in
+		    evaluate_proba other_side_info bounds adv g Zero ql_g pt_son
+		| proba -> Terms.map_sub_probaf evaluate_proba_formula proba
+	      in
+	      evaluate_proba_formula p_img
+	  | OtherSide q -> 
+	      (* Sanity check: [ql'] included in [q] *)
+	      List.iter (fun (q',_) ->
+		if not (Terms.equal_query q' q) then
+		  Parsing_helper.internal_error "Query not in the right case in evaluate_proba (other side)"
+		    ) ql';
+	      (* Compute the proba *)
+	      Zero
+	in
+	Polynom.p_mul (Cst factor, proba)
+	  ) ql_list_with_nu))
+
+and compute_proba_internal other_side_info bounds g queries =
+  let pt = build_proof_tree other_side_info g queries in
   (* display_proof_tree "" pt; *)
-  let start_queries = (InitQuery q0, g)::(List.map (fun (f,q) -> (QEvent f,g)) non_unique_q) in
-  evaluate_proba other_side_info bounds start_queries g [] start_queries pt 
-
-and proba_from_proba_info (q0,g0) bounds = function
-  | CstProba p -> [p]
-  | MulQueryProba(n, (q,g), poptref) ->
-      let (proba_info,s) = get_proved poptref in
-      let p = proba_from_proba_info_list (q,s.game) bounds proba_info in
-      let fullp = compute_proba_internal (None, None) bounds (q,g) [] p s in
-      bounds := (BLeq(([InitQuery q,g],g), BCst(fullp))) :: (!bounds);
-      List.map (function
-	| SetProba p -> SetProba(Mul(n, p))
-	| SetEvent _ -> Parsing_helper.internal_error "Probability of event should have been computed by compute_proba_internal"
-	| SetAssume -> SetAssume) fullp
-
-and proba_from_proba_info_list (q0,g0) bounds proba_info_list =
-  let p = List.concat (List.map (proba_from_proba_info (q0,g0) bounds) proba_info_list) in
-  if List.exists (function
-    | MulQueryProba _ -> true
-    | CstProba _ -> false) proba_info_list then
-    begin
-      let pcst =
-	List.fold_left (fun accu proba_info -> 
-	  match proba_info with
-	  | MulQueryProba _ -> accu
-	  | CstProba p -> p :: accu) [] proba_info_list
-      in
-      let cst = if pcst = [] then [] else [BCst pcst] in
-      let all = List.fold_left (fun accu proba_info -> 
-	match proba_info with
-	| MulQueryProba(n, (q,g), poptref) ->
-	    let query_proba = BQuery([InitQuery q,g],g) in
-	    (if n = Cst 1.0 then query_proba else BMul(n, query_proba))::accu
-	| CstProba _ -> accu) cst proba_info_list
-      in
-      let b =
-	match all with
-	| [] -> assert false
-	| [a] -> a
-	| l -> BSum(l)
-      in
-      bounds := (BLeq(([InitQuery q0,g0],g0), b)) :: (!bounds)
-    end;
-  p 
-
-let get_non_unique_q g =
-  let rec aux = function
-    | [] -> []
-    | q::l ->
-	let l' = aux l in
-	match Terms.get_nonunique_event_query q with
-	| None -> l'
-	| Some f -> (f,q)::l'
-  in
-  aux g.current_queries			      
+  let start_queries = List.map fst queries in
+  evaluate_proba other_side_info bounds (build_advt g start_queries) g Zero start_queries pt 
     
-let compute_proba_internal2 bounds ((q0,g) as q) p s =
-  let g_non_unique_q = get_non_unique_q g in
-  match q0 with
-  | QEquivalence(state,pub_vars,_) ->
-      let g' = get_initial_game state in
-      let g'_non_unique_q = get_non_unique_q g' in
-      (compute_proba_internal (Some s, None) bounds (QEquivalenceFinal(s.game, pub_vars),g) g_non_unique_q [] s) @ p @
-      (compute_proba_internal (Some state, Some s) bounds (QEquivalenceFinal(state.game, pub_vars),g') g'_non_unique_q [] state)
-  | AbsentQuery ->
-      compute_proba_internal (None, None) bounds (QEquivalenceFinal(s.game, []), g) g_non_unique_q p s 
-  | _ ->
-      compute_proba_internal (None, None) bounds q g_non_unique_q p s
-
-    
-let compute_proba ((q0,g) as q) proba_info s =
+let compute_proba (((q0,g),poptref) as full_q) =
+  let g_non_unique_q = get_non_unique_q g.current_queries in
   let bounds = ref [] in
-  let p = proba_from_proba_info_list (q0,s.game) bounds proba_info in
-  List.iter display_proba_bound (List.rev (!bounds));
-  begin
+  let fullp = 
     match q0 with
     | QEquivalence(state,pub_vars,_) ->
-	print_string ("Game "^(get_game_id s.game)^" is the same as game "^(get_game_id state.game));
-	if p <> [] then
-	  begin
-            print_string " up to probability ";
-            display_proba_set 0 p
-	  end;
-	print_string ".\n"
-    | _ -> ()
-  end;
-  let bounds = ref [] in
-  let fullp = compute_proba_internal2 bounds q p s in
-  List.iter display_proba_bound (List.rev (!bounds));
-  fullp
+	let (_,p,s) = get_proved poptref in
+	bounds := (BSameGame(s.game, state.game, p)) :: (!bounds);
+	let g' = get_initial_game state in
+	let g'_non_unique_q = get_non_unique_q g'.current_queries in
+	let q1 = QEquivalenceFinal(s.game, pub_vars) in
+	let q2 = QEquivalenceFinal(state.game, pub_vars) in
+	Polynom.p_add(compute_proba_internal (Some s, None) bounds g
+			(((q1,g), ref (Proved([q1],Zero,s)))::g_non_unique_q),
+		      Polynom.p_add (p, compute_proba_internal (Some state, Some s) bounds g'
+				       (((q2,g'), ref(Proved([q2],Zero,state)))::g'_non_unique_q)))
+    | AbsentQuery ->
+	let (_,p,s) = get_proved poptref in
+	let q0 = QEquivalenceFinal(s.game, []) in
+	compute_proba_internal (None, None) bounds g (((q0,g),ref (Proved([q0],p,s)))::g_non_unique_q)
+    | _ -> 
+	compute_proba_internal (None, None) bounds g (full_q::g_non_unique_q) 
+  in
+  (List.rev (!bounds)), fullp
 
 let display_pat_simp t =
   print_string (match t with 
@@ -2603,11 +2675,7 @@ let rec display_state ins_next s =
 	  List.iter (fun ((q,g), p') -> 
 	    print_string "Proved ";
 	    display_query (q, s'.game);
-	    if p' != [] then
-	      begin
-		print_string " up to probability ";
-		display_proba_set_may_double (q, s'.game) p'
-	      end;
+	    display_up_to_proba_set ~separate_time:true p';
 	    print_newline()
 	      ) ql;
 	  if p != [] then
@@ -2662,21 +2730,31 @@ and add_sequence accu s' =
 	
 and get_all_states_from_proba accu = function
     [] -> accu
-  | (SetProba _ | SetAssume)::r -> get_all_states_from_proba accu r
+  | (SetProba _)::r -> get_all_states_from_proba accu r
   | (SetEvent(f,g,pub_vars,poptref)) :: r  ->
       let accu' = get_all_states_from_proba accu r in
-      add_sequence_poptref accu' poptref
+      let f_query = Terms.build_event_query f pub_vars in
+      add_sequence_poptref accu' f_query poptref
 
-and add_sequence_poptref accu poptref = 
+and add_sequence_poptref accu q poptref = 
   match !poptref with
   | ToProve | Inactive -> accu
-  | Proved(proba_info,s') ->
-      List.fold_left add_sequence_proba_info (add_sequence accu s') proba_info
+  | Proved(ql,probaf,s') ->
+      add_sequence_probaf (add_sequence accu s') q probaf
 
-and add_sequence_proba_info accu = function
-  | CstProba _ -> accu
-  | MulQueryProba(_,_,poptref) -> add_sequence_poptref accu poptref
-	    
+and add_sequence_probaf accu q probaf =
+  let adv_list = collect_advt [] probaf in
+  List.fold_left (fun accu (g,cur_q,ql) ->
+    let accu' =
+      List.fold_left (fun accu (q,poptref) ->
+	add_sequence_poptref accu q poptref) accu ql
+    in
+    if cur_q then
+      let popt_ref = get_poptref g q in
+      add_sequence_poptref accu' q popt_ref
+    else
+      accu') accu adv_list
+    
 let rec get_all_states_from_queries = function
     [] -> []
   | ((q,g), poptref)::r ->
@@ -2687,7 +2765,7 @@ let rec get_all_states_from_queries = function
 	    add_sequence accu s'
 	| _ -> accu
       in
-      add_sequence_poptref accu' poptref
+      add_sequence_poptref accu' q poptref
 
 let rec remove_dup seen_list r s =
   let seen_list' = List.filter (fun s' -> s' != s) seen_list in
@@ -2737,12 +2815,12 @@ let display_state s =
   let (non_unique_initial_queries, other_initial_queries) =
     List.partition Terms.is_nonunique_event_query initial_queries
   in
-  if List.for_all (fun (q,poptref) -> is_full_poptref poptref) non_unique_initial_queries then
-    List.iter (fun (q,poptref) ->
-      if is_full_poptref poptref then
+  if List.for_all (fun ((q,_),poptref) -> is_full_poptref q poptref) non_unique_initial_queries then
+    List.iter (fun (((q,_) as q_g,poptref) as full_q) ->
+      if is_full_poptref q poptref then
 	begin
-	  let (proba_info,s') = get_proved poptref in
-          let p'' = compute_proba q proba_info s' in
+          let (bounds, p'') = compute_proba full_q in
+	  List.iter display_proba_bound bounds;
 	  if has_assume p'' then
 	    begin
 	      print_string "RESULT Using unchecked commands, shown ";
@@ -2750,12 +2828,8 @@ let display_state s =
 	    end
 	  else
             print_string "RESULT Proved ";
-          display_query q;
-	  if p'' != [] then
-	    begin
-              print_string " up to probability ";
-              display_proba_set 0 p''
-	    end;
+          display_query q_g;
+	  display_up_to_proba ~separate_time:true (Polynom.simplify_proba p'');
 	  print_newline()
 	end
 	  ) other_initial_queries;

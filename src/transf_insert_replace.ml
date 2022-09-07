@@ -28,39 +28,34 @@ type hash_elem =
 
 let hash_binders = Hashtbl.create 7
 
-let add b =
+let add in_find_cond b =
   let s = Display.binder_to_string b in
-  try 
-    match Hashtbl.find hash_binders s with
-      NoDef -> 
-	Hashtbl.replace hash_binders s (Std b)
-    | FindCond ->
-	Parsing_helper.internal_error "Variable in find condition defined several times"
-    | _ -> ()
-  with Not_found -> 
-    Hashtbl.add hash_binders s (Std b)
-
-let add_find_cond b =
-  let s = Display.binder_to_string b in
-  try 
-    match Hashtbl.find hash_binders s with
-      NoDef -> 
-	Hashtbl.replace hash_binders s FindCond
-    | _ ->
-	Parsing_helper.internal_error "Variable in find condition defined several times"
-  with Not_found -> 
-    Hashtbl.add hash_binders s FindCond
+  if in_find_cond then 
+    try 
+      match Hashtbl.find hash_binders s with
+	NoDef -> 
+	  Hashtbl.replace hash_binders s FindCond
+      | _ ->
+	  Parsing_helper.internal_error "Variable in find condition defined several times"
+    with Not_found -> 
+      Hashtbl.add hash_binders s FindCond
+  else
+    try 
+      match Hashtbl.find hash_binders s with
+	NoDef -> 
+	  Hashtbl.replace hash_binders s (Std b)
+      | FindCond ->
+	  Parsing_helper.internal_error "Variable in find condition defined several times"
+      | _ -> ()
+    with Not_found -> 
+      Hashtbl.add hash_binders s (Std b)
 
 let add_nodef b =
   let s = Display.binder_to_string b in
   if not (Hashtbl.mem hash_binders s) then
     Hashtbl.add hash_binders s NoDef
 
-let rec find_binders_br (b,l) =
-  List.iter find_binders_term_def_list l;
-  add_nodef b
-
-and find_binders_term_def_list t =
+let rec find_binders_term_def_list t =
   match t.t_desc with
     Var(b,l) -> 
       List.iter find_binders_term_def_list l;
@@ -71,72 +66,51 @@ and find_binders_term_def_list t =
   | _ -> 
       Parsing_helper.internal_error "if/let/find/new/insert/get forbidden in def_list"
 
-let rec find_binders_find_cond t =
+let find_binders_def_list def_list =
+  List.iter (fun (b,l) ->
+    List.iter find_binders_term_def_list l;
+    add_nodef b
+      ) def_list
+
+let rec find_binders_t in_find_cond t =
   match t.t_desc with
-    Var _ | FunApp _ | ReplIndex _ | EventAbortE _ -> ()
-  | TestE(t1,t2,t3) ->
-      find_binders_find_cond t2;
-      find_binders_find_cond t3
   | FindE(l0,t3,_) ->
       List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (b,_) -> add_find_cond b) bl;
-        List.iter find_binders_br def_list;
-	find_binders_find_cond t1;
-	find_binders_find_cond t2) l0;
-      find_binders_find_cond t3
+	List.iter (fun (b,_) -> add in_find_cond b) bl;
+        find_binders_def_list def_list;
+	find_binders_t true t1;
+	find_binders_t in_find_cond t2) l0;
+      find_binders_t in_find_cond t3
   | ResE(b,t) ->
-      add_find_cond b;
-      find_binders_find_cond t
-  | InsertE _ | GetE _ | EventE _ ->
-      Parsing_helper.internal_error "insert/get/event/event_abort should not occur as term"
-  | LetE(pat, t1, t2, topt) ->
-      let pat_vars = Terms.vars_from_pat [] pat in
-      List.iter add_find_cond pat_vars;
-      find_binders_find_cond t2;
-      match topt with
-	None -> ()
-      |	Some t3 -> find_binders_find_cond t3
+      add in_find_cond b;
+      find_binders_t in_find_cond t
+  | _ -> Terms.iter_subterm (find_binders_t in_find_cond) find_binders_def_list (find_binders_pat in_find_cond) t
+
+and find_binders_pat in_find_cond = function
+  | PatVar b -> add in_find_cond b
+  | pat -> Terms.iter_subpat (find_binders_t in_find_cond) (find_binders_pat in_find_cond) pat
             
 
 let rec find_binders_rec p =
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      find_binders_rec p1;
-      find_binders_rec p2
-  | Repl(b,p) -> 
-      find_binders_rec p
-  | Input((c, tl),pat,p) ->
-      let pat_vars = Terms.vars_from_pat [] pat in
-      List.iter add pat_vars;
-      find_binders_reco p
+  Terms.iter_subiproc find_binders_rec 
+    (fun (c, tl) pat p ->
+      List.iter (find_binders_t false) tl;
+      find_binders_pat false pat;
+      find_binders_reco p) p
 
 and find_binders_reco p =
   match p.p_desc with
-    Yield | EventAbort _ -> ()
   | Restr(b,p) -> 
-      add b;
+      add false b;
       find_binders_reco p
-  | Test(t,p1,p2) ->
-      find_binders_reco p1;
-      find_binders_reco p2
   | Find(l0,p2,_) ->
       List.iter (fun (bl,def_list,t,p1) ->
-	List.iter (fun (b,_) -> add b) bl;
-        List.iter find_binders_br def_list;
-	find_binders_find_cond t;
+	List.iter (fun (b,_) -> add false b) bl;
+        find_binders_def_list def_list;
+	find_binders_t true t;
 	find_binders_reco p1) l0;
       find_binders_reco p2
-  | Output((c, tl),t2,p) ->
-      find_binders_rec p
-  | Let(pat, t, p1, p2) ->
-      let pat_vars = Terms.vars_from_pat [] pat in
-      List.iter add pat_vars;
-      find_binders_reco p1;
-      find_binders_reco p2
-  | EventP(t,p) ->
-      find_binders_reco p
-  | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
+  | _ -> Terms.iter_suboproc find_binders_reco (find_binders_t false) find_binders_def_list (find_binders_pat false) find_binders_rec p
 
 (* Add variables defined in the inserted code to [hash_binders] *)
 
@@ -1094,7 +1068,7 @@ let rec replace_tt count env facts cur_array t =
 	    count := RepDone(Depanal.final_add_proba(), occ, t, t', ext_o);
 	    t'
 	| Assume ->
-	    count := RepDone([SetAssume], occ, t, t', ext_o);
+	    count := RepDone([SetProba ProbaAssume], occ, t, t', ext_o);
 	    t'
       end
   | RepDone(_,occ,_,_,ext_o) when occ == t.t_occ -> 

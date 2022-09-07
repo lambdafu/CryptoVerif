@@ -161,13 +161,14 @@ let rec simplify_term cur_array dep_info true_facts t =
 	let rec try_dep_info = function
 	    [] -> t
 	  | ((b, _) as bdepinfo)::restl ->
+	      let true_facts_indep = lazy (Depanal.make_indep_facts true_facts bdepinfo (Facts.true_facts_from_simp_facts true_facts)) in
 	      match find_compos true_facts bdepinfo t1 with
 		_, Some(probaf, t1'',_) ->
 		  begin
 		    try 
 		      let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t2 in
                       (* add probability; if too large to eliminate collisions, raise Not_found *)
-		      if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
+		      if not (Depanal.add_term_collisions (cur_array, true_facts_indep, Terms.make_true()) t1'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t2.t_type, indep_types)) then raise Not_found;
 		      if (f.f_cat == Diff) then Terms.make_true_at t else Terms.make_false_at t
 		    with Not_found ->
 		      try_dep_info restl
@@ -179,7 +180,7 @@ let rec simplify_term cur_array dep_info true_facts t =
 		      try 
 			let (t1', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t1 in
                         (* add probability; if too large to eliminate collisions, raise Not_found *)
-			if not (Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
+			if not (Depanal.add_term_collisions (cur_array, true_facts_indep, Terms.make_true()) t2'' t1' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t1.t_type, indep_types)) then raise Not_found;
 			if (f.f_cat == Diff) then Terms.make_true_at t else Terms.make_false_at t
 		      with Not_found ->
 			try_dep_info restl
@@ -387,12 +388,13 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 	    try        
 	      (* status is true when the chosen branch may depend on b *)
               let status ((b, _) as bdepinfo) =
+		let true_facts_indep = lazy (Depanal.make_indep_facts true_facts bdepinfo (Facts.true_facts_from_simp_facts true_facts)) in
 		match find_compos true_facts bdepinfo t with
 		| _, Some (probaf, t'',_) ->
 		    if not (!Settings.proba_zero) then
 		      begin
 			let (t2', dep_types, indep_types) = Depanal.is_indep_pat true_facts bdepinfo pat in
-			if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) 
+			if Depanal.add_term_collisions (cur_array, true_facts_indep, Terms.make_true()) 
 			    t'' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation))
 			    (probaf, dep_types, t.t_type, indep_types) then raise Else
 		      end;
@@ -405,7 +407,7 @@ let rec update_dep_infoo cur_array dep_info true_facts p' =
 			| Some(probaf, t1', _) ->
 			    let (t2', dep_types, indep_types) = Depanal.is_indep true_facts bdepinfo t in
 			  (* Add probability *)
-			    if Depanal.add_term_collisions (cur_array, Facts.true_facts_from_simp_facts true_facts, Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
+			    if Depanal.add_term_collisions (cur_array, true_facts_indep, Terms.make_true()) t1' t2' b (Some (List.map Terms.term_from_repl_index b.args_at_creation)) (probaf, dep_types, t.t_type, indep_types) then
 			      raise Else
 		      end;
 		    (depends bdepinfo t) || (Depanal.depends_pat (depends bdepinfo) pat)

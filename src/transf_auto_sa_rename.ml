@@ -88,93 +88,44 @@ and auto_sa_rename_fc_pat = function
 
 let rec auto_sa_rename_term t =
   Terms.build_term t 
-     (match t.t_desc with
-	Var(b,l) -> Var(b, List.map (auto_sa_rename_term) l)
-      | ReplIndex(b) -> ReplIndex(b)
-      | FunApp(f,l) ->
-	  FunApp(f, List.map (auto_sa_rename_term) l)
-      | TestE(t1,t2,t3) ->
-          TestE(auto_sa_rename_term t1,
-		auto_sa_rename_term t2,
-		auto_sa_rename_term t3)
-      | FindE(l0,t3,find_info) ->
-          FindE(List.map (fun (bl, def_list, t1,t2) ->
-	    (bl, List.map Terms.delete_info_br def_list
+    (match t.t_desc with
+    | FindE(l0,t3,find_info) ->
+        FindE(List.map (fun (bl, def_list, t1,t2) ->
+	  (bl, Terms.delete_info_def_list def_list
                 (* def_list contains only Var/FunApp/ReplIndex so no change
 		   I still need to copy the def_list to make sure that all
 		   terms are physically distinct, for a correct computation of facts. *),
-	     auto_sa_rename_fc t1,
-	     auto_sa_rename_term t2)) l0,
-		auto_sa_rename_term t3, find_info)
-      | LetE(pat, t1, t2, topt) ->
-          let t1' = auto_sa_rename_term t1 in
-          let topt' = 
-            match topt with
-	      Some t3 -> Some (auto_sa_rename_term t3)
-	    | None -> None
-          in
-          let pat' = auto_sa_rename_pat pat in
-          let t2' = auto_sa_rename_term t2 in
-	  LetE(pat', t1', t2', topt')
-      |	ResE(b,t) ->
-	  ResE(b, auto_sa_rename_term t)
-      |	EventAbortE(f) -> 
-	  EventAbortE(f)
-      | EventE(t,p) ->
-	  EventE(auto_sa_rename_term t,
-		 auto_sa_rename_term p)
-      | GetE _ |InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear in auto_sa_rename_term"
-	    )
+	   auto_sa_rename_fc t1,
+	   auto_sa_rename_term t2)) l0,
+	      auto_sa_rename_term t3, find_info)
+    | _ ->
+	Terms.map_subterm auto_sa_rename_term Terms.delete_info_def_list
+	  auto_sa_rename_pat t)
 
-and auto_sa_rename_pat = function
-    PatVar b -> PatVar b
-  | PatTuple (f,l) -> PatTuple (f,List.map auto_sa_rename_pat l)
-  | PatEqual t -> PatEqual (auto_sa_rename_term t)
+and auto_sa_rename_pat pat =
+  Terms.map_subpat auto_sa_rename_term auto_sa_rename_pat pat
 
 let rec auto_sa_rename_process p = 
-  Terms.iproc_from_desc_loc p (
-  match p.i_desc with
-    Nil -> Nil
-  | Par(p1,p2) -> Par(auto_sa_rename_process p1, 
-		      auto_sa_rename_process p2)
-  | Repl(b,p) ->
-      Repl(b, auto_sa_rename_process p)
-  | Input((c,tl),pat,p) ->
-      let tl' = List.map auto_sa_rename_term tl in
-      let pat' = auto_sa_rename_pat pat in
-      let p' = auto_sa_rename_oprocess p in
-      Input((c, tl'), pat', p'))
+  Terms.iproc_from_desc_loc p
+    (Terms.map_subiproc auto_sa_rename_process
+       (fun (c,tl) pat p ->
+	 let tl' = List.map auto_sa_rename_term tl in
+	 let pat' = auto_sa_rename_pat pat in
+	 let p' = auto_sa_rename_oprocess p in
+	 ((c, tl'), pat', p')) p)
 
 and auto_sa_rename_oprocess p = 
   Terms.oproc_from_desc_loc p (
   match p.p_desc with
-    Yield -> Yield
-  | EventAbort f -> EventAbort f
-  | Restr(b,p) ->
-      Restr(b, auto_sa_rename_oprocess p)
-  | Test(t,p1,p2) ->
-      Test(auto_sa_rename_term t,
-	   auto_sa_rename_oprocess p1,
-	   auto_sa_rename_oprocess p2)
   | Find(l0, p2, find_info) ->
       Find(List.map (fun (bl, def_list, t, p1) ->
-	  (bl, List.map Terms.delete_info_br def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
+	  (bl, Terms.delete_info_def_list def_list(* def_list contains only Var/FunApp/ReplIndex so no change *),
 	   auto_sa_rename_fc t,
 	   auto_sa_rename_oprocess p1)) l0,
 	   auto_sa_rename_oprocess p2, find_info)
-  | Let(pat,t,p1,p2) ->
-      Let(auto_sa_rename_pat pat, 
-	  auto_sa_rename_term t, 
-	  auto_sa_rename_oprocess p1,
-	  auto_sa_rename_oprocess p2)
-  | Output((c,tl),t2,p) ->
-      Output((c, List.map auto_sa_rename_term tl),
-	     auto_sa_rename_term t2,
-	     auto_sa_rename_process p)
-  | EventP(t,p) ->
-      EventP(auto_sa_rename_term t,
-	     auto_sa_rename_oprocess p)
-  | Get _ | Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear in auto_sa_rename_oprocess"
+  | _ ->
+      Terms.map_suboproc auto_sa_rename_oprocess auto_sa_rename_term
+	Terms.delete_info_def_list auto_sa_rename_pat auto_sa_rename_process p
   )
 
 let rec do_sa_rename accu = function

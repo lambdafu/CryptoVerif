@@ -1133,6 +1133,16 @@ When this proof succeeds, the \texttt{find} becomes {\tt find[unique]}.
 When \texttt{inferUnique = false}, CryptoVerif does not try to
 make such proofs and just exploits explicit \texttt{[unique]} tags.
 
+\item \texttt{set guessRemoveUnique = false.}\\
+\texttt{set guessRemoveUnique = true.}
+
+When we use a guess transformation (\texttt{guess} or \texttt{guess\_branch})
+and a (one-session) secrecy query is present, we must reprove that all \texttt{find[unique]}
+in the game are really unique.
+When \texttt{guessRemoveUnique = false} (the default), we reprove them.
+When \texttt{guessRemoveUnique = true}, we instead remove the \texttt{[unique]}
+annotations to avoid having to reprove them.
+
 \item \texttt{set autoSARename = true.}\\
 \texttt{set autoSARename = false.}
 

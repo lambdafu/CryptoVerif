@@ -225,9 +225,7 @@ let rec get_events_term accu nuaccu t =
   | Var(_,l) | FunApp(_,l) ->
       List.iter (get_events_term accu nuaccu) l
   | ReplIndex _ -> ()
-  | EventAbortE f ->
-      if not (List.memq f (!accu)) then
-	accu := f :: (!accu)
+  | EventAbortE f -> Terms.addq_ref accu f
   | TestE(t1,t2,t3) ->
       get_events_term accu nuaccu t1;
       get_events_term accu nuaccu t2;
@@ -236,9 +234,7 @@ let rec get_events_term accu nuaccu t =
       begin
 	match find_info with
 	| Unique -> assert false
-	| UniqueToProve f ->
-	    if not (List.memq f (!nuaccu)) then
-	      nuaccu := f :: (!nuaccu)
+	| UniqueToProve f -> Terms.addq_ref nuaccu f
 	| _ -> ()
       end;
       get_events_term accu nuaccu t3;

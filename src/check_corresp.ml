@@ -868,8 +868,9 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
                      We already used the elsefind facts in case of event_abort e, 
 		     so we do not redo it in this case. *)
 		  if is_event_false q then
-		    match collector_pp' with
-		    | [new_end_sid, end_pp] ->
+		    match q, collector_pp', events_found' with
+		    | ([_, { t_desc = FunApp(f,idx::l) }], QTerm _, _),
+		      [new_end_sid, end_pp], [{t_desc = FunApp(f',idx'::l')}] ->
 			if is_event_abort_pp end_pp then
 			  (* No change when event_abort, because we already used the elsefind facts *)
 			  (facts', collector_elsefind_facts', def_vars')
@@ -882,11 +883,15 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
 			      let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
 	                      (* Rename session identifiers in facts, variables, and elsefind facts *)
 			      List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array new_end_sid;
+			      let eq_facts = List.map2 Terms.make_equal
+				  (List.map (Terms.copy_term Terms.Links_Vars) l)
+				  (List.map (Terms.copy_term Terms.Links_RI) l')
+			      in
 			      let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
 			      let collector_elsefind_facts' = List.map Terms.copy_elsefind elsefind_facts_common in
 			      let def_vars' = Terms.copy_def_list Terms.Links_RI def_vars_common in
 			      List.iter (fun b -> b.ri_link <- NoLink) cur_array;
-			      let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) new_facts) in
+			      let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (eq_facts @ new_facts)) in
 			      (facts', collector_elsefind_facts', def_vars')
 			  | None ->
 			      (* We need to get [cur_array] to be able to perform the more precise computation.

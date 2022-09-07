@@ -1,0 +1,48 @@
+(* The probability for non-unique find in the guessed session
+   is estimated Nx/|nonce|. That seems wrong, I think it should
+   be 1/2 Nx^2/|nonce|: 
+   run many non-tested sessions to set values for y, until
+   there are two equal values of y (proba: 1/2 (Nx-1)^2/|nonce|),
+   then send that value of y as x in the tested session. 
+
+   It seems to be a conceptual problem in
+   [Depanal.filter_indices_coll] which removes index i_4 in the
+   collision y[i] = y[i_4] for i<>i_4.  The problem is that CV knows
+   that x[ix_tested] = y[i_4], so it thinks that changing i_4 still
+   leads to eliminating the same collision x = y[i]. However,
+   x[ix_tested] may be chosen by the adversary depending on the 2
+   indices i and i_4 that yield the collision y[i] = y[i_4],
+   so both indices must be counted.
+
+   FIXED 25/8/2022 *)
+
+type nonce [password,fixed].
+
+channel c.
+
+param Nx.
+
+event e.
+query event(e) ==> false.
+
+proof {
+  guess ix;
+  allowed_collisions noninteractive/password;
+  simplify coll_elim(types: nonce);
+  success
+  }
+
+process
+!ix <= Nx
+in(c, x:nonce);
+new y: nonce;
+out(c, y);
+in(c, ());
+find[unique] i <= Nx suchthat defined(y[i]) && x = y[i] then
+event e;
+out(c, y)
+
+(* EXPECTED
+RESULT Could not prove event(non_unique) ==> false; event(e) ==> false.
+0.076s (user 0.068s + system 0.008s), max rss 16692K
+END *)

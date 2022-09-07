@@ -10,108 +10,27 @@ open Types
 
 (* Empty the "incompatible" field of all program points. *)
 
-let rec empty_comp_pattern = function
-    PatVar b -> ()
-  | PatTuple (f,l) -> List.iter empty_comp_pattern l
-  | PatEqual t -> empty_comp_term t
+let rec empty_comp_pattern pat =
+  Terms.iter_subpat empty_comp_term empty_comp_pattern pat
 
 and empty_comp_term t =
   t.t_incompatible <- Occ_map.empty;
-  match t.t_desc with
-    Var (_,l) | FunApp(_,l)-> List.iter empty_comp_term l
-  | ReplIndex _ -> ()
-  | TestE(t1,t2,t3) -> 
-      empty_comp_term t1;
-      empty_comp_term t2;
-      empty_comp_term t3
-  | FindE(l0,t3,_) ->
-      List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (_,l) -> List.iter empty_comp_term l) def_list;
-	empty_comp_term t1;
-	empty_comp_term t2) l0;
-      empty_comp_term t3
-  | LetE(pat,t1,t2,topt) ->
-      empty_comp_pattern pat;
-      empty_comp_term t1;
-      empty_comp_term t2;
-      begin
-	match topt with
-	  None -> ()
-	| Some t3 -> empty_comp_term t3
-      end
-  | ResE(b,p) ->
-      empty_comp_term p
-  | EventAbortE _ -> ()
-  | EventE(t,p) ->
-      empty_comp_term t;
-      empty_comp_term p
-  | GetE(tbl,patl,topt,p1,p2,_) -> 
-      List.iter empty_comp_pattern patl;
-      begin
-	match topt with
-	  None -> ()
-	| Some t -> empty_comp_term t
-      end;
-      empty_comp_term p1;
-      empty_comp_term p2
-  | InsertE(tbl,tl,p) ->
-      List.iter empty_comp_term tl;
-      empty_comp_term p
+  Terms.iter_subterm empty_comp_term empty_comp_def_list empty_comp_pattern t
 
+and empty_comp_def_list def_list =
+  List.iter (fun (_,l) -> List.iter empty_comp_term l) def_list
+    
 let rec empty_comp_process p = 
   p.i_incompatible <- Occ_map.empty;
-  match p.i_desc with
-    Nil -> ()
-  | Par(p1,p2) -> 
-      empty_comp_process p1;
-      empty_comp_process p2
-  | Repl(b,p) ->
-      empty_comp_process p
-  | Input((c,tl),pat,p) ->
-      List.iter empty_comp_term tl;
-      empty_comp_pattern pat;
-      empty_comp_oprocess p
+  Terms.iter_subiproc empty_comp_process (fun (c,tl) pat p -> 
+    List.iter empty_comp_term tl;
+    empty_comp_pattern pat;
+    empty_comp_oprocess p) p
 
 and empty_comp_oprocess p =
   p.p_incompatible <- Occ_map.empty;
-  match p.p_desc with
-    Yield | EventAbort _ -> ()
-  | Restr(b,p) ->
-      empty_comp_oprocess p
-  | Test(t,p1,p2) ->
-      empty_comp_term t;
-      empty_comp_oprocess p1;
-      empty_comp_oprocess p2
-  | Find(l0,p2,_) ->
-      List.iter (fun (bl,def_list,t,p1) ->
-	List.iter (fun (_,l) -> List.iter empty_comp_term l) def_list;
-	empty_comp_term t;
-	empty_comp_oprocess p1) l0;
-      empty_comp_oprocess p2
-  | Output((c,tl),t',p) ->
-      List.iter empty_comp_term tl;
-      empty_comp_term t';
-      empty_comp_process p
-  | Let(pat,t,p1,p2) ->
-      empty_comp_pattern pat;
-      empty_comp_term t;
-      empty_comp_oprocess p1;
-      empty_comp_oprocess p2
-  | EventP(t,p) ->
-      empty_comp_term t;
-      empty_comp_oprocess p
-  | Get(tbl,patl,topt,p1,p2,_) -> 
-      List.iter empty_comp_pattern patl;
-      begin
-	match topt with
-	  None -> ()
-	| Some t -> empty_comp_term t
-      end;
-      empty_comp_oprocess p1;
-      empty_comp_oprocess p2
-  | Insert(tbl,tl,p) ->
-      List.iter empty_comp_term tl;
-      empty_comp_oprocess p
+  Terms.iter_suboproc empty_comp_oprocess empty_comp_term empty_comp_def_list
+    empty_comp_pattern empty_comp_process p
 
 (* Compute the "incompatible" field for all program points *)
 

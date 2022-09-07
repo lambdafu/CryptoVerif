@@ -1,0 +1,29 @@
+(* Example that illustrates the improved "success simplify"
+   taking into account the equality between the args of 
+   e in the query and in the process for the query e(M) ==> false *)
+
+proof {
+      success simplify
+}
+
+
+event e(bool).
+
+query event(e(true)) ==> false.
+
+channel c.
+
+process
+	(in(c, ());
+	  if defined(b) then
+	  event e(b);
+	  out(c, ()))|
+	(in(c, x: bool);
+	 let b:bool = if x then true else false in
+	 out(c, ()))
+
+
+(* EXPECTED
+RESULT Could not prove event(e(true)) ==> false.
+0.084s (user 0.084s + system 0.000s), max rss 16604K
+END *)

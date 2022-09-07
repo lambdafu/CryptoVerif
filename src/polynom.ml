@@ -187,7 +187,7 @@ let is_zero p = (p = [])
 let rec is_proba_nonnegative = function
   | Proba _ | Count _ | OCount _ | Zero | Card _ | EpsFind | EpsRand _
   | PColl2Rand _ | PColl1Rand _ | AttTime | Time _ | ActTime _
-  | Maxlength _ | TypeMaxlength _ | Length _ ->
+  | Maxlength _ | TypeMaxlength _ | Length _ | Advt _ | ProbaAssume ->
       true
   | Cst f -> f >= 0.0
   | Max l -> List.exists is_proba_nonnegative l
@@ -212,7 +212,7 @@ let rec is_proba_positive = function
   | Card _ | EpsFind | EpsRand _ | PColl2Rand _ | PColl1Rand _
   | AttTime | Time _ | ActTime _ | Maxlength _ | TypeMaxlength _ ->
       true
-  | Proba _ | Count _ | OCount _ | Zero | Length _ ->
+  | Proba _ | Count _ | OCount _ | Zero | Length _ | Advt _ | ProbaAssume ->
       false
   | Cst f -> f > 0.0
   | Max l -> List.exists is_proba_positive l
@@ -466,3 +466,15 @@ let polynom_to_probaf x =
 
 let power_to_polynom_map f x n =
   power_to_polynom f (fun f p -> polynom_to_probaf p) x n
+
+let rec poly_from_set = function
+    [] -> zero
+  | (SetProba r)::l -> sum (probaf_to_polynom r) (poly_from_set l)
+  | _ -> Parsing_helper.internal_error "SetEvent should have been evaluated"
+
+let proba_from_set s =
+  polynom_to_probaf (poly_from_set s)
+	
+let simplify_proba p =
+  polynom_to_probaf (probaf_to_polynom p)
+    

@@ -185,6 +185,15 @@ let get_val b =
   | _ -> Parsing_helper.internal_error "probability should be set"
  
 
+(* [current_bdepinfo()] returns the current dependency information,
+   computed from [main_var] and [dvar_list] *)
+	
+let current_bdepinfo() =
+  ((!main_var), { args_at_creation_only = false;
+		  dep = (!dvar_list);
+		  other_variables = false;
+		  nodep = [] })
+	
 (* [add_collisions_for_current_check_dependency (cur_array, true_facts, facts_info) (t1,t2,probaf)] 
    takes into account the probability of collision between [t1] and [t2]. 
    [probaf] is an upper bound on the probability of collision 
@@ -228,9 +237,9 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
 	  Proba.is_small_enough_coll_elim red.r_proba)
 	   proba_collision')
       then
-	[]
+	lazy []
       else
-	true_facts @ (Facts.get_facts_at facts_info) 
+	lazy (Depanal.make_indep_facts Terms.simp_facts_id (current_bdepinfo()) (true_facts @ (Facts.get_facts_at facts_info)))
     in
     let proba_info = (probaf', dep_types,full_type,indep_types) in
     Depanal.add_term_collisions (cur_array, true_facts', Terms.make_true()) t1 t2 (!main_var) None proba_info
@@ -263,7 +272,8 @@ let add_collisions_for_current_check_dependency2 cur_array true_facts side_condi
      in [expand_probaf get_val probaf]. *)
   if !dvar_list_changed then true else
   let probaf' = expand_probaf get_val probaf in
-  Depanal.add_term_collisions (cur_array, true_facts, side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,Some [t2.t_type])
+  let true_facts_indep = lazy (Depanal.make_indep_facts Terms.simp_facts_id (current_bdepinfo()) true_facts) in
+  Depanal.add_term_collisions (cur_array, true_facts_indep, side_condition) t1 t2 (!main_var) index_opt (probaf',[],t2.t_type,Some [t2.t_type])
 
 (* [depends t] returns [true] when [t] may depend on [b0] *)
 
@@ -327,15 +337,6 @@ let rec should_try_find_compos t =
       List.exists should_try_find_compos l
   | _ -> false
 
-(* [current_bdepinfo()] returns the current dependency information,
-   computed from [main_var] and [dvar_list] *)
-	
-let current_bdepinfo() =
-  ((!main_var), { args_at_creation_only = false;
-		  dep = (!dvar_list);
-		  other_variables = false;
-		  nodep = [] })
-	
 (* [find_compos t] returns the dependency status of the term
    [t] with respect to the variable [b0 = !main_var].
    It is returned in 2 forms, so that the result is a pair,
