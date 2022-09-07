@@ -405,14 +405,15 @@ and def_oprocess event_accu cur_array above_node true_facts def_vars elsefind_fa
   match p'.p_desc with
     Yield -> 
       ([],[])
-  | EventAbort f -> 
+  | EventAbort f ->
+      let t = Terms.event_term p'.p_occ f cur_array in 
       begin
 	match event_accu with
 	  None -> ()
 	| Some accu -> 
-	    accu := (Terms.event_term p'.p_occ f cur_array, DProcess p') :: (!accu)
+	    accu := (t, DProcess p') :: (!accu)
       end;
-      ([],[])
+      ([],[t])
   | Restr(b,p) ->
       let elsefind_facts' = List.map (Terms.update_elsefind_with_def [b]) elsefind_facts in
       let above_node' = { above_node = Some above_node; binders = [b]; 
