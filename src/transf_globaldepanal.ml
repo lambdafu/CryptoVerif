@@ -1547,17 +1547,15 @@ and check_depend_oprocess cur_array p =
       Terms.oproc_from_desc (EventP(t, check_depend_oprocess cur_array p))
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
       
-(* [check_depend_iter init_proba_state] iterates the dependency analysis:
+(* [check_depend_iter()] iterates the dependency analysis:
    when the dependency analysis discovers new variables that depend on [b0],
    or new variables that may defined (so new branches of [find] may be executed),
    the dependency analysis needs to be redone. 
-   [init_proba_state] contains collisions eliminated before the dependency analysis.
-   The probability state is reset to this value before each iteration,
-   so that the actual collisions eliminated are the ones already eliminated
-   before dependency analysis, plus the ones of the final iteration of the
-   dependency analysis. *)
+   The probability state is emptied before each iteration,
+   so that the actual collisions eliminated are the ones of the final
+   iteration of the dependency analysis. *)
 
-let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state) =
+let rec check_depend_iter()  =
   List.iter (fun (b0, _) ->
     if Settings.occurs_in_queries b0 (!whole_game).current_queries then
       begin
@@ -1567,21 +1565,18 @@ let rec check_depend_iter ((old_proba, old_term_collisions) as init_proba_state)
         raise BadDep
       end;
     ) (!dvar_list);
-  Proba.restore_state old_proba;
-  Depanal.term_collisions := old_term_collisions;
+  Depanal.restore_state Depanal.empty_proba_state;
   compute_probas();
   local_changed := false;
   dvar_list_changed := false;
   defvar_list_changed := false;
   defined_condition_update_needed := false;
   let proc' = check_depend_process [] (Terms.get_process (!whole_game)) in
-  if (!dvar_list_changed) || (!defvar_list_changed) then check_depend_iter init_proba_state else proc'
+  if (!dvar_list_changed) || (!defvar_list_changed) then check_depend_iter() else proc'
 
-(* [check_all_deps b0 init_proba_state g] is the entry point for calling 
+(* [check_all_deps b0 g] is the entry point for calling 
    the dependency analysis from simplification.
    [b0] is the variable on which we perform the dependency analysis.
-   [init_proba_state] contains collisions eliminated by before the dependency analysis,
-   in previous passes of simplification.
    [g] is the full game to analyze. *)
 
 let init_find_compos_probaf b0 = 
@@ -1593,7 +1588,7 @@ let init_find_compos_probaf b0 =
 		 p_full_type = b0.btype;
 		 p_indep_types_option = None }],[],[]))
     
-let check_all_deps b0 init_proba_state g =
+let check_all_deps b0 g =
   if !Settings.proba_zero then
     None
   else
@@ -1607,7 +1602,7 @@ let check_all_deps b0 init_proba_state g =
 	let b0st = (b0, (Decompos(args_opt), args_opt, ([dummy_term, dummy_term, init_find_compos_probaf b0], ref Unset))) in
 	dvar_list := [b0st];
 	defvar_list := [];
-	let proc' = check_depend_iter init_proba_state in
+	let proc' = check_depend_iter() in
 	let res_game = Terms.build_transformed_game proc' g in
 	if not (!local_changed) then
 	  begin
@@ -1627,6 +1622,7 @@ let check_all_deps b0 init_proba_state g =
 	Terms.set_var_num_state vcounter; (* Forget variables when fails *)
 	None
     end
+
 (* [main b0 coll_elim g] is the entry point for calling
    the dependency analysis alone.
    [b0] is the variable on which we perform the dependency analysis.
@@ -1658,12 +1654,14 @@ let main b0 coll_elim g =
 	else
 	  begin
 	    advise := [];
-	    let res = check_all_deps b0 (Proba.empty_proba_state,[]) g in
+	    let res = check_all_deps b0 g in
     (* Transfer the local advice to the global advice in Settings.advise *)
 	    List.iter (fun x -> Settings.advise := Terms.add_eq x (!Settings.advise)) (!advise);
 	    advise := [];
 	    match res with
-	      None -> (g, [], []) 
+	      None ->
+		Depanal.final_empty_state();
+		(g, [], []) 
 	    | Some(res_game) ->
 		Settings.changed := true;
 		let proba = Depanal.final_add_proba() in

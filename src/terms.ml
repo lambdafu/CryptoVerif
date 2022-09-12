@@ -7,17 +7,20 @@ let try_no_var_id t = t
 let add_else_find else_find' (facts, subst, else_find) =
   (facts, subst, else_find' @ else_find)
 
-let collector_no_info = ([], [], simp_facts_id, [])
-
 let collector_set_no_info collector =
   match collector with
   | None -> ()
   | Some coll_ref ->
-      coll_ref := [collector_no_info]
+      coll_ref := [CollectorNoInfo]
 
 let is_collector_no_info = function
-  | [x] -> x == collector_no_info 
+  | [CollectorNoInfo] -> true
   | _ -> false
+
+let collector_useless = function
+  | None -> true
+  | Some coll_ref ->
+      is_collector_no_info (!coll_ref)
 	
 let add_to_collector collector elem =
   match collector with
@@ -30,18 +33,13 @@ let add_to_collector collector elem =
    but applies [f] to all elements of [l] in case [collector] 
    is not [None] *)
 			    
-let rec for_all_all_test f = function
+let rec for_all_collector collector f = function
   | [] -> true
   | a::l ->
       let av = f a in
-      let lv = for_all_all_test f l in
+      if av = false && collector_useless collector then false else
+      let lv = for_all_collector collector f l in
       av && lv
-
-let for_all_collector collector =
-  if collector = None then
-    List.for_all
-  else
-    for_all_all_test
 
 (* Returns a list containing n times element x *)
 

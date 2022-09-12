@@ -1,0 +1,54 @@
+(* n' is not secret: when b is true, n'[i] = n'' for all i, so
+   the entries of n' are not independent of each other.
+
+However, success simplify does not collect information correctly:
+it sees that it can prove one-session secrecy for n' when b = true,
+and that code is incompatible to the other definition of n' for which
+one-session secrecy remains to prove, so it removes the definition
+of n' for b = true. But after that it can prove secrecy for the remaining
+definition...
+
+A similar problem might happen for the proof of injective correspondences,
+because the proof of injectivity is not done independently for each definition,
+so removing some definitions may be problematic.
+ *)
+
+type nonce [large,fixed].
+
+query secret n'.
+
+type key [large,fixed].
+fun f(key,nonce):nonce.
+proba pf.
+
+equiv(f)
+  new k: key; O(x: nonce) := return(f(k,x))
+  <=(pf)=>
+  O(x: nonce) := return(x).
+
+channel c.
+
+proof {
+  success simplify;
+  auto
+  }
+
+param N.
+
+process
+   in(c,b: bool);
+   new n: nonce;
+   out(c, ());
+   !N
+   in(c,());
+   new n'': nonce;
+   new n3 : nonce;
+   let (n': nonce,n_leak:nonce) = if b then (n,n3) else (n'',n'') in
+   new k0: key;
+   if n_leak <> f(k0,n_leak) then
+   out(c, n_leak)
+
+(* EXPECTED
+RESULT Could not prove secrecy of n'.
+0.032s (user 0.032s + system 0.000s), max rss 15724K
+END *)

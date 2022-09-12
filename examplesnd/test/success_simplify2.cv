@@ -1,0 +1,26 @@
+(* Success simplify did not collect information correctly
+   on non-expanded games: the proof of a correspondence
+   was stopped when the argument of an event is not a simple
+   term, without adding information for success simplify. *)
+
+event e(bitstring).
+
+query forall x:bitstring; event(e(x)) ==> false.
+
+channel c.
+
+proof {
+  undo 2;	
+  success simplify;
+  auto
+  }
+
+process
+   in(c,x:bitstring);
+   event e(let y = x in y);
+   out(c,())
+
+(* EXPECTED
+RESULT Could not prove forall x: bitstring; event(e(x)) ==> false.
+0.032s (user 0.032s + system 0.000s), max rss 15724K
+END *)

@@ -1,0 +1,40 @@
+(* Success simplify did not collect information correctly:
+when distinguishing cases in the proof of correspondences,
+it may have forgotten some cases. *)
+
+event e(bitstring).
+event e2(bitstring).
+
+query forall x:bitstring; event(e(x)) ==> event(e2(x)).
+
+type key [large,fixed].
+fun f(key,bitstring):bitstring.
+proba pf.
+
+equiv(f)
+  new k: key; O(x: bitstring) := return(f(k,x))
+  <=(pf)=>
+  O(x: bitstring) := return(x).
+
+channel c.
+
+proof {
+  success simplify;
+  auto
+  }
+
+process
+   (in(c,x:bitstring);
+   if defined(y) then
+   event e(y);
+   out(c,()))
+   |
+   (in(c, (b: bool, z: bitstring, t: bitstring));
+   new k:key;
+   let y:bitstring = if b then (event e2(f(k,z)); z) else t in
+   out(c,()))
+
+(* EXPECTED
+RESULT Could not prove forall x: bitstring; event(e(x)) ==> event(e2(x)).
+0.032s (user 0.032s + system 0.000s), max rss 15724K
+END *)

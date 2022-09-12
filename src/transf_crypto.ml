@@ -5499,6 +5499,7 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	  if ((!Settings.debug_cryptotransf) > 0) && (l != []) then 
 	    print_string "Advice given\n";
 	  Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
+	  Depanal.final_empty_state();
 	  TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info user_info l n, l)) l, failure_reasons)
     end
   else
@@ -5533,10 +5534,12 @@ let crypto_transform no_advice (((_,lm,rm,_,_,opt2),_) as apply_equiv) user_info
 	    if (!Settings.debug_cryptotransf) > 0 then 
 	      print_string "Advice given\n";
 	    Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
+	    Depanal.final_empty_state();
             TFailure (List.map (fun (l,p,n) -> (apply_equiv, get_advised_info user_info l n, l)) to_do, [])
 	  end
       with OneFailure failure_reason -> 
 	Terms.set_var_num_state vcounter; (* Forget created variables when the transformation fails *)
+	Depanal.final_empty_state();
 	TFailure ([], [!gameeq_name_mapping, failure_reason])
     end
   in

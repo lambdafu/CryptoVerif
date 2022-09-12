@@ -159,20 +159,55 @@ val proba_for : probaf_mul_types -> probaf
    [passwd] we will eliminate collisions. *)
 val reset : coll_elim_t list -> game -> unit
 
-(* [final_add_proba coll_list] computes the final probability of
+(* The state used in this module contains probabilities coming from
+   non-uniformity of choices in [find], collisions between random variables,
+   and probabilities coming from [collision] statements.
+   The module [Depanal] adds one more component. *)
+    
+(* [get_proba coll_list] computes the final probability of
    collisions. [coll_list] is a list of probabilities of complex collisions
    coming from dependency analsysis, to be added to other probabilities
-   of collisions. *)
+   of collisions.
+   [final_add_proba coll_list] additionally cleans up the state.
+   One must call [reset] to initialize it again, before counting
+   probabilities. *)
+val get_proba : probaf list -> setf list
 val final_add_proba : probaf list -> setf list
 
 (* [get_current_state()] returns the current state of eliminated collisions,
-   to be restored by [restore_state internal_info] in case we want to undo
+   to be restored by [restore_state state] in case we want to undo
    the collision eliminations done between [get_current_state] and 
    [restore_state]. *)
 val get_current_state : unit -> simplify_internal_info_t
+
+(* [get_and_empty_state()] returns the current state of eliminated collisions,
+   like [get_current_state()] but additionally removes the eliminated collisions
+   from the current state. The probability module is still initialized to be able
+   to count probabilities. *)
 val get_and_empty_state : unit -> simplify_internal_info_t
+
+(* [final_empty_state()] clears the probability state. 
+   One must call [reset] to initialize it again, before counting
+   probabilities. *)
+val final_empty_state : unit -> unit
+
+(* [restore_state state] restores a previous probability state,
+   typically obtained via [get_current_state()] or [get_and_empty_state()].
+   The collisions eliminated before [restore_state] are forgotten. *)
 val restore_state : simplify_internal_info_t -> unit
+
+(* [readd_state state] adds the collisions eliminated in state [state]
+   to the collisions currently eliminated. Collisions eliminated
+   both in [state] and in the current state are counted once. *)
+val readd_state : simplify_internal_info_t -> unit
+
+(* [empty_proba_state] is the empty probability state, with no
+   collision eliminated. *)
 val empty_proba_state : simplify_internal_info_t
 
+(* [display_proba_state state] displays the probability state [state].
+   Used for debugging. *)
+val display_proba_state : simplify_internal_info_t -> unit
+    
 val is_complex_time : probaf -> bool
     

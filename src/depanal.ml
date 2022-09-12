@@ -40,6 +40,24 @@ let reset coll_elim g =
   term_collisions := [];
   Facts.reset_repl_index_list()
 
+let get_current_state() =
+  (!term_collisions, Proba.get_current_state())
+
+let final_empty_state() =
+  term_collisions := [];
+  Proba.final_empty_state()
+    
+let restore_state (term_coll, prob_state) =
+  term_collisions := term_coll;
+  Proba.restore_state prob_state
+
+let empty_proba_state = ([], Proba.empty_proba_state)
+
+let get_and_final_empty_state() =
+  let res = get_current_state() in
+  final_empty_state();
+  res
+    
 (* The functions [instantiate_*] replace indices with their
    value stored in links, inside probabilities *)
     
@@ -450,6 +468,31 @@ let matches coll coll' =
 	  end
   with Not_found -> None)
 
+let readd_term_collision collision_info =
+    (* I remove an entry when another entry is an instance of it,
+       obtained by substituting terms for replication indexes *)
+  let rec find_more_general_coll = function
+      [] -> raise Not_found
+    | (collision_info' :: rest) ->
+	match matches collision_info' collision_info with
+	  Some collision_info'' -> collision_info'' :: rest
+	| None -> collision_info' :: (find_more_general_coll rest)
+  in
+  try
+    term_collisions := find_more_general_coll (!term_collisions)
+  with Not_found ->
+    let new_coll = ref collision_info in
+    let term_collisions' = List.filter (fun collision_info' -> 
+      match matches (!new_coll) collision_info' with
+	None -> true
+      | Some collision_info'' -> new_coll := collision_info''; false) (!term_collisions)
+    in
+    term_collisions := (!new_coll) :: term_collisions'
+
+let readd_state (term_coll, prob_state) =
+  List.iter readd_term_collision term_coll;
+  Proba.readd_state prob_state
+    
 let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt probaf_mul_types =
   let used_indices = probaf_mul_types.p_ri_list in
   (* Add the indices of t1,t2 (in used_indices) to all_indices; some of them may be missing
@@ -488,27 +531,7 @@ let add_term_collision (cur_array, true_facts, side_condition) t1 t2 b lopt prob
 	(* Raises NoMatch when the probability is too large to be accepted *)
 	raise NoMatch
   in
-    (* I remove an entry when another entry is an instance of it,
-       obtained by substituting terms for replication indexes *)
-  let rec find_more_general_coll = function
-      [] -> raise Not_found
-    | (collision_info' :: rest) ->
-	match matches collision_info' collision_info with
-	  Some collision_info'' -> collision_info'' :: rest
-	| None -> collision_info' :: (find_more_general_coll rest)
-  in
-  begin
-    try
-      term_collisions := find_more_general_coll (!term_collisions)
-    with Not_found ->
-      let new_coll = ref collision_info in
-      let term_collisions' = List.filter (fun collision_info' -> 
-	match matches (!new_coll) collision_info' with
-	  None -> true
-	| Some collision_info'' -> new_coll := collision_info''; false) (!term_collisions)
-      in
-      term_collisions := (!new_coll) :: term_collisions'
-  end;
+  readd_term_collision collision_info;
   true
   with NoMatch -> 
     false
@@ -524,7 +547,7 @@ let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, 
       let (proba_term_collisions', proba_var_coll', proba_collision') =
 	subst_idx_proba idx image_idx all_coll
       in
-      let old_proba_state = (!term_collisions, Proba.get_current_state()) in
+      let old_proba_state = get_current_state() in
       if List.for_all Proba.add_elim_collisions_inside proba_var_coll' &&
 	List.for_all Proba.add_proba_red_inside proba_collision' &&
 	List.for_all (function
@@ -534,8 +557,7 @@ let add_term_collisions current_state t1 t2 b lopt ((idx, all_coll), dep_types, 
 	true
       else
 	begin
-	  term_collisions := fst old_proba_state;
-	  Proba.restore_state (snd old_proba_state);
+	  restore_state old_proba_state;
 	  false
 	end
 
@@ -579,11 +601,20 @@ let proba_for_term_collision tcoll =
   p
   
 
+let display_proba_state (term_coll, prob_state) =
+  List.iter (fun t -> ignore (proba_for_term_collision t)) term_coll;
+  Proba.display_proba_state prob_state
+    
 (* Final addition of probabilities *)
 
+let get_proba() =
+  Proba.get_proba (List.map proba_for_term_collision (!term_collisions))
+    
 let final_add_proba() =
-  Proba.final_add_proba (List.map proba_for_term_collision (!term_collisions))
-
+  let proba = get_proba() in
+  final_empty_state();
+  proba
+    
 (* For debugging *)
 let display_depinfo depinfo =
   if depinfo.args_at_creation_only then print_string "args_at_creation_only ";

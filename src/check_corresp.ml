@@ -578,7 +578,7 @@ let is_event_abort_pp = function
   | _ -> false
 
 (* [is_event_false q] is true when the query [q] is of the
-   form [event(e) ==> false] *)
+   form [event(e(...)) ==> false] *)
 
 let is_event_false = function
   | [inj, { t_desc = FunApp(f,l) }], QTerm tfalse, _ ->
@@ -597,6 +597,57 @@ let get_event_false = function
 	((f.f_cat == Event) || (f.f_cat == NonUniqueEvent)) then Some f else None
   | _ -> None
 
+(* In [add_to_collector_f_false collector q end_pp t1']
+   the query [q] must be [event(f(M1...Mn)) ==> false]
+   and [t1',end_pp] be an entry of [event_accu]:
+   [t1'] is an executed event and [end_pp] is its program point. 
+   This function adds to [collector] the information known
+   when event [f(M1...Mn)] is executed: 
+   - f(M1...Mn) = t1' 
+   - facts known at [end_pp], including elsefind facts and defined variables
+   It does not use the future facts at [end_pp]. 
+   This is needed for 2 reasons:
+   - using elsefind facts is a bit more precise than what we do for general queries,
+   and allowed for queries [event(f(M1...Mn)) ==> false] since continuing the execution
+   after the event [f] will not help make the query true, so we can consider that
+   we stop the trace at event [f] and use the elsefind facts at that event.
+   - for non-unique events, future facts must not be used because the
+   future facts at the find will not be true when the non-unique event is
+   executed. *)
+
+let add_to_collector_f_false collector q end_pp t1' =
+  match q, t1'.t_desc with
+  | ([_, { t_desc = FunApp(f,idx::l) }], QTerm _, _), FunApp(f',idx'::l') ->
+      if f == f' then
+	let end_sid = 
+	  match idx'.t_desc with
+	  | FunApp(_,lsid) -> lsid
+	  | _ -> Parsing_helper.internal_error "Session ids should occur first in the arguments of events"
+	in
+	let bend_sid = List.map Terms.repl_index_from_term end_sid in
+	let new_bend_sid = List.map Terms.new_repl_index bend_sid in
+	let new_end_sid = List.map Terms.term_from_repl_index new_bend_sid in
+	let facts_common = Facts.get_facts_at end_pp in
+	let def_vars_common = Facts.get_def_vars_at end_pp in
+	let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
+        (* Rename session identifiers in facts, variables, and elsefind facts *)
+	List.iter2 (fun b t -> b.ri_link <- (TLink t)) bend_sid new_end_sid;
+	let eq_facts = List.map2 Terms.make_equal
+	    (List.map (Terms.copy_term Terms.Links_Vars) l)
+	    (List.map (Terms.copy_term Terms.Links_RI) l')
+	in
+	let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
+	let collector_elsefind_facts' = List.map Terms.copy_elsefind elsefind_facts_common in
+	let def_vars' = Terms.copy_def_list Terms.Links_RI def_vars_common in
+	List.iter (fun b -> b.ri_link <- NoLink) bend_sid;
+	let (subst, facts, else_find) =
+	  Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (eq_facts @ new_facts)) in
+	Terms.add_to_collector collector
+	  (CollectorFacts(new_bend_sid, [new_end_sid, end_pp], (subst, facts, collector_elsefind_facts' @ else_find), def_vars'))
+      else
+	() (* [t1',end_pp] does not correspond to the event in [q], do nothing *)
+  | _ -> assert false
+
 (* [optim_non_unique q] tries to quickly prove or fail to prove
    a query [event(f) ==> false], in particular when [f] is a
    non-unique event. It returns [Some r] when the quick evaluation worked,
@@ -614,7 +665,7 @@ let optim_non_unique collector event_accu ((t1,t2,pub_vars) as q) =
 	      | _ -> Parsing_helper.internal_error "event expected in check_corresp") event_accu
 	  in
 	  (* Event [f] occurs in the game *)
-	  if (f.f_cat == NonUniqueEvent) && (collector == None) then
+	  if f.f_cat == NonUniqueEvent then
 	    begin
 	      (* Event [f] is a non-unique event, we stop the proof here,
 		 considering that it fails.
@@ -624,6 +675,10 @@ let optim_non_unique collector event_accu ((t1,t2,pub_vars) as q) =
 	      print_string (" failed:\n  Found event "^f.f_name^" at ");
 	      print_int one_t1'.t_occ;
 	      print_newline();
+	      if collector != None then
+		List.iter (fun (t1',end_pp) ->
+		  add_to_collector_f_false collector q end_pp t1'
+		    ) event_accu;
 	      Some (false, [])
 	    end
 	  else
@@ -649,9 +704,12 @@ let collect_facts_list collector event_accu next_f tl =
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
 	  if f == f' then
 	    if not (List.for_all Terms.check_simple_term l') then
+	      begin
 	      (* Cannot make the proof when the arguments of the event in the process
                  are not simple terms *)
-	      false
+		Terms.collector_set_no_info collector;
+		false
+	      end
 	    else
 	    try
 	      let events_found' = t1' :: events_found in
@@ -762,7 +820,7 @@ let collect_facts_list collector event_accu next_f tl =
 		      next_f (events_found', facts, def_vars', elsefind_facts_list', ((new_end_sid, end_pp) :: injrepidx_pps), (new_bend_sid @ vars), collector_pp', collector_elsefind_facts')
 		| f_disjunct::rest ->
 		    (* consider all possible cases in the disjunction *)
-		    List.for_all (fun fl ->
+		    Terms.for_all_collector collector (fun fl ->
 		      try 
 			let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal facts fl) in
 			collect_facts_cases facts' rest
@@ -861,51 +919,27 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
 	    print_newline();
 	    if collector != None then
 	      begin
-		let (facts', collector_elsefind_facts', def_vars') =
+		let default() = 
+		  let (subst, facts, else_find) = facts' in
+		  Terms.add_to_collector collector
+		    (CollectorFacts(vars', collector_pp', (subst, facts, collector_elsefind_facts' @ else_find), def_vars'))
+		in
 		  (* For the query event e ==> false, we try to be a bit more precise.
                      We collect the facts that are true at the event e (not at the end of the block),
                      and use the elsefind facts at the event e.
                      We already used the elsefind facts in case of event_abort e, 
 		     so we do not redo it in this case. *)
-		  if is_event_false q then
-		    match q, collector_pp', events_found' with
-		    | ([_, { t_desc = FunApp(f,idx::l) }], QTerm _, _),
-		      [new_end_sid, end_pp], [{t_desc = FunApp(f',idx'::l')}] ->
-			if is_event_abort_pp end_pp then
-			  (* No change when event_abort, because we already used the elsefind facts *)
-			  (facts', collector_elsefind_facts', def_vars')
-			else
-			  begin
-			  match Incompatible.get_facts end_pp with
-			  | Some(cur_array, _,_,_,_,_,_) ->
-			      let facts_common = Facts.get_facts_at end_pp in
-			      let def_vars_common = Facts.get_def_vars_at end_pp in
-			      let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
-	                      (* Rename session identifiers in facts, variables, and elsefind facts *)
-			      List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array new_end_sid;
-			      let eq_facts = List.map2 Terms.make_equal
-				  (List.map (Terms.copy_term Terms.Links_Vars) l)
-				  (List.map (Terms.copy_term Terms.Links_RI) l')
-			      in
-			      let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
-			      let collector_elsefind_facts' = List.map Terms.copy_elsefind elsefind_facts_common in
-			      let def_vars' = Terms.copy_def_list Terms.Links_RI def_vars_common in
-			      List.iter (fun b -> b.ri_link <- NoLink) cur_array;
-			      let facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (eq_facts @ new_facts)) in
-			      (facts', collector_elsefind_facts', def_vars')
-			  | None ->
-			      (* We need to get [cur_array] to be able to perform the more precise computation.
-				 If we cannot get [cur_array], just use the information we have,
-				 without elsefind facts. That should not happen. *)
-			      (facts', collector_elsefind_facts', def_vars')
-			  end
-		    | _ -> Parsing_helper.internal_error "for query event e ==> false, collector_pp' should contain a single element"
-		  else
-		    (facts', collector_elsefind_facts', def_vars')
-		in
-		let (subst, facts, else_find) = facts' in
-		Terms.add_to_collector collector
-		  (vars', collector_pp', (subst, facts, collector_elsefind_facts' @ else_find), def_vars');
+		if is_event_false q then
+		  match collector_pp', events_found' with
+		  | [_, end_pp], [t1'] ->
+		      if is_event_abort_pp end_pp then
+                        (* No change when event_abort, because we already used the elsefind facts *)
+			default()
+		      else
+			add_to_collector_f_false collector q end_pp t1'
+		  | _ -> Parsing_helper.internal_error "for query event e ==> false, collector_pp' should contain a single element"
+		else
+		  default()
 	      end;
 	    false)
       with Contradiction -> 
@@ -916,7 +950,10 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
     (* Add probability for eliminated collisions *)
     (true, Depanal.final_add_proba())
   else
-    (false, [])
+    begin
+      Terms.add_to_collector collector (CollectorProba (Depanal.get_and_final_empty_state()));
+      (false, [])
+    end
       )
 
 (**** Prove that a non-injective correspondence implies the injective

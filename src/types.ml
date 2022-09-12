@@ -49,6 +49,10 @@ type channel = { cname : string }
 
 (* types *)
 
+type ttcat = 
+  | BitString
+  | Interv of param
+
 type typet = { tname : string;
 	       tcat : ttcat;
 	       toptions : int;
@@ -68,11 +72,6 @@ type typet = { tname : string;
 		 (* Name of the OCaml random element generation for this type *)
 	     }
 
-and ttcat = 
-    BitString
-  | Interv of param
-
-
 type table = { tblname : string;
                tbltype : typet list;
 	         (* Type of the elements of the table *)
@@ -81,6 +80,31 @@ type table = { tblname : string;
 		 (* Name of the file that contains this table *)
 	     }
 
+type funcats = 
+    Std
+  | Tuple 
+  | Equal
+  | LetEqual (* Special equality symbol for let assignments *)
+  | Diff
+  | ForAllDiff (* Special symbol meaning "for all variables named ?x_..., t1 <> t2" *)
+  | Or
+  | And
+  | Event (* Function symbols for events *)
+  | NonUniqueEvent (* Function symbols for non-unique events *)
+  | SepLetFun (* Function symbols defined by letfun, and that can 
+		 be implemented as a separate functon (no find, array access,
+		 out of scope access) *)
+  | GuessCst
+
+type impl_name =
+    Func of string
+  | Const of string
+  | SepFun (* Function symbol defined by letfun and implemented 
+              as a separate function (corresponds to f_cat = SepLetFun
+              and the function is used in the part translated to 
+	      implementation) *)
+  | No_impl
+      
 
 type find_info =
     Nothing
@@ -197,31 +221,6 @@ and program_point =
 and linktype = 
     NoLink
   | TLink of term
-
-and funcats = 
-    Std
-  | Tuple 
-  | Equal
-  | LetEqual (* Special equality symbol for let assignments *)
-  | Diff
-  | ForAllDiff (* Special symbol meaning "for all variables named ?x_..., t1 <> t2" *)
-  | Or
-  | And
-  | Event (* Function symbols for events *)
-  | NonUniqueEvent (* Function symbols for non-unique events *)
-  | SepLetFun (* Function symbols defined by letfun, and that can 
-		 be implemented as a separate functon (no find, array access,
-		 out of scope access) *)
-  | GuessCst
-
-and impl_name =
-    Func of string
-  | Const of string
-  | SepFun (* Function symbol defined by letfun and implemented 
-              as a separate function (corresponds to f_cat = SepLetFun
-              and the function is used in the part translated to 
-	      implementation) *)
-  | No_impl
 
 and funsymb = { f_name : string;
 		f_type : typet list * typet; (* argument and result types *)
@@ -728,70 +727,97 @@ and simp_facts = term list * term list * elsefind_fact list
    [def_list] is a list of variables known to be defined. *)
 
 and el_known_when_adv_wins = 
-    repl_index list * (term list * program_point) list * simp_facts * binderref list
-      
+  | CollectorNoInfo
+  | CollectorFacts of repl_index list * (term list * program_point) list * simp_facts * binderref list
+  | CollectorProba of proba_state_t
+	
 and known_when_adv_wins =
     el_known_when_adv_wins list
 
-(* Polynoms of probabilities *)
-
-type monomial = (probaf * int) list
-
-type polynom = (float * monomial) list
+(* Collisions *)
       
-(* Result of a cryptographic transformation *)
-type failure_reason =
-    Term of term
-  | UntransformableTerm of term
-  | RefWithIndicesWithoutMatchingStandardRef of binderref * binderref
-  | RefWithIndicesWithIncompatibleStandardRef of binderref * binderref * int
-  | IncompatibleRefsWithIndices of binderref * binderref * binderref * binderref * int
-  | NoChange
-  | NoChangeName of binder
-  | NoUsefulChange
-  | NameNeededInStopMode
-
-
-type trans_res =
-    TSuccess of setf list * detailed_instruct list * game
-  | TFailure of (equiv_nm * crypto_transf_user_info * instruct list) list * ((binder * binder) list * failure_reason) list
-
-type dep_anal_side_cond =
-    NoSideCond
-  | SideCondToCompute
-  | SideCondFixed of term list * term list list
+and ri_mul_t =
+  term list * (repl_index list * probaf) option
       
-type dep_anal_indep_test = simp_facts -> term -> binderref -> (term * dep_anal_side_cond) option
-type dep_anal_collision_test = simp_facts -> term -> term -> term option
+and probaf_mul_types =
+  { p_ri_list : repl_index list; (* List of replication indices *)
+    p_ri_mul  : ri_mul_t; (* Probability formula that represents the number of repetitions of the collision
+			   p_ri_mul = known_def, Some(ri_list, p) corresponds to  \prod_{ri \in ri_list} |ri.ri_type| * p
+			   It may be a better formula than \prod_{ri \in p.p_ri_list} |ri.ri_type| using #O for some oracles O.
+			   p_ri_mul = known_def, None means that the terms in [known_def] are known to be defined.
+			   This information is later exploited to replace some factors
+			   in prod_{ri \in p.p_ri_list} |ri.ri_type| with #O,
+			   in order to replace None with Some(ri_list,p). *)
+    p_proba : probaf; (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *)
+    p_dep_types : typet list; (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *)
+    p_full_type : typet; (* The type of t2 *)
+    p_indep_types_option : typet list option } (* indep_types_option: 
+	 indep_types_option = Some indep_types, where indep_types is 
+	 The list of types of subterms of t2 
+	 not replaced with variables [?].  This list is valid only
+	 when subterms of [t2] are replaced only under [data]
+	 functions, so that product of |T| for T \in dep_types <=
+	 |type(t2)|/product of |T| for T \in indep_types.  When it is
+	 not valid, indep_types_option = None. *) 
 
-type dep_anal = dep_anal_indep_test * dep_anal_collision_test
-
-(* A dependency analysis (type [dep_anal]) consists of a pair
-[(indep_test, collision_test)].
-
-[indepTest simp_facts t (b,l)] 
-returns [Some (t', side_condition)] 
-when [t'] is a term obtained from [t] by replacing array indices that 
-depend on [b[l]] with fresh indices. These fresh indices are linked to 
-the term they replace.
-When [side_condition = NoSideCond], [t'] does not depend on [b[l]].
-When [side_condition = SideCondToCompute] is true, [t'] contains [b] itself.
-[t'] does not depend on [b[l]] when the indices of [b] in [t'] are different from [l].
-When [side_condition = SideCondFixed(l, [l1; ...; ln])], [t'] does not depend on [b[l]]
-when [l <> li] for all [i] in [[1;...;n]].
-Returns [None] if that is not possible.
+ (* a record [p: probaf_mul_types] represents
+    When p.p_ri_mul = (ri_list, p_nb)
+       \prod_{ri \in ri_list} |ri.ri_type| * p_nb * p.p_proba * \prod_{T \in p.p_dep_types} |T|.
+    When p.p_indep_types_option = Some indep_types, 
+    \prod_{T \in p.p_dep_types} |T| <= |p.p_full_type|/\prod{T \in indep_types} |T|. *)
       
-[collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
-analysis.
-It returns
-- [Some t'] when it simplified [t1 = t2] into [t'];
-- [None] when it could not simplify [t1 = t2]. 
+and term_coll_t = 
+  { t_side_cond : term; (* The collisions are eliminated only when this term is true *)
+    t_true_facts : term list; (* Facts that are known to hold when the collision is eliminated *)
+    t_used_indices : repl_index list; (* Indices that occur in colliding terms *) 
+    t_initial_indices : repl_index list; (* Indices at the program point of the collision *)
+    t_charac : term; (* The two colliding terms, t1 and t2 *)
+    t_indep : term; 
+    t_var : binder; (* The random variable that is (partly) characterized by t1 and from which t2 is independent, with its indices *)
+    t_lopt : term list option;
+    t_proba : probaf_mul_types } (* see above *)
 
-[simp_facts] contains facts that are known to hold. 
-*)
+and binder_coll_t = binder * binder * probaf_mul_types
+      (* [(b1,b2,_)] means that we eliminated collisions
+	 between the random variables [b1] and [b2] *)
 
-exception NoMatch
-exception Contradiction
+and instantiated_collision =
+    { ic_restr : term list; (*restrictions*)
+      ic_redl : term; (*lhs*)
+      ic_proba : probaf;
+      ic_redr : term; (*rhs*)
+      ic_indep_cond : term; (*indep cond*)
+      ic_side_cond : term; (*side cond*)
+      ic_restr_may_be_equal : bool } (*restr_may_be_equal*)
+
+and any_var_map_list_t =
+    { source : binder list;
+      images : term list list }
+      
+and red_proba_t =
+    { r_coll_statement : collision;
+      r_restr_indep_map : (binder * term) list;
+      r_any_var_map_list : any_var_map_list_t;
+      r_i_coll_statement : instantiated_collision;
+      r_proba : probaf_mul_types }
+      (* a record [r: red_proba_t]
+	 means that we applied the collision statement [r.r_coll_statement]
+	 with variables bound as defined by [r.r_restr_indep_map]
+	 and [r.r_any_var_map list]. [r.r_restr_indep_map] binds variables
+	 defined by "new" and those with independence conditions.
+	 [any_var_map] binds other variables (universally quantified).
+	 There can be several applications with different values of 
+	 [any_var_map]; all those applications are collected in 
+	 [r.r_any_var_map_list]; the images are omitted when those
+	 variables do not occur in the probability.
+	 [r.r_i_coll_statement] is the collision statement instantiated
+	 following [r.r_restr_indep_map].
+	 [r.r_proba] represents the probability of collision 
+	 (see type [probaf_mul_types] for details) *)
+
+and simplify_internal_info_t = probaf * binder_coll_t list * red_proba_t list
+
+and proba_state_t = term_coll_t list * simplify_internal_info_t
 
 (* Where are we in add_facts/add_def_vars:
    current_point = the current program point
@@ -830,6 +856,67 @@ type known_history =
 
 
       
+type dep_anal_side_cond =
+    NoSideCond
+  | SideCondToCompute
+  | SideCondFixed of term list * term list list
+      
+type dep_anal_indep_test = simp_facts -> term -> binderref -> (term * dep_anal_side_cond) option
+type dep_anal_collision_test = simp_facts -> term -> term -> term option
+
+type dep_anal = dep_anal_indep_test * dep_anal_collision_test
+
+(* A dependency analysis (type [dep_anal]) consists of a pair
+[(indep_test, collision_test)].
+
+[indepTest simp_facts t (b,l)] 
+returns [Some (t', side_condition)] 
+when [t'] is a term obtained from [t] by replacing array indices that 
+depend on [b[l]] with fresh indices. These fresh indices are linked to 
+the term they replace.
+When [side_condition = NoSideCond], [t'] does not depend on [b[l]].
+When [side_condition = SideCondToCompute] is true, [t'] contains [b] itself.
+[t'] does not depend on [b[l]] when the indices of [b] in [t'] are different from [l].
+When [side_condition = SideCondFixed(l, [l1; ...; ln])], [t'] does not depend on [b[l]]
+when [l <> li] for all [i] in [[1;...;n]].
+Returns [None] if that is not possible.
+      
+[collision_test simp_facts t1 t2] simplifies [t1 = t2] using dependency 
+analysis.
+It returns
+- [Some t'] when it simplified [t1 = t2] into [t'];
+- [None] when it could not simplify [t1 = t2]. 
+
+[simp_facts] contains facts that are known to hold. 
+*)
+
+exception NoMatch
+exception Contradiction
+
+(* Result of a cryptographic transformation *)
+
+type failure_reason =
+    Term of term
+  | UntransformableTerm of term
+  | RefWithIndicesWithoutMatchingStandardRef of binderref * binderref
+  | RefWithIndicesWithIncompatibleStandardRef of binderref * binderref * int
+  | IncompatibleRefsWithIndices of binderref * binderref * binderref * binderref * int
+  | NoChange
+  | NoChangeName of binder
+  | NoUsefulChange
+  | NameNeededInStopMode
+
+
+type trans_res =
+    TSuccess of setf list * detailed_instruct list * game
+  | TFailure of (equiv_nm * crypto_transf_user_info * instruct list) list * ((binder * binder) list * failure_reason) list
+
+(* Polynoms of probabilities *)
+
+type monomial = (probaf * int) list
+
+type polynom = (float * monomial) list
+      
 (* For the generation of implementations
    type for a program : name, options, process *)
 
@@ -845,87 +932,6 @@ type final_process =
     SingleProcess of inputprocess
   | Equivalence of inputprocess * inputprocess * query list(*non-unique queries in 1st process*) * query list(*non-unique queries in 2nd process*) * binder list(*public variables*)
   
-type ri_mul_t =
-  term list * (repl_index list * probaf) option
-      
-type probaf_mul_types =
-  { p_ri_list : repl_index list; (* List of replication indices *)
-    p_ri_mul  : ri_mul_t; (* Probability formula that represents the number of repetitions of the collision
-			   p_ri_mul = known_def, Some(ri_list, p) corresponds to  \prod_{ri \in ri_list} |ri.ri_type| * p
-			   It may be a better formula than \prod_{ri \in p.p_ri_list} |ri.ri_type| using #O for some oracles O.
-			   p_ri_mul = known_def, None means that the terms in [known_def] are known to be defined.
-			   This information is later exploited to replace some factors
-			   in prod_{ri \in p.p_ri_list} |ri.ri_type| with #O,
-			   in order to replace None with Some(ri_list,p). *)
-    p_proba : probaf; (* p: The probability of one collision. For all M independent of the random variable, Pr[t1 = M] <= p *)
-    p_dep_types : typet list; (* dep_types: The list of types of subterms (non-replication indices) of t2 replaced with variables [?] *)
-    p_full_type : typet; (* The type of t2 *)
-    p_indep_types_option : typet list option } (* indep_types_option: 
-	 indep_types_option = Some indep_types, where indep_types is 
-	 The list of types of subterms of t2 
-	 not replaced with variables [?].  This list is valid only
-	 when subterms of [t2] are replaced only under [data]
-	 functions, so that product of |T| for T \in dep_types <=
-	 |type(t2)|/product of |T| for T \in indep_types.  When it is
-	 not valid, indep_types_option = None. *) 
-
- (* a record [p: probaf_mul_types] represents
-    When p.p_ri_mul = (ri_list, p_nb)
-       \prod_{ri \in ri_list} |ri.ri_type| * p_nb * p.p_proba * \prod_{T \in p.p_dep_types} |T|.
-    When p.p_indep_types_option = Some indep_types, 
-    \prod_{T \in p.p_dep_types} |T| <= |p.p_full_type|/\prod{T \in indep_types} |T|. *)
-      
-type term_coll_t = 
-  { t_side_cond : term; (* The collisions are eliminated only when this term is true *)
-    t_true_facts : term list; (* Facts that are known to hold when the collision is eliminated *)
-    t_used_indices : repl_index list; (* Indices that occur in colliding terms *) 
-    t_initial_indices : repl_index list; (* Indices at the program point of the collision *)
-    t_charac : term; (* The two colliding terms, t1 and t2 *)
-    t_indep : term; 
-    t_var : binder; (* The random variable that is (partly) characterized by t1 and from which t2 is independent, with its indices *)
-    t_lopt : term list option;
-    t_proba : probaf_mul_types } (* see above *)
-
-type binder_coll_t = binder * binder * probaf_mul_types
-      (* [(b1,b2,_)] means that we eliminated collisions
-	 between the random variables [b1] and [b2] *)
-
-type instantiated_collision =
-    { ic_restr : term list; (*restrictions*)
-      ic_redl : term; (*lhs*)
-      ic_proba : probaf;
-      ic_redr : term; (*rhs*)
-      ic_indep_cond : term; (*indep cond*)
-      ic_side_cond : term; (*side cond*)
-      ic_restr_may_be_equal : bool } (*restr_may_be_equal*)
-
-type any_var_map_list_t =
-    { source : binder list;
-      images : term list list }
-      
-type red_proba_t =
-    { r_coll_statement : collision;
-      r_restr_indep_map : (binder * term) list;
-      r_any_var_map_list : any_var_map_list_t;
-      r_i_coll_statement : instantiated_collision;
-      r_proba : probaf_mul_types }
-      (* a record [r: red_proba_t]
-	 means that we applied the collision statement [r.r_coll_statement]
-	 with variables bound as defined by [r.r_restr_indep_map]
-	 and [r.r_any_var_map list]. [r.r_restr_indep_map] binds variables
-	 defined by "new" and those with independence conditions.
-	 [any_var_map] binds other variables (universally quantified).
-	 There can be several applications with different values of 
-	 [any_var_map]; all those applications are collected in 
-	 [r.r_any_var_map_list]; the images are omitted when those
-	 variables do not occur in the probability.
-	 [r.r_i_coll_statement] is the collision statement instantiated
-	 following [r.r_restr_indep_map].
-	 [r.r_proba] represents the probability of collision 
-	 (see type [probaf_mul_types] for details) *)
-
-type simplify_internal_info_t = probaf * binder_coll_t list * red_proba_t list
-      
 (* For the dependency analyses *)
 
 type term_coll_proba_t =

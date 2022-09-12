@@ -1,0 +1,71 @@
+(* Success simplify does not collect information correctly:
+it proves the correspondence inj-event(e(x)) ==> inj-event(e2(x))
+for the execution of e when b is false, and this definition
+is incompatible with the execution of e when b is true,
+so it removes the execution of e when b is false.
+However, it forgets to take into account the probability of
+breaking the correspondence when b is false (1/2 N^2/|nonce|).
+
+After applying the equivalence f, it can prove the whole correspondence.
+
+The probability of breaking the correspondence should be
+(1 + 0.5 * N^2) / |nonce| + pf, not 1/|nonce| + pf.
+
+The collisions eliminated in successful proofs of parts of queries
+should be taken into account in the probability of success simplify.
+ *)
+
+type nonce [large,fixed].
+
+event e(nonce).
+event e2(nonce).
+
+query forall x: nonce; inj-event(e(x)) ==> inj-event(e2(x)).
+
+type key [large,fixed].
+fun f(key,nonce):nonce.
+proba pf.
+
+equiv(f)
+  new k: key; O(x: nonce) := return(f(k,x))
+  <=(pf)=>
+  O(x: nonce) := return(x).
+
+channel c.
+
+proof {
+  success simplify;
+  auto
+  }
+
+param N.
+
+process
+   in(c, b: bool);
+   if b then 
+      (out(c, ());
+      in(c,x:nonce);
+      new k: key;
+      new y2: nonce;
+      if x = f(k,y2) then
+      event e(y2);
+      out(c,()))
+   else
+      out(c,());
+      ((!N
+      in(c,());
+      new y: nonce;
+      out(c, y);
+      in(c, ());
+      find j<=N suchthat defined(z[j]) && z[j] = y then
+      event e(y);
+      out(c,()))
+      |
+      (!N in(c, z: nonce);
+      event e2(z);
+      out(c, ())))
+
+(* EXPECTED
+All queries proved.
+0.032s (user 0.032s + system 0.000s), max rss 15724K
+END *)

@@ -10,7 +10,6 @@ let known_when_adv_wins = ref (None : known_when_adv_wins option)
 let current_max_priority = Facts.current_max_priority
 let priority_list = Facts.priority_list
 
-let proba_state_at_beginning_iteration = ref (Proba.empty_proba_state, [])
 let failure_check_all_deps = ref []
 
 (* Initialization of probability counting *)  
@@ -20,7 +19,6 @@ let reset coll_elim g =
   (* Remove the advice found in Transf_globaldepanal in previous iterations. 
      If advice is still useful, we will find it again at the next iteration. *)
   Transf_globaldepanal.advise := [];
-  proba_state_at_beginning_iteration := (Proba.get_current_state(), !Depanal.term_collisions);
   failure_check_all_deps := [];
   current_max_priority := 0;
   List.iter (fun b -> b.priority <- 0) (!priority_list);
@@ -35,8 +33,7 @@ let final_reset g =
   List.iter (fun b -> b.priority <- 0) (!priority_list);
   priority_list := [];
   failure_check_all_deps := [];
-  known_when_adv_wins := None;
-  proba_state_at_beginning_iteration := (Proba.empty_proba_state, [])
+  known_when_adv_wins := None
 
 (* Dependency analysis
    When M1 characterizes a part of x of a large type T
@@ -487,14 +484,12 @@ let rec dependency_collision_rec1 cur_array simp_facts t1 t2 t =
 	      print_string "Doing global dependency analysis on ";
 	      Display.display_binder b;
 	      print_string " inside simplify... "; flush stdout;
-	      let current_proba_state = Proba.get_current_state() in
-	      let current_term_collisions = !Depanal.term_collisions in
-	      match Transf_globaldepanal.check_all_deps b (!proba_state_at_beginning_iteration) (!whole_game) with
+	      let current_proba_state = Depanal.get_current_state() in
+	      match Transf_globaldepanal.check_all_deps b (!whole_game) with
 		None -> 
 		  (* global dependency analysis failed *)
 		  print_string "No change"; print_newline();
-		  Proba.restore_state current_proba_state;
-		  Depanal.term_collisions := current_term_collisions;
+		  Depanal.restore_state current_proba_state;
 		  failure_check_all_deps := b :: (!failure_check_all_deps);
 		  None
 	      | Some(res_game) ->
@@ -550,6 +545,11 @@ let contradicts_known_when_adv_wins (cur_array, pp) simp_facts =
   match !known_when_adv_wins with
   | None -> false
   | Some l ->
+      let (l_proba, l_facts) = List.partition (function
+	| CollectorNoInfo -> assert false
+	| CollectorFacts _ -> false
+	| CollectorProba _ -> true) l
+      in
       (* We assume that the adversary wins after executing the current
          program point [pp] with indices [cur_array], and we try to obtain
 	 a contradiction. The contradiction is obtained at the point at
@@ -561,24 +561,39 @@ let contradicts_known_when_adv_wins (cur_array, pp) simp_facts =
       let nsimpfacts = Facts.true_facts_from_simp_facts simp_facts in 
       let def_list = Facts.get_def_vars_at pp in
       let cur_array_t = List.map Terms.term_from_repl_index cur_array in
-      List.for_all (fun (all_indices', pp_list', simp_facts', def_list') ->
-	try 
-	  let facts1 = List.fold_left (fun accu pp' ->
-	    Incompatible.both_pp_add_fact accu (cur_array_t, pp) pp') nsimpfacts pp_list'
-	  in
-	  let facts2 = Incompatible.both_def_list_facts facts1 def_list def_list' in
-	  let facts3 = Incompatible.def_list_pp facts2 (pp, cur_array_t) def_list' in
-	  let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
-	  let simp_facts4 = Facts.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
-	  if !Settings.elsefind_facts_in_success_simplify then
-	    let facts5 = Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
-	    let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
-	    false
-	  else
-	    false
-	with Contradiction ->
+      if List.for_all (function
+	| CollectorProba _ | CollectorNoInfo -> assert false
+	| CollectorFacts(all_indices', pp_list', simp_facts', def_list') ->
+	    try 
+	      let facts1 = List.fold_left (fun accu pp' ->
+		Incompatible.both_pp_add_fact accu (cur_array_t, pp) pp') nsimpfacts pp_list'
+	      in
+	      let facts2 = Incompatible.both_def_list_facts facts1 def_list def_list' in
+	      let facts3 = Incompatible.def_list_pp facts2 (pp, cur_array_t) def_list' in
+	      let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts3 in
+	      let simp_facts4 = Facts.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
+	      if !Settings.elsefind_facts_in_success_simplify then
+		let facts5 = Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
+		let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
+		false
+	      else
+		false
+	    with Contradiction ->
+	      true
+		) l_facts
+      then
+	begin
+	  (* We are going to remove code using the information in [known_when_adv_wins].
+             Take into account the associated probability. *)
+	  known_when_adv_wins := Some l_facts;
+	  List.iter (function
+	    | CollectorProba p_state -> Depanal.readd_state p_state
+	    | CollectorFacts _ | CollectorNoInfo -> assert false
+		  ) l_proba;
 	  true
-	) l
+	end
+      else
+	false
 
 let is_adv_loses p =
   match p.p_desc with
@@ -2058,6 +2073,7 @@ let simplify_main collector coll_elim g =
     else
 	begin
           Settings.changed := tmp_changed;
+	  Depanal.final_empty_state();
 	  (g,[],[])
 	end
   with Restart (b,g') ->

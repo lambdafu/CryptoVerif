@@ -476,19 +476,18 @@ let equal_coll (b1, b2, _) (b1',b2', _) =
   ((b1 == b1') && (b2 == b2')) ||
   ((b1 == b2') && (b2 == b1'))
 
-let add_elim_collisions_inside ((_,_, proba_info) as new_coll) =
+let readd_elim_collisions new_coll =
   if not (List.exists (equal_coll new_coll) (!eliminated_collisions)) then
+    eliminated_collisions := new_coll :: (!eliminated_collisions)
+
+let add_elim_collisions_inside ((_,_, proba_info) as new_coll) =
+  if is_small_enough_coll_elim proba_info then
     begin
-      if is_small_enough_coll_elim proba_info then
-	begin
-	  eliminated_collisions := new_coll :: (!eliminated_collisions);
-	  true
-	end
-      else
-	false
+      readd_elim_collisions new_coll;
+      true
     end
   else
-    true
+    false
 
 let add_elim_collisions b1 b2 =
   if b1.btype != b2.btype then
@@ -776,30 +775,31 @@ let equal_red red1 red2 =
 (* [add_proba_red_inside new_red] adds an element [new_red: red_proba_t] to
    [red_proba]. It tries to merge with existing elements in [red_proba_t]
    if possible. *)
+
+let readd_proba_red new_red =
+  let rec find_more_general_coll = function
+      [] -> raise Not_found
+    | (red :: rest) ->
+	match matches_red red new_red with
+	  Some red'' -> red'' :: rest
+	| None -> red :: (find_more_general_coll rest)
+  in
+  try
+    red_proba := find_more_general_coll (!red_proba)
+  with Not_found ->
+    let new_red_ref = ref new_red in
+    let red_proba' = List.filter (fun red -> 
+      match matches_red (!new_red_ref) red with
+	None -> true
+      | Some red'' -> new_red_ref := red''; false) (!red_proba)
+    in
+    red_proba := (!new_red_ref) :: red_proba'
     
 let add_proba_red_inside new_red =
   if is_small_enough_coll_elim new_red.r_proba then
     begin
       let new_red = { new_red with r_proba = optim_probaf new_red.r_proba } in
-      let rec find_more_general_coll = function
-	  [] -> raise Not_found
-	| (red :: rest) ->
-	    match matches_red red new_red with
-	      Some red'' -> red'' :: rest
-	    | None -> red :: (find_more_general_coll rest)
-      in
-      begin
-	try
-	  red_proba := find_more_general_coll (!red_proba)
-	with Not_found ->
-	  let new_red_ref = ref new_red in
-	  let red_proba' = List.filter (fun red -> 
-	    match matches_red (!new_red_ref) red with
-	      None -> true
-	    | Some red'' -> new_red_ref := red''; false) (!red_proba)
-	  in
-	  red_proba := (!new_red_ref) :: red_proba'
-      end;
+      readd_proba_red new_red;
       true
     end
   else
@@ -1018,7 +1018,7 @@ let reset coll_elim g =
 
 (* Final addition of probabilities *)
 
-let final_add_proba coll_list =
+let get_proba coll_list = 
   let proba = ref (!find_proba) in
   let add_proba p =
     if !proba == Zero then proba := p else proba := Polynom.p_add(!proba, p)
@@ -1029,13 +1029,23 @@ let final_add_proba coll_list =
     (!red_proba);
   List.iter add_proba coll_list;
   let r = Polynom.polynom_to_probaf (Polynom.probaf_to_polynom (!proba)) in
+  if r == Zero then [] else [ SetProba r ]
+       
+let empty_state() =
   find_proba := Zero;
   eliminated_collisions := [];
-  red_proba := [];
+  red_proba := []
+
+let final_empty_state() = 
+  empty_state();
   elim_collisions_on_password_occ := [];
   whole_game := Terms.empty_game;
-  time_for_whole_game := None;
-  if r == Zero then [] else [ SetProba r ]
+  time_for_whole_game := None
+
+let final_add_proba coll_list =
+  let r = get_proba coll_list in
+  final_empty_state();
+  r
 
 let get_current_state() =
   (!find_proba, !eliminated_collisions, !red_proba)
@@ -1045,11 +1055,19 @@ let restore_state (find_prob, ac_coll, ac_red_proba) =
   eliminated_collisions := ac_coll;
   red_proba := ac_red_proba
 
+let readd_state (find_prob, ac_coll, ac_red_proba) =
+  find_proba := Polynom.p_add (find_prob, (!find_proba));
+  List.iter readd_elim_collisions ac_coll;
+  List.iter readd_proba_red ac_red_proba
+
 let get_and_empty_state() =
-  let res = (!find_proba, !eliminated_collisions, !red_proba) in
-  find_proba := Zero;
-  eliminated_collisions := [];
-  red_proba := [];
+  let res = get_current_state() in
+  empty_state();
   res
 
 let empty_proba_state = (Zero, [], [])
+
+let display_proba_state (find_prob, ac_coll, ac_red_proba) =
+  List.iter (fun coll -> ignore (proba_for_collision coll)) ac_coll;
+  List.iter (fun red_proba_info -> ignore (proba_for_red_proba red_proba_info))
+    ac_red_proba

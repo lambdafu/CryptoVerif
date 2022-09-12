@@ -1,10 +1,25 @@
+Test framework
+
+stringPlus.ml: functions on strings, used by many programs.
+analyze.ml, rusage.c: program that runs tests
+addexpectedtags.ml: program that helps adding expected results in test files.
+
+------------------------------------------------------------------
+Crypto library generator
+
+cryptogen.ml: program that generates standard crypto library macros
+with a variable number of arguments.
+
+------------------------------------------------------------------
+CryptoVerif itself
+
+version.ml: file that contains the version number of CryptoVerif
+   (automatically updated by makedistrib)
+   
 parsing_helper.ml: functions for error messages
 
-lexer.ml: lexer (for the "channel" front-end)
-parser.ml: parser
-
-olexer.ml: lexer for the "oracles" front-end 
-oparser.ml: parser
+lexer.mll: lexer
+parser.mly: parser
 
 ptree.mli: type declarations for the syntax tree, as output by
 the lexer/parser
@@ -12,27 +27,43 @@ the lexer/parser
 types.ml: type declarations for the internal representation of games
 
 stringmap.ml: defines a map from strings to values, used in syntax.ml
-  and insertinstruct.ml
+  and transf_insert_replace.ml
 syntax.ml: translates the syntax tree as output by the parser (type
   defined in ptree.mli) into internal games (type defined in types.ml).
   For instance, links identifiers to variables.
 check.ml: performs various verifications on the input
 settings.ml: handles various settings (including those defined by "set").
 
-binderset.ml: representation of sets of variables by a hash table.
 terms.ml: various helper functions
+match_eq.ml: matching modulo the equational theory
+Collect information on games
+  - def.ml: collect facts that hold at each program point
+  - improved_def.ml: slightly more precise version of def.ml
+  - array_ref.ml: determine whether each variable has array accesses
+  - occ_map.ml: map from occurrences to some image (used in incompatible.ml)
+  - incompatible.ml: determine for which indices 2 program points can
+    both be executed
+  - info_from_term.ml: determine which facts hold when a (complex) term
+    is known to be true
 polynom.ml: helper functions on polynoms (for manipulating probability
 formulas)
 computeruntime.ml: computes the runtime of a game (useful for computing
   probabilities in cryptotransf.ml and proba.ml) 
 proba.ml: helper functions on probabilities
-facts.ml: helper functions on facts 
-simplify1.ml: helper functions for transf_simplify, transf_merge, transf_crypto.
+facts.ml: helper functions on facts
+facts_of_elsefind.ml: extract facts from elsefind facts and known defined
+  variables, by distinguishing cases depending on the order of execution of
+  variable definitions.
+depanal.ml: functions that eliminate collisions between terms, based on
+  dependency analysis.
 
 invariants.ml: checks invariants on games after each game transformation
 (useful to detect bugs in game transformations)
 
 Game transformations:
+- transf_tables.ml: transforms get/insert in tables into find.
+- unique.ml: proves that annotations find[unique] really tag finds
+  that have a single solution except in cases of negligible probability.
 - transf_auto_sa_rename.ml: renames variables that are defined in find
    conditions, defined several times, and have no array references
    (for internal use only; applied after transformations that copy
@@ -45,33 +76,42 @@ Game transformations:
    cryptographic transformations)
 - transf_sarename.ml: renames all occurrences of a variable b with distinct names,
    expanding code with array references to b if necessary
-- transf_remove_assignments.ml: replaces variables with their values
+- transf_remove_assign.ml: replaces variables with their values
 - transf_move.ml: moves new/lets downwards as much as possible
 - transf_insert_event.ml: replaces a subprocess with an event
+- transf_insert_replace.ml: implements the following manual game 
+  transformations:
+  - insert: inserts an instruction at a certain program point
+  - replace: replaces a term with an equal term
 - transf_crypto.ml: implements cryptographic transformations:
   From an equivalence L ~ R, detects that a game can be written G ~ C[L],
   and transform it into C[R] ~ G'.
+  special_equiv.ml: generates equiv assumptions used by transf_crypto.ml,
+  for ROM, PRF, PRP, ICM, SPRP, as well as for the "move array" transformation.
 - transf_globaldepanal.ml: implements global dependency analysis. Called from
   transf_simplify.ml or by an independent manual game transformation.
 - transf_simplify.ml simplifies games after cryptographic transformations
-- transf_insert_replace.ml: implements the following manual game 
-  transformations:
-  - insert_instruct: inserts an instruction at a certain program point
-  - replace_term: replaces a term with an equal term
+- transf_simplify_nonexpanded.ml: specific version of simplify for
+  non-expanded games, used in particular after the "crypto" transformation.
 - transf_merge.ml: implements the following game transformations:
   - merge_arrays: merges several variables (arrays) into a single array
   - merge_branches: merges find/if/let branches as much as possible
-  This module also provides helper functions for transf_simplify.ml, which are
-  used to merge branches of if/let/find in simplify (in a less powerful
-  way than merge_branches).
-- transf_tables.ml: transforms get/insert in tables into find.
+  This module also provides an helper function to test equality between
+  games, used by success.ml to prove equivalence queries
+- transf_use_variable.ml: transformation "use_variable"
+- transf_guess.ml: implements the following game transformations:
+  - guess <session id>
+  - guess <variable>
+  - guess_branch
+
+- query_equiv.ml: converts query_equiv into ordinary equivalence
+  (or correspondence in the [computational] case) queries.
 
 - success.ml: Tests if a game satisfies the desired security properties
 Uses:
   - check_corresp.ml to verify correspondence assertions
-  - check_distinct.ml to verify secrecy, knowing that one-session secrecy
-  already holds.
-  (one-session secrecy is checked in success.ml itself)
+  - check_secrecy.ml to verify (one-session) secrecy
+  - Transf_merge.equal_games to verify equivalence queries
 
 display.ml: display games
 displaytex.ml: display games in TeX
@@ -83,3 +123,6 @@ implementation.ml: generates OCaml implementations from CryptoVerif
 specifications.
 
 main.ml: main program
+
+profile.ml, profileprim.c: profiling functions, used only when CryptoVerif
+  is built by "build profile".

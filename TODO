@@ -890,6 +890,16 @@ Terms in "let"s can be split to do that.
 Rather: More fine-grained user guidance:
 - Reorder instructions (moving "new" up can be useful, see fdh below;
 also for merging of branches until we do some auto reordering),
+  move b to occ:
+  - require b not to be defined above occ
+  - if all definitions of b under occ are "new b:T", require these definitions of b
+  to be executed at most once for each execution of occ.
+    insert "new b':T" at occ; replace "new b:T" with "let b = b' in"
+    under occ; remove useless assignments on b.
+  - if all definitions of b under occ are "let b = M in" for the same M,
+    M is a copiable term, and M is defined at occ,
+    insert "let b' = M in" at occ; replace "let b = M in" with
+    "let b = b' in" under occ; remove useless assignments on b.
 - decide to expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
 - perhaps decide to merge or not each if/let/find when the branches execute
 the same code, ...

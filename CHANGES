@@ -15,11 +15,16 @@ Version
 - Display a warning when correspondence queries do not satisfy a
   well-formedness condition (the conclusion of the correspondence must
   be uniquely determined given the events in the hypothesis).
-- Minor precision improvement in "success simplify" with query
-  event(e(M)) ==> false.
 - Display probability when one-session secrecy is proved.
 - Double the probabilities earlier for (one-session) secrecy.
 - Fixed bugs related to the fact that terms may abort.
+- Fixed bugs in success simplify: minor precision improvement
+  with query event(e(M)) ==> false; when distinguishing cases in
+  the proof of correspondences, it may have forgotten some cases;
+  add the probability for the proved cases; always consider the
+  proof of independence for secrecy queries, even if one-session
+  secrecy cannot be proved; fixed internal error when there is
+  no query.
 - Fixed bugs in guess transformation: injectivity was proved in the
   initial game instead of the current game; use compatibility
   information between program points to prove injectivity;
@@ -38,8 +43,10 @@ Version
   before ==>.
 - Fixed bug: events were not preserved in the initial transformation
   of the RHS in equivalence proofs.
-- Fixed internal error in the command "success simplify" when there is
-  no query.
+- Fixed bugs in probability counting: avoid counting spurious
+  collisions of previous transformations in globaldepanal;
+  do the proof of secrecy in one step to avoid counting twice the
+  same collisions.
 
 Version 2.06
 

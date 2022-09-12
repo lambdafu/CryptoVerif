@@ -284,7 +284,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
     
   List.iter (fun (def_list',t') ->
 
-    let proba_state = (!Depanal.term_collisions, Proba.get_current_state()) in
+    let proba_state = Depanal.get_current_state() in
     if !Settings.debug_elsefind_facts then
       begin
         print_string "Elsefind_fact_try:\n";
@@ -533,8 +533,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
       begin
 	(* Nothing inferred, restore the old probability state.
 	   The collisions that we eliminated were useless in the end. *)
-	Depanal.term_collisions := fst proba_state;
-	Proba.restore_state (snd proba_state);
+	Depanal.restore_state proba_state;
         if !Settings.debug_elsefind_facts then
           begin
             print_string "Found no usable terms.";

@@ -1721,7 +1721,7 @@ let merge_arrays bll mode g =
   whole_game := g;
   Array_ref.array_ref_process g_proc;
   Improved_def.improved_def_game None true g;
-  Proba.reset [] g;
+  Depanal.reset [] g;
   let old_merge_arrays = !Settings.merge_arrays in
   Settings.merge_arrays := false;
   has_done_merge := false;
@@ -1810,21 +1810,24 @@ let merge_arrays bll mode g =
 	  begin
 	    Settings.changed := true;
 	    (* Display.display_process p'; *)
-	    let proba = Proba.final_add_proba [] in
+	    let proba = Depanal.final_add_proba () in
 	    cleanup();
 	    (Terms.build_transformed_game p' g, proba, [DMergeArrays(bll,mode)])
 	  end
 	else
 	  begin
 	    cleanup();
+	    Depanal.final_empty_state();
 	    (g, [], [])
 	  end
       with 
 	Failed ->
 	  cleanup();
+	  Depanal.final_empty_state();
 	  (g, [], [])
       | Error(mess,ext) ->
 	  cleanup();
+	  Depanal.final_empty_state();
 	  raise (Error(mess,ext))
     end
       
@@ -2342,8 +2345,7 @@ let merge_branches g =
       whole_game := g;
       Array_ref.array_ref_process g_proc;
       Improved_def.improved_def_game None false g;
-      Proba.reset [] g;
-      Depanal.term_collisions := [];
+      Depanal.reset [] g;
       merges_to_do := [];
       merges_cannot_be_done := [];
       collect_merges_i [] g_proc;
@@ -2369,7 +2371,6 @@ let merge_branches g =
 	      merges_to_do := [];
 	      merges_cannot_be_done := [];
 	      let proba = Depanal.final_add_proba () in
-	      Depanal.term_collisions := [];
 	      (Terms.build_transformed_game p' g, proba, done_transfos)
 	    else
 	      begin
@@ -2377,6 +2378,7 @@ let merge_branches g =
 		List.iter add_advice (!merges_cannot_be_done);
 		merges_to_do := [];
 		merges_cannot_be_done := [];
+		Depanal.final_empty_state();
 		(g, [], [])
 	      end
 	  end
@@ -2405,8 +2407,7 @@ let equal_games g1 g2 =
      For this reason, we use no known facts, and the probability [proba] should always be 0 *)
   Array_ref.array_ref_process g1_proc;
   Array_ref.array_ref_process g2_proc;
-  Proba.reset [] g1;
-  Depanal.term_collisions := [];
+  Depanal.reset [] g1;
   let r = 
     equal_store_arrays ~show_diff_reason:true (fun p p' ->
         ok_arrays_first_branch := collect_good_vars_fullprocess p;
@@ -2414,7 +2415,6 @@ let equal_games g1 g2 =
         equal_process ~show_diff_reason:true [] p p') Terms.simp_facts_id g1_proc g2_proc
   in
   let proba = Depanal.final_add_proba () in
-  Depanal.term_collisions := [];
   Array_ref.cleanup_array_ref();
   whole_game := Terms.empty_game;
   (r, proba)

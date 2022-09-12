@@ -10,12 +10,53 @@ val fresh_repl_index : unit -> repl_index
     
 (*** Computation of probabilities of collision between terms ***)
 
-(* Recorded term collisions *)
-val term_collisions : term_coll_t list ref
-
 (* Resets repl_index_list and term_collisions, and also calls Proba.reset *)
 val reset : coll_elim_t list -> game -> unit
 
+(* The state used in this module contains one more component than 
+   the one used in [Proba] (collisions t1 = t2 where t1 characterizes
+   a random variable x and t2 is independent of x). *)
+    
+(* Computes the probability of term collisions
+   [final_add_proba] cleans up the state, while [get_proba] leaves it unchanged. *)
+val get_proba : unit -> setf list
+val final_add_proba : unit -> setf list
+    
+(* [get_current_state()] returns the current state of eliminated collisions,
+   to be restored by [restore_state state] in case we want to undo
+   the collision eliminations done between [get_current_state] and 
+   [restore_state]. *)
+val get_current_state : unit -> proba_state_t
+
+(* [final_empty_state()] clears the probability state. 
+   One must call [reset] to initialize it again, before counting
+   probabilities. *)
+val final_empty_state : unit -> unit
+
+(* [get_and_final_empty_state()] returns the current state of eliminated collisions,
+   like [get_current_state()] but additionally clears the probability state.  
+   One must call [reset] to initialize it again, before counting
+   probabilities. *)
+val get_and_final_empty_state : unit -> proba_state_t
+
+(* [restore_state state] restores a previous probability state,
+   typically obtained via [get_current_state()].
+   The collisions eliminated before [restore_state] are forgotten. *)
+val restore_state : proba_state_t -> unit
+
+(* [readd_state state] adds the collisions eliminated in state [state]
+   to the collisions currently eliminated. Collisions eliminated
+   both in [state] and in the current state are counted once. *)  
+val readd_state : proba_state_t -> unit
+
+(* [empty_proba_state] is the empty probability state, with no
+   collision eliminated. *)
+val empty_proba_state : proba_state_t
+
+(* [display_proba_state state] displays the probability state [state].
+   Used for debugging. *)
+val display_proba_state : proba_state_t -> unit
+    
 (* [matches_proba_info (t1, t2, probaf) (t1', t2', probaf')]
    returns true when [(t1', t2', probaf')] is instance of 
    [(t1, t2, probaf)]. Then [(t1', t2', probaf')] does not 
@@ -42,9 +83,6 @@ val subst_args_proba : binder -> term list -> find_compos_probaf -> find_compos_
 val add_term_collisions :
   repl_index list * term list Lazy.t * term -> term -> term ->
   binder -> term list option -> (find_compos_probaf * typet list * typet * typet list option) -> bool
-
-(* Computes the probability of term collisions *)
-val final_add_proba : unit -> setf list
 
 (* For debugging *)
 val display_depinfo : 'a depinfo -> unit
