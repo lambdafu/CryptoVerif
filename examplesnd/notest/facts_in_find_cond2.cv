@@ -1,0 +1,17 @@
+event e.
+
+query event(e) ==> false.
+
+param N.
+
+fun pad(bitstring): bitstring [data].
+
+channel c.
+
+set debugCorresp = true.
+
+proof { interactive }
+
+process
+   (in(c,x:bitstring); find j <= N suchthat defined(y[j]) && (let pad(z) = y[j] in if z = x then event_abort e else true else false) then out(c, true) else out(c, false))
+   | (!N in(c, y: bitstring))
