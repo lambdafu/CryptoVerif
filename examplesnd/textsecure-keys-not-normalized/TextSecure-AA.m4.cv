@@ -8,31 +8,20 @@ set useKnownEqualitiesWithFunctionsInMatching = true.
 proof {
 ifdef(`FS',`
 crypto uf_cma_corrupt(sign);
-out_game "g1.out.cv" occ;
-(* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
-insert ifdef(`REPLAY_PROT',`284',`261') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubA) then";
-(* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
-insert 67 "if pow8(x_pubA_1) = pow8(pubA) then";
-crypto rom(H5);
-out_game "g2.out.cv" occ;
-(* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
-insert ifdef(`REPLAY_PROT',`3782',`3759') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubA) then";
-(* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
-insert 1020 "if pow8(x_pubA_2) = pow8(pubA) then";
 ',`
 crypto uf_cma(sign);
+')
 out_game "g1.out.cv" occ;
 (* Case distinction inserted before new ephSecBA1: Z in RecvAKE_Alice *)
-insert ifdef(`REPLAY_PROT',`330',`307') "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubA) then";
+insert before "new ephSecBA1: Z" "find j <= Nsend suchthat defined (sephPubAB1[j]) && pow8(sephPubAB_1) = pow8(sephPubAB1[j]) && pow8(x_pubB_1) = pow8(pubA) then";
 (* Case distinction inserted between "in(ch5" and "let g1n1" in SendAKE_Bob *) 
-insert 66 "if pow8(x_pubA_1) = pow8(pubA) then";
+insert before "let g1n1:" "if pow8(x_pubA_1) = pow8(pubA) then";
 crypto rom(H5);
 out_game "g2.out.cv" occ;
 (* Case distinction inserted before new ephSecBA2: Z in RecvAKE_Alice_3DH *)
-insert ifdef(`REPLAY_PROT',`4088',`4065') "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubA) then";
+insert before "new ephSecBA2: Z" "find j2 <= Nsend suchthat defined (sephPubAB1[j2]) && pow8(sephPubAB_2) = pow8(sephPubAB1[j2]) && pow8(x_pubB_2) = pow8(pubA) then";
 (* Case distinction inserted after "in(ch7" in SendAKE_Bob *) 
-insert 1187 "if pow8(x_pubA_2) = pow8(pubA) then";
-')
+insert after "in(ch7" "if pow8(x_pubA_2) = pow8(pubA) then";
 crypto rom(H4);
 out_game "g3.out.cv";
 crypto use_subgroup(gexp) secA0 sephSecAB1 ephSecAB1 ephSecBA1_2 ephSecBA1'_2 ephSecBA2_2 ephSecBA2'_2;

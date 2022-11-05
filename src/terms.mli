@@ -367,7 +367,8 @@ val subst : repl_index list -> term list -> term -> term
 val subst_def_list : repl_index list -> term list -> binderref list -> binderref list
 val subst_else_find : repl_index list -> term list -> elsefind_fact -> elsefind_fact
 val subst_simp_facts : repl_index list -> term list -> simp_facts -> simp_facts
-
+val subst_pps : repl_index list -> term list -> program_points_args list -> program_points_args list
+    
 (* [subst3 l t] returns the term [t] after applying the substitution
    defined by [l]: [l] is a list of pairs (variable, term), and [subst3]
    replaces each variable with the corresponding term. 
@@ -486,7 +487,9 @@ val equal_term_lists : term list -> term list -> bool
 val equal_probaf : probaf -> probaf -> bool
 val equal_def_lists : binderref list -> binderref list -> bool
 val equal_elsefind_facts : elsefind_fact -> elsefind_fact -> bool
-
+val equal_pp : program_point -> program_point -> bool
+val equal_pps_args : program_points_args -> program_points_args -> bool
+    
 (* [is_subterm t1 t2] returns [true] when [t1] is a subterm of [t2]
    This function is allowed only for Var/FunApp/ReplIndex terms. *)
 val is_subterm : term -> term -> bool

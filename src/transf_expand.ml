@@ -250,8 +250,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
   | _ ->
       let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) true l0 in
     try
-      let def_vars = Facts.get_def_vars_at pp in
-      let current_history = Facts.get_initial_history pp in 
+      let (pps, def_vars, current_history) = Facts.get_def_vars_at pp in
       let t3' = 
 	try
 	  rec_simplif cur_array (Facts.add_elsefind (dependency_anal cur_array) def_vars true_facts l0_with_info) t3
@@ -279,13 +278,12 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
 	      let def_list' = Facts.reduced_def_list (Incompatible.get_facts pp) def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
-	      let facts_def_list = Facts.facts_from_defined current_history def_list in
+	      let (facts_def_list, pps_init_and_cond, def_vars_cond) = Facts.facts_from_defined pps def_vars current_history def_list' in
 	      let true_facts_t1 = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
+	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_init_and_cond
 		else
 		  []
 	      in
@@ -297,17 +295,16 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority); 
 		priority_list := b :: (!priority_list)) vars;
-	      let (t1', facts_cond, def_vars_cond', elsefind_cond) =
+	      let (t1', facts_cond, pps_init_and_cond', def_vars_cond', elsefind_cond) =
 		if Terms.check_simple_expanded t1 then 
 		  let t1' = if prove_true cur_array_cond true_facts_t1 t1 then Terms.make_true() else t1 in
-		  (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		  (t1', t1' :: facts_from_elsefind_facts @ facts_def_list, pps_init_and_cond, def_vars_cond, [])
 		else
                   let (sure_facts_t1, sure_def_vars_t1, elsefind_t1) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t1 in
 		  let then_node = Facts.get_initial_history (DTerm t2) in
-                  let def_vars_t1 = Facts.def_vars_from_defined then_node sure_def_vars_t1 in
-                  let facts_def_vars_t1 = Facts.facts_from_defined then_node sure_def_vars_t1 in
+                  let (facts_def_vars_t1, pps_init_and_cond', def_vars_t1) = Facts.facts_from_defined pps_init_and_cond def_vars_init_and_cond then_node sure_def_vars_t1 in
 		  (t1, facts_def_vars_t1 @ sure_facts_t1 @ facts_from_elsefind_facts @ facts_def_list,
-                   def_vars_t1 @ def_vars_cond, elsefind_t1)
+                   pps_init_and_cond', def_vars_t1 @ def_vars_cond, elsefind_t1)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -333,21 +330,13 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the variables certainly defined in the then branch. *)
 	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond' in
+	      let pps_init_and_cond_subst = Terms.subst_pps repl_indices vars_terms pps_init_and_cond' in
 	      (* [Terms.def_list_at_pp_fact] adds facts inferred from the knowledge 
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-	      let new_facts = Incompatible.def_list_at_pp_facts [] (DTerm t2) cur_array_term def_vars_accu in
+	      let new_facts = Incompatible.ppl_before_pp_facts [] (DTerm t2, cur_array_term) pps_init_and_cond_subst in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
-	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
-		 that all variables in [def_vars] and [def_vars_accu] are
-		 simultaneously defined. *)
-	      let tf' = 
-		if !Settings.detect_incompatible_defined_cond then
-		  let new_facts = Incompatible.both_def_list_facts [] def_vars def_vars_accu in
-		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
-		else tf'
-	      in
 	      let def_vars' = 
 		(* Using def_vars_accu instead of def_list' is more precise *)
 	        def_vars_accu @ def_vars
@@ -359,7 +348,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 
 	      (* Update the defined condition *)
 	      let (bl', def_list3, t1', t2') as find_branch = 
-		Facts.update_def_list_term def_vars def_vars_cond bl def_list' t1' t2' in
+		Facts.update_def_list_term (pps, def_vars, current_history) (Some def_vars_cond) bl def_list' t1' t2' in
               if List.length def_list3 < List.length def_list then
                 begin
                   Settings.changed := true;
@@ -797,8 +786,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
   | _ ->
       let l0_with_info = Info_from_term.add_else_info_find (Some (!whole_game)) true l0 in
     try
-      let def_vars = Facts.get_def_vars_at pp in
-      let current_history = Facts.get_initial_history pp in 
+      let (pps, def_vars, current_history) = Facts.get_def_vars_at pp in
       let p2' = 
 	if is_yield p2 then Terms.oproc_from_desc Yield else
 	try
@@ -822,13 +810,12 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	    let vars_terms = List.map Terms.term_from_binder vars in
 	    try
 	      let def_list' = Facts.reduced_def_list (Incompatible.get_facts pp) def_list in
-	      let def_vars_cond = Facts.def_vars_from_defined current_history def_list' in
-	      let facts_def_list = Facts.facts_from_defined current_history def_list in
+	      let (facts_def_list, pps_init_and_cond, def_vars_cond) = Facts.facts_from_defined pps def_vars current_history def_list' in
 	      let true_facts_t = Facts.simplif_add_list (dependency_anal cur_array_cond) true_facts facts_def_list in
+	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  let def_vars_cond' = Terms.union_binderref def_vars_cond def_vars in
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_cond'
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_init_and_cond
 		else
 		  []
 	      in
@@ -840,17 +827,16 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      List.iter (fun b -> 
 		b.priority <- (!current_max_priority);
 		priority_list := b :: (!priority_list)) vars;
-	      let (t', facts_cond, def_vars_cond', elsefind_cond) =
+	      let (t', facts_cond, pps_init_and_cond', def_vars_cond', elsefind_cond) =
 		if Terms.check_simple_expanded t then 
 		  let t' = if prove_true cur_array_cond true_facts_t t then Terms.make_true() else t in
-		  (t', t' :: facts_from_elsefind_facts @ facts_def_list, def_vars_cond, [])
+		  (t', t' :: facts_from_elsefind_facts @ facts_def_list, pps_init_and_cond, def_vars_cond, [])
 		else
                   let (sure_facts_t, sure_def_vars_t, elsefind_t) = Info_from_term.def_vars_and_facts_from_term (Some (!whole_game)) true true t in
 		  let then_node = Facts.get_initial_history (get_pp p1) in
-                  let def_vars_t = Facts.def_vars_from_defined then_node sure_def_vars_t in
-                  let facts_def_vars_t = Facts.facts_from_defined then_node sure_def_vars_t in
+                  let (facts_def_vars_t, pps_init_and_cond', def_vars_t) = Facts.facts_from_defined pps_init_and_cond def_vars_init_and_cond then_node sure_def_vars_t in
 		  (t, facts_def_vars_t @ sure_facts_t @ facts_from_elsefind_facts @ facts_def_list,
-                   def_vars_t @ def_vars_cond, elsefind_t)
+                   pps_init_and_cond', def_vars_t @ def_vars_cond, elsefind_t)
 	      in
 
 	      (* [facts_cond] contains the facts that hold,
@@ -877,21 +863,13 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 		 using repl_indices as indices. We substitute vars from them to obtain
 		 the variables certainly defined in the then branch. *)
 	      let def_vars_accu = Terms.subst_def_list repl_indices vars_terms def_vars_cond' in
+	      let pps_init_and_cond_subst = Terms.subst_pps repl_indices vars_terms pps_init_and_cond' in
 	      (* [Terms.def_list_at_pp_facts] adds facts inferred from the knowledge 
 		 that the variables in [def_vars_accu] are defined
 	         at the current program point *)
 	      let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-	      let new_facts = Incompatible.def_list_at_pp_facts [] (get_pp p1) cur_array_term def_vars_accu in
+	      let new_facts = Incompatible.ppl_before_pp_facts [] (get_pp p1, cur_array_term) pps_init_and_cond_subst in
 	      let tf' = Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts in
-	      (* [Terms.both_def_list_facts] adds facts inferred from the knowledge
-		 that all variables in [def_vars] and [def_vars_accu] are
-		 simultaneously defined. *)
-	      let tf' = 
-		if !Settings.detect_incompatible_defined_cond then
-		  let new_facts = Incompatible.both_def_list_facts [] def_vars def_vars_accu in
-		  Facts.simplif_add_list (dependency_anal cur_array) tf' new_facts 
-		else tf'
-	      in
 	      let def_vars' = 
 		(* Using def_vars_accu instead of def_list' is more precise *)
 		def_vars_accu @ def_vars
@@ -903,7 +881,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 
 	      (* Update the defined condition *)
 	      let (bl', def_list3, t', p1') as find_branch = 
-		Facts.update_def_list_process def_vars def_vars_cond bl def_list' t' p1' in
+		Facts.update_def_list_process (pps, def_vars, current_history) (Some def_vars_cond) bl def_list' t' p1' in
               if List.length def_list3 < List.length def_list then
                 begin
                   Settings.changed := true;

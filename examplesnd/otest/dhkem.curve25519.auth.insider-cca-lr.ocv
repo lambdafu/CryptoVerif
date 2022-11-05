@@ -26,7 +26,7 @@ proof {
   simplify;
   out_game "l1.out.cv";
   out_game "l1occ.out.cv" occ;
-  replace 408 "zz_3[ienc_ins_2]";
+  replace at_nth 1 1 "AuthDecap_Some({[0-9]+}zz" "zz_3[ienc_ins_2]";
   remove_assign useless;
   simplify;
   out_game "l2.out.cv";

@@ -69,10 +69,10 @@ let rec infer_facts_fc cur_array true_facts t =
 	  let l0_with_info = Info_from_term.add_info_find (Some g) g.expanded l0 in
 	  begin
 	  try 
-	    let def_vars = Facts.get_def_vars_at (DTerm t) in
+	    let (pps, def_vars, find_node) = Facts.get_def_vars_at (DTerm t) in
 	    let true_facts_t3 = add_elsefind2 true_facts def_vars l0_with_info in
 	    infer_facts_fc cur_array true_facts_t3 t3;
-	    let find_node = Facts.get_initial_history (DTerm t) in 
+	    let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 	    List.iter (fun ((bl,def_list,t1,t2), (info_then, info_else)) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
@@ -81,7 +81,6 @@ let rec infer_facts_fc cur_array true_facts t =
   	      infer_facts_fc cur_array_cond true_facts t1;
               let (sure_facts_t1, sure_def_list_t1, _) = info_then in
 	      let sure_facts_t1 = List.map (Terms.subst repl_indices vars_terms) sure_facts_t1 in
-	      let sure_def_list_t1 = Terms.subst_def_list repl_indices vars_terms sure_def_list_t1 in
 	      
 	      (* The "elsefind" facts inferred from [t1] have 
 		 already been taken into account in the first collection of facts.
@@ -89,14 +88,11 @@ let rec infer_facts_fc cur_array true_facts t =
 	      let true_facts' = List.rev_append sure_facts_t1 true_facts in
 	    (* Infer new facts *)	    
 	      try
-		let def_list' = Facts.reduced_def_list t.t_facts def_list in
-		let def_vars_cond = Facts.def_vars_from_defined find_node def_list' in
-		let def_vars_accu = List.rev_append sure_def_list_t1
-		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
-		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-		let true_facts' = Incompatible.def_list_at_pp_facts true_facts' (DTerm t2) cur_array_term def_vars_accu in
-		let true_facts' = Incompatible.both_def_list_facts true_facts' def_vars def_vars_accu in
-		let true_facts' = convert_elsefind2 true_facts' (def_vars_accu @ def_vars) elsefind in
+		let def_list' = Terms.subst_def_list repl_indices vars_terms (List.rev_append sure_def_list_t1 (Facts.reduced_def_list t.t_facts def_list)) in
+		let (pps_init_and_cond, def_vars_cond) = Facts.def_vars_from_defined pps def_vars find_node def_list' in
+		let true_facts' = Incompatible.ppl_before_pp_facts true_facts' (DTerm t2, cur_array_term) pps_init_and_cond in
+		let true_facts' = Incompatible.both_ppl_facts true_facts' pps pps_init_and_cond in
+		let true_facts' = convert_elsefind2 true_facts' (def_vars_cond @ def_vars) elsefind in
 		let node = get_node t2.t_facts in
 		node.true_facts_at_def <- true_facts';
 		infer_facts_fc cur_array true_facts' t2
@@ -207,10 +203,10 @@ and infer_facts_o cur_array true_facts p' =
 	  let l0_with_info = Info_from_term.add_info_find (Some g) g.expanded l0 in
 	  begin
 	  try 
-	    let def_vars = Facts.get_def_vars_at (DProcess p') in
+	    let (pps, def_vars, find_node) = Facts.get_def_vars_at (DProcess p') in
 	    let true_facts_p2 = add_elsefind2 true_facts def_vars l0_with_info in
 	    infer_facts_o cur_array true_facts_p2 p2;
-	    let find_node = Facts.get_initial_history (DProcess p') in 
+	    let cur_array_term = List.map Terms.term_from_repl_index cur_array in
 	    List.iter (fun ((bl,def_list,t,p1), (info_then, info_else)) ->
 	      let vars = List.map fst bl in
 	      let repl_indices = List.map snd bl in
@@ -226,14 +222,11 @@ and infer_facts_o cur_array true_facts p' =
 	      let true_facts' = List.rev_append sure_facts_t true_facts in
 	    (* Infer new facts *)
 	      try
-		let def_list' = Facts.reduced_def_list p'.p_facts def_list in
-		let def_vars_cond = Facts.def_vars_from_defined find_node def_list' in
-		let def_vars_accu = List.rev_append sure_def_list_t
-		    (Terms.subst_def_list repl_indices vars_terms def_vars_cond) in
-		let cur_array_term = List.map Terms.term_from_repl_index cur_array in
-		let true_facts' = Incompatible.def_list_at_pp_facts true_facts' (DProcess p1) cur_array_term def_vars_accu in
-		let true_facts' = Incompatible.both_def_list_facts true_facts' def_vars def_vars_accu in
-		let true_facts' = convert_elsefind2 true_facts' (def_vars_accu @ def_vars) elsefind in
+		let def_list' = Terms.subst_def_list repl_indices vars_terms (List.rev_append sure_def_list_t (Facts.reduced_def_list p'.p_facts def_list)) in
+		let (pps_init_and_cond, def_vars_cond) = Facts.def_vars_from_defined pps def_vars find_node def_list' in
+		let true_facts' = Incompatible.ppl_before_pp_facts true_facts' (DProcess p1, cur_array_term) pps_init_and_cond in
+		let true_facts' = Incompatible.both_ppl_facts true_facts' pps pps_init_and_cond in
+		let true_facts' = convert_elsefind2 true_facts' (def_vars_cond @ def_vars) elsefind in
 		let node = get_node p1.p_facts in
 		node.true_facts_at_def <- true_facts';
 		infer_facts_o cur_array true_facts' p1

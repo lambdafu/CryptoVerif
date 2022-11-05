@@ -171,12 +171,15 @@ and display_restr b =
       display_binder_with_type b
     end
     
+and display_def_list def_list = 
+  display_list (fun (b, l) -> display_var b l) def_list
+   
 and display_findcond (def_list, t1) =
   let cond_printed = ref false in
   if def_list != [] then
     begin
       print_string "\\kw{defined}(";
-      display_list (fun (b,tl) -> display_var b tl) def_list;
+      display_def_list def_list;
       print_string ")";
       cond_printed := true
     end;
@@ -1617,7 +1620,7 @@ let display_simplif_step = function
       else
 	begin
 	  print_string "\\qquad -- Replaced defined condition $";
-	  display_list (fun (b,l) -> display_var b l) def_list;
+	  display_def_list def_list;
 	  print_string "$"
 	end;
       print_string " with ";
@@ -1626,7 +1629,7 @@ let display_simplif_step = function
       else 
 	begin
 	  print_string "$";
-	  display_list (fun (b,l) -> display_var b l) def_list';
+	  display_def_list def_list';
 	  print_string "$"
 	end;
       print_string " in find at ";

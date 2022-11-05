@@ -120,7 +120,7 @@ let show_fact (facts,_,_,_,_) fact =
 	    Display.display_term fact;
 	    print_newline();
 	    print_string "Simplified facts: ";
-	    Facts.display_facts r;
+	    Display.display_facts r;
           end;
 	false
       with Contradiction ->
@@ -156,9 +156,9 @@ let get_contradiction simp_facts def_vars elsefind_facts =
       begin
 	print_string "Proving injectivity using elsefind facts.\n";
 	print_string "Available facts:\n";
-	Facts.display_facts simp_facts';
+	Display.display_facts simp_facts';
 	print_string "Defined variables:\n";
-	List.iter (fun (b,l) -> Display.display_var b l; print_newline()) def_vars
+	Display.display_def_list_lines def_vars
       end;
     ignore (Facts.convert_elsefind Facts.no_dependency_anal def_vars simp_facts');
     if !Settings.debug_corresp then
@@ -289,10 +289,10 @@ let check_inj_compat
     try
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
-	if List.for_all2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	if List.for_all2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (* The program points of end events are the same, we require some indices to be different *)
-	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	  (Terms.make_or_list (List.concat (List.map2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
 	  (* When one end_occ is different from end_occ', we know that injrepidx_pps \neq injrepidx_pps'.
@@ -338,8 +338,8 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
 	    ) elsefind_facts_list in
 	let new_injrepidx_pps =
 	  List.map
-	    (function (end_sid, end_pp) ->
-	      (List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid, end_pp))
+	    (function (end_pp, end_sid) ->
+	      (end_pp, List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid))
 	    injrepidx_pps
 	in
 	let new_begin_sid = List.map (Terms.copy_term Terms.Links_RI_Vars) begin_sid in
@@ -349,11 +349,11 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
         if !Settings.debug_corresp then
           begin
 	    print_string "Checking inj compatiblity\n";
-	    Facts.display_facts simp_facts;
+	    Display.display_facts simp_facts;
 	    print_string "New facts\n";
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
-	    let display_end_sid_occ (end_sid, end_pp) =
+	    let display_end_sid_occ (end_pp, end_sid) =
 	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
@@ -558,17 +558,6 @@ let simplify_cases fact_accu fact_accu_cases =
   in
   remove_implied [] fact_accu_cases
 
-(* [get_facts_full_block_cases end_pp] returns the facts that
-   are known to hold when the program point [end_pp] is executed,
-   and the input...output block that contains it is executed until
-   the end. *)
-    
-let get_facts_full_block_cases end_pp =
-  if !Settings.corresp_cases then
-    Facts.get_facts_full_block_cases end_pp
-  else
-    (Facts.get_facts_full_block end_pp, [])
-
 (* [is_event_abort_pp pp] is true when the program point [pp]
    is an [event_abort] instruction. *)
 
@@ -627,8 +616,7 @@ let add_to_collector_f_false collector q end_pp t1' =
 	let bend_sid = List.map Terms.repl_index_from_term end_sid in
 	let new_bend_sid = List.map Terms.new_repl_index bend_sid in
 	let new_end_sid = List.map Terms.term_from_repl_index new_bend_sid in
-	let facts_common = Facts.get_facts_at end_pp in
-	let def_vars_common = Facts.get_def_vars_at end_pp in
+	let (new_facts, new_pps, def_vars') = Facts.get_facts_at_args [] [] (end_pp, new_end_sid) in
 	let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
         (* Rename session identifiers in facts, variables, and elsefind facts *)
 	List.iter2 (fun b t -> b.ri_link <- (TLink t)) bend_sid new_end_sid;
@@ -636,14 +624,12 @@ let add_to_collector_f_false collector q end_pp t1' =
 	    (List.map (Terms.copy_term Terms.Links_Vars) l)
 	    (List.map (Terms.copy_term Terms.Links_RI) l')
 	in
-	let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
 	let collector_elsefind_facts' = List.map Terms.copy_elsefind elsefind_facts_common in
-	let def_vars' = Terms.copy_def_list Terms.Links_RI def_vars_common in
 	List.iter (fun b -> b.ri_link <- NoLink) bend_sid;
 	let (subst, facts, else_find) =
 	  Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (eq_facts @ new_facts)) in
 	Terms.add_to_collector collector
-	  (CollectorFacts(new_bend_sid, [new_end_sid, end_pp], (subst, facts, collector_elsefind_facts' @ else_find), def_vars'))
+	  (CollectorFacts(new_bend_sid, new_pps, (subst, facts, collector_elsefind_facts' @ else_find), def_vars'))
       else
 	() (* [t1',end_pp] does not correspond to the event in [q], do nothing *)
   | _ -> assert false
@@ -698,7 +684,7 @@ let optim_non_unique collector event_accu ((t1,t2,pub_vars) as q) =
    the collected facts *)
 	
 let collect_facts_list collector event_accu next_f tl =
-  let collect_facts1 next_f (events_found, facts, def_vars, elsefind_facts_list, injrepidx_pps, vars, collector_pp, collector_elsefind_facts) (is_inj,t) =
+  let collect_facts1 next_f (end_pps, events_found, facts, def_vars, elsefind_facts_list, injrepidx_pps, vars, collector_pp, collector_elsefind_facts) (is_inj,t) =
     Terms.for_all_collector collector (fun (t1',end_pp) ->
       match t.t_desc,t1'.t_desc with
 	FunApp(f,idx::l),FunApp(f',idx'::l') ->
@@ -725,21 +711,19 @@ let collect_facts_list collector event_accu next_f tl =
 	      (* The adversary cannot prevent the end of the input...output block 
 		 from being executed, so we can collect true facts until the end 
 		 of the block. *)
-	      let (facts_common, facts_cases) = get_facts_full_block_cases end_pp in
+	      let (facts_common, facts_cases, pps_common, def_vars_common) = Facts.get_facts_full_block_args [] [] (end_pp, new_end_sid) in
+	      let new_def_vars = (get_future_defvars end_pp new_end_sid) @ def_vars_common in
+
 	      let elsefind_facts_common = Facts.get_elsefind_facts_at end_pp in
-	      let def_vars_common = Facts.get_def_vars_at end_pp in
 
 	      (* Rename session identifiers in facts, variables, and elsefind facts *)
 	      List.iter2 (fun b t -> b.ri_link <- (TLink t)) bend_sid new_end_sid;
-	      let new_facts = List.map (Terms.copy_term Terms.Links_RI) facts_common in
 	      let new_elsefind_facts = List.map Terms.copy_elsefind elsefind_facts_common in
-	      let def_vars_elsefind = Terms.copy_def_list Terms.Links_RI def_vars_common in
 	      (* The adversary cannot prevent the end of the input...output block 
 		 from being executed, so we can collect the defined variables 
 		 until the end of the block.
 		 However, we must still be careful when we apply elsefind facts,
 		 to use defined variables at the point of the elsefind facts. *)
-	      let new_def_vars = (get_future_defvars end_pp new_end_sid) @ def_vars_elsefind in
 	      List.iter (fun b -> b.ri_link <- NoLink) bend_sid;
 
 	      if !Settings.debug_corresp then
@@ -749,7 +733,7 @@ let collect_facts_list collector event_accu next_f tl =
 		  print_string ", found ";
                   Display.display_term t1';
                   print_string " with facts\n";
-                  List.iter (fun t -> Display.display_term t; print_newline()) (eq_facts @ new_facts); 
+                  List.iter (fun t -> Display.display_term t; print_newline()) (eq_facts @ facts_common); 
 	          print_string "Cases:";
 	          List.iter (fun fll ->
 		    print_string "BLOCK CASE\n";
@@ -758,7 +742,7 @@ let collect_facts_list collector event_accu next_f tl =
 		  ) facts_cases;
 	          print_newline();
 		end;
-	      let new_facts = Incompatible.both_def_list_facts new_facts def_vars new_def_vars in
+	      let new_facts = Incompatible.both_ppl_ppl_add_facts facts_common collector_pp pps_common in
 	      
 	      let facts1 = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal facts new_facts) in
 	      if !Settings.debug_corresp then
@@ -770,12 +754,10 @@ let collect_facts_list collector event_accu next_f tl =
 	      if !Settings.debug_corresp then
 		begin
 		  print_string "After simplification ";
-		  Facts.display_facts facts';
+		  Display.display_facts facts';
 		end;
 
-	      let new_facts_cases = List.map (List.map (List.map (Terms.subst bend_sid new_end_sid)))
-		  (simplify_cases facts_common facts_cases)
-	      in
+	      let new_facts_cases = simplify_cases new_facts facts_cases in
 	      let def_vars' = new_def_vars @ def_vars in
 	      (* The elsefind facts are not all guaranteed to be true
                  at the same time. We perform the proof at the last event of t1 executed
@@ -787,10 +769,10 @@ let collect_facts_list collector event_accu next_f tl =
 		 element of the list, to be able to distinguish such cases.
 
 		 In addition to the elsefind facts, we store the end_pp,
-                 def_vars_elsefind and new_end_sid corresponding to this event. *)
-	      let elsefind_facts_list' = (new_elsefind_facts, end_pp, def_vars_elsefind, new_end_sid) :: elsefind_facts_list in
+                 def_vars_common and new_end_sid corresponding to this event. *)
+	      let elsefind_facts_list' = (new_elsefind_facts, end_pp, def_vars_common, new_end_sid) :: elsefind_facts_list in
 
-	      let collector_pp' = (new_end_sid, end_pp) :: collector_pp in
+	      let collector_pp' = pps_common @ collector_pp in
 	      let collector_elsefind_facts' =
 		(* When [end_pp] is [event_abort], nothing is executed after it,
 		   so the elsefind facts found at that point remain true. *)
@@ -815,9 +797,9 @@ let collect_facts_list collector event_accu next_f tl =
 	      let rec collect_facts_cases facts = function
 		  [] ->
 		    if not is_inj then
-		      next_f (events_found', facts, def_vars', elsefind_facts_list, injrepidx_pps, (new_bend_sid @ vars), collector_pp', collector_elsefind_facts')
+		      next_f (end_pp :: end_pps, events_found', facts, def_vars', elsefind_facts_list, injrepidx_pps, (new_bend_sid @ vars), collector_pp', collector_elsefind_facts')
 		    else
-		      next_f (events_found', facts, def_vars', elsefind_facts_list', ((new_end_sid, end_pp) :: injrepidx_pps), (new_bend_sid @ vars), collector_pp', collector_elsefind_facts')
+		      next_f (end_pp :: end_pps, events_found', facts, def_vars', elsefind_facts_list', ((end_pp, new_end_sid) :: injrepidx_pps), (new_bend_sid @ vars), collector_pp', collector_elsefind_facts')
 		| f_disjunct::rest ->
 		    (* consider all possible cases in the disjunction *)
 		    Terms.for_all_collector collector (fun fl ->
@@ -848,7 +830,7 @@ let collect_facts_list collector event_accu next_f tl =
         collect_facts1 (fun accu' -> collect_facts_list next_f accu' l) accu a
   in
 
-  collect_facts_list next_f ([], ([],[],[]), [], [], [], [], [], []) tl
+  collect_facts_list next_f ([], [], ([],[],[]), [], [], [], [], [], []) tl
 
 
 
@@ -889,7 +871,7 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
   let r =
     (* The proof of the correspondence [t1 ==> t2] works in two steps:
        first, collect all facts that hold because [t1] is true *)
-    collect_facts_list collector event_accu (fun (events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
+    collect_facts_list collector event_accu (fun (end_pps, events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
       try 
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
@@ -930,8 +912,8 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
                      We already used the elsefind facts in case of event_abort e, 
 		     so we do not redo it in this case. *)
 		if is_event_false q then
-		  match collector_pp', events_found' with
-		  | [_, end_pp], [t1'] ->
+		  match end_pps, events_found' with
+		  | [end_pp], [t1'] ->
 		      if is_event_abort_pp end_pp then
                         (* No change when event_abort, because we already used the elsefind facts *)
 			default()
@@ -985,10 +967,10 @@ let check_inj_compat
     try
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
-	if List.for_all2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	if List.for_all2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (* The program points of end events are the same, we require some indices to be different *)
-	  (Terms.make_or_list (List.concat (List.map2 (fun (end_sid, end_pp) (end_sid', end_pp') ->
+	  (Terms.make_or_list (List.concat (List.map2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
 	else
 	  (* When one end_occ is different from end_occ', we know that injrepidx_pps \neq injrepidx_pps'.
@@ -1031,8 +1013,8 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
 	    ) elsefind_facts_list in
 	let new_injrepidx_pps =
 	  List.map
-	    (function (end_sid, end_pp) ->
-	      (List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid, end_pp))
+	    (function (end_pp, end_sid) ->
+	      (end_pp, List.map (Terms.copy_term Terms.Links_RI_Vars) end_sid))
 	    injrepidx_pps
 	in
 	let new_fact = Terms.copy_term Terms.Links_RI_Vars fact' in
@@ -1042,11 +1024,11 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
         if !Settings.debug_corresp then
           begin
 	    print_string "Checking inj compatiblity\n";
-	    Facts.display_facts simp_facts;
+	    Display.display_facts simp_facts;
 	    print_string "New facts\n";
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
-	    let display_end_sid_occ (end_sid, end_pp) =
+	    let display_end_sid_occ (end_pp, end_sid) =
 	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
@@ -1114,7 +1096,7 @@ let proved_inj event_accu (t1,t2,pub_vars) g =
   let r =
     (* The proof of the correspondence [t1 ==> t2] works in two steps:
        first, collect all facts that hold because [t1] is true *)
-    collect_facts_list None event_accu (fun (events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
+    collect_facts_list None event_accu (fun (end_pps, events_found', facts', def_vars', elsefind_facts_list', injrepidx_pps', vars', collector_pp', collector_elsefind_facts') ->
       try 
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 

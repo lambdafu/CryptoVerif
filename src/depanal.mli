@@ -217,7 +217,7 @@ val try_two_directions :
 val get_counted : counted_indices -> repl_index list
 val build_idx_mapping : (term list * counted_indices) ->
   (term list * counted_indices) -> (repl_index * repl_index option) list
-val filter_indices : term -> term list -> term list -> term list ->
+val filter_indices : term -> term list -> program_points_args list -> term list ->
   repl_index list -> counted_indices -> counted_indices * compat_info_elem 
 val is_compatible_indices : compat_info_elem -> compat_info_elem -> bool
 val match_oracle_call : simp_facts -> compat_info_elem -> compat_info_elem -> compat_info_elem option

@@ -228,7 +228,7 @@ let is_guess_var cur_array pp b =
       else
 	begin
 	  try 
-	    let facts = Facts.get_facts_at pp in
+	    let (facts,_,_,_) = Facts.get_facts_at pp in
 	    let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
 	    let eq = Terms.make_and_list (List.map2 (fun t ri -> Terms.make_equal t (Terms.term_from_repl_index ri)) l cur_array) in
 	    let _ = Facts.simplif_add Facts.no_dependency_anal simp_facts eq in
@@ -1205,7 +1205,7 @@ let check_unique_exec state pp cur_array =
            + [cur_array <> cur_array'] (this is [diff_fact])
            implies a contradiction.
 	   *)
-	let facts = Facts.get_facts_at pp in
+	let (facts,_,_,_) = Facts.get_facts_at pp in
 	let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
 	let nsimpfacts = Facts.true_facts_from_simp_facts simp_facts in 
 	let diff_fact = Terms.make_or_list (List.map (fun b ->

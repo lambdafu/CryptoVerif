@@ -41,10 +41,10 @@ proof {
             random_br <- true";
   simplify;
   out_game "l1occ.out.cv" occ;
-  replace 278 "zz_2[ienc1_2, i1_6]"; (* Replace the result of Odecap with a cleartext generated in Oencap, in the first branch of the first find introduced above *)
+  replace at_nth 1 1 "AuthDecap_Some({[0-9]+}zz" "zz_2[ienc1_2, i1_6]"; (* Replace the result of Odecap with a cleartext generated in Oencap, in the first branch of the first find introduced above *)
   remove_assign useless;
   out_game "l2occ.out.cv" occ;
-  replace 315 "zz_3[idec1_2]"; (* Replace the result of Odecap with the result of a previous call to Odecap, in the second branch of the first find introduced above *)
+  replace at_nth 2 1 "AuthDecap_Some({[0-9]+}zz" "zz_3[idec1_2]"; (* Replace the result of Odecap with the result of a previous call to Odecap, in the second branch of the first find introduced above *)
   SArename zz_3;
   SArename label_6;
   SArename salt_3;
@@ -96,7 +96,7 @@ proof {
   SArename label_16;
   SArename salt_8;
   out_game "r3occ.out.cv" occ;
-  replace 496 "zz_19[idecl]"; (* Replace the result of Odecap with the result of a previous call to Odecap in the [then] branch of the first find introduced above *)
+  replace 494 "zz_18[idecl]"; (* Replace the result of Odecap with the result of a previous call to Odecap in the [then] branch of the first find introduced above *)
   all_simplify;
   out_game "r4.out.cv";
   (* In OH, distinguish whether the argument is of the form used in the rest of the protocol *)

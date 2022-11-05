@@ -30,6 +30,7 @@ val display_binder : binder -> unit
 val display_binder_with_type : binder -> unit
 val display_repl_index : repl_index -> unit
 val display_var : binder -> term list -> unit
+val display_def_list : binderref list -> unit
 val display_term : term -> unit
 val display_statement : statement -> unit
 val display_collision : collision -> unit
@@ -54,6 +55,13 @@ val display_query3 : query -> unit
 val display_query : query * game -> unit
 val display_instruct : instruct -> unit
 
+(* Display the facts. Mainly used for debugging *)
+val display_elsefind : elsefind_fact -> unit
+val display_facts : simp_facts -> unit
+val display_def_list_lines : binderref list -> unit
+val display_ppl : program_points_args -> unit
+val display_pps : program_points_args list -> unit
+    
 (*** The next functions are made public so that displaytex can call them ***)
 
 val has_assume : probaf -> bool

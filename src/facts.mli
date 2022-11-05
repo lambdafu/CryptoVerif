@@ -55,10 +55,6 @@ val apply_reds : dep_anal -> simp_facts -> term -> term
 exception Unchanged
 val simplify_equal : term -> term -> term list * term list
 
-(* Display the facts. Mainly used for debugging *)
-val display_elsefind : elsefind_fact -> unit
-val display_facts : simp_facts -> unit
-
 (* [new_repl_index_term] and [new_repl_index] create new replication 
    indices, to replace find indices in probability computations.
    These indices are stored in [repl_index_list], which can be reset by
@@ -134,14 +130,17 @@ val is_before_same_block : program_point -> program_point -> bool
 (* [get_initial_history pp] gets the known_history corresponding to the program
    point [pp] *)
 val get_initial_history : program_point -> known_history option
-
+val get_initial_history_args : program_point_args -> known_history option
+    
 (* [def_vars_from_defined current_history def_list] returns the variables that
    are known to be defined when the condition of a find with defined condition 
    [def_list] holds. [current_history] is the known history at the find, at which [def_list]
    is tested (may be returned by [get_initial_history]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val def_vars_from_defined : known_history option -> binderref list -> binderref list
+val def_vars_from_defined : program_points_args list -> binderref list ->
+  known_history option -> binderref list ->
+    program_points_args list * binderref list
 
 (* [facts_from_defined current_history def_list] returns the facts that
    are known to hold when the condition of a find with defined condition 
@@ -149,43 +148,51 @@ val def_vars_from_defined : known_history option -> binderref list -> binderref 
    is tested (may be returned by [get_initial_history]).
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
-val facts_from_defined : known_history option -> binderref list -> term list
+val facts_from_defined :  program_points_args list -> binderref list ->
+  known_history option -> binderref list ->
+    term list * program_points_args list * binderref list 
 
-(* [get_def_vars_at pp] returns the variables that are known
-   to be defined at program point [pp].
+(* [get_def_vars_at pp] returns the program points
+   known to be executed and the defined variables at program point [pp],
+   as well as the history at program point [pp].
    May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_def_vars_at : program_point -> binderref list
+val get_def_vars_at : program_point -> program_points_args list * binderref list * known_history option
 
-(* [get_facts_at pp] returns the facts that are known to hold
-   at program point [pp].
+(* [get_facts_at pp] returns the facts known to hold, the program points
+   known to be executed, and the defined variables at program point [pp],
+   as well as the history at program point [pp].
    May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_facts_at : program_point -> term list
+val get_facts_at : program_point -> term list * program_points_args list * binderref list * known_history option
 
-(* [get_def_vars_full_block pp] returns the variables that are known
-   to be defined at the end of the input...output block containing 
-   program point [pp].
+(* [get_facts_at_args known_pps known_def_vars (pp,args)]
+   returns the facts known to hold, the program points known to be executed,
+   and the defined variables at program point
+   [pp] with indices [args], knowing that the program points [known_pps]
+   have been executed and the variables [known_def_vars] are defined.
    May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_def_vars_full_block : program_point -> binderref list
+val get_facts_at_args : program_points_args list -> binderref list ->
+  program_point_args -> term list * program_points_args list * binderref list
 
-(* [get_facts_full_block pp] returns the facts that are known to hold
-   at the end of the input...output block containing program point [pp].
-   May raise Contradiction when the program point [pp] is
-   unreachable. *)
-val get_facts_full_block : program_point -> term list
-
-(* [get_facts_full_block_cases pp] returns the facts that are known to hold
-   at the end of the input...output block containing program point [pp]. 
-   It is a modified version of
-   [get_facts_full_block] to distinguish cases depending on the
+(* [get_facts_full_block_args known_pps known_def_vars (pp,args)]
+   returns the facts that are known to hold at the end of the
+   input...output block containing program point [pp], knowing that
+   the program points [known_pps] have been executed and the variables
+   [known_def_vars] are defined.
+   Also returns the program points known to be executed and the defined
+   variables at program point [pp] with indices [args].
+   (Future defined variables are handled separately.
+   When [Settings.corresp_cases] is true, distinguishes cases depending on the
    definition point of variables (instead of taking intersections), to
    facilitate the proof of correspondences.
    May raise Contradiction when the program point [pp] is
    unreachable. *)
-val get_facts_full_block_cases : program_point -> term list * term list list list
- 
+val get_facts_full_block_args : program_points_args list -> binderref list ->
+  program_point_args ->
+    term list * term list list list * program_points_args list * binderref list
+
 (* [get_elsefind_facts_at pp] returns the elsefind facts that are known to hold
    at program point [pp]. *)
    
@@ -198,15 +205,6 @@ val reduced_def_list : fact_info -> binderref list -> binderref list
 
 (* Functions useful to simplify def_list *)
 
-(* [filter_def_list accu l] returns a def_list that contains
-   all elements of [accu] and [l] except the elements whose definition
-   is implied by the definition of some other element of [l].
-   The typical call is [filter_def_list [] l], which returns 
-   a def_list that contains all elements of [l] except 
-   the elements whose definition is implied by the definition 
-   of some other element.*)
-val filter_def_list : binderref list -> binderref list -> binderref list
-
 (* [remove_subterms accu l] returns a def_list that contains
    all elements of [accu] and [l] except elements that
    also occur as subterms in [l].
@@ -218,43 +216,50 @@ val remove_subterms : binderref list -> binderref list -> binderref list
    and [dl'] are equal (by checking mutual inclusion) *)
 val eq_deflists : binderref list -> binderref list -> bool
 
-(* [update_def_list_term already_defined newly_defined bl def_list tc' p'] 
+(* [update_def_list_term (already_pps, already_defined, history_pp) newly_defined_opt bl def_list tc' p'] 
    returns an updated find branch [(bl, def_list', tc'', p'')].
    This function should be called after modifying a branch of find 
    (when the find is a term), to make sure that all needed variables are defined.
    It updates in particular [def_list], but may also add defined conditions
    inside [tc'] or [p'].
+   [already_pps] is a list of program points known to be executed
+   above the find.
    [already_defined] is a list of variables already known to be defined
    above the find.
-   [newly_defined] is the set of variables whose definition is guaranteed
-   by the old defined condition [def_list]; it is used only for a sanity check.
+   [history_pp] is the initial history at the program point of the find.
+   [newly_defined_opt] is either [Some(newly_defined)] where [newly_defined]
+   is the set of variables whose definition is guaranteed by the old defined
+   condition [def_list], or [None] is which is case it is recomputed by the
+   function.
    [bl, def_list, tc', p'] describe the modified branch of find:
    [bl] contains the indices of find
    [def_list] is the old def_list
    [tc'] is the modified condition of the find
    [p'] is the modified then branch of the find. *) 
-val update_def_list_term : binderref list -> binderref list -> 
-  (binder * repl_index) list -> binderref list -> term -> term ->
-    term findbranch
+val update_def_list_term :
+    program_points_args list * binderref list * known_history option ->
+      binderref list option -> 
+	(binder * repl_index) list -> binderref list -> term -> term ->
+	  term findbranch
 
-(* [update_def_list_process already_defined newly_defined bl def_list t' p1'] 
+(* [update_def_list_process (already_pps, already_defined, history_pp) newly_defined_opt bl def_list t' p1'] 
    returns an updated find branch [(bl, def_list', t'', p1'')].
    This function should be called after modifying a branch of find 
    (when the find is a process), to make sure that all needed variables are defined.
    It updates in particular [def_list], but may also add defined conditions
    inside [t'] or [p1'].
-   [already_defined] is a list of variables already known to be defined
-   above the find.
-   [newly_defined] is the set of variables whose definition is guaranteed
-   by the old defined condition [def_list]; it is used only for a sanity check.
+   [(already_pps, already_defined, history_pp) newly_defined_opt] are as in
+   [update_def_list_term].
    [bl, def_list, t', p1'] describe the modified branch of find:
    [bl] contains the indices of find
    [def_list] is the old def_list
    [t'] is the modified condition of the find
    [p1'] is the modified then branch of the find. *) 
-val update_def_list_process : binderref list -> binderref list -> 
-  (binder * repl_index) list -> binderref list -> term -> process ->
-    process findbranch
+val update_def_list_process :
+    program_points_args list * binderref list * known_history option ->
+      binderref list option -> 
+	(binder * repl_index) list -> binderref list -> term -> process ->
+	  process findbranch
 
 (* Priorities for orienting equalities into rewrite rules
    Used by both transf_simplify and transf_expand. 

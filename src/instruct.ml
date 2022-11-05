@@ -1661,17 +1661,11 @@ let display_collector coll =
 	print_string "indices: ";
 	Display.display_list Display.display_repl_index all_indices;
 	print_newline();
-	print_string "pp: ";
-	Display.display_list (fun (idx, pp) ->
-	  print_int (Incompatible.occ_from_pp pp);
-	  print_string "[";
-	  Display.display_list Display.display_term idx;
-	  print_string "]"
-	    ) pp_list;
-	print_newline();
-	Facts.display_facts simp_facts;
-	print_string "def vars: ";
-	Display.display_list (fun (b, l) -> Display.display_var b l) def_list;
+	print_string "pp:\n";
+	Display.display_pps pp_list;
+	Display.display_facts simp_facts;
+	print_string "def vars:\n";
+	Display.display_def_list_lines def_list;
 	print_newline()
     | CollectorProba proba_state ->
 	print_string "* probabilities:\n";

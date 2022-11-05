@@ -70,7 +70,7 @@ out_game "g2.out";
 insert after_nth 1 "let sil_" "find j'' <= N7 suchthat defined(gy_2[j''], sgx[j'']) && gx_1 = sgx[j''] && cgy = gy_2[j''] then";
 simplify;
 out_game "g3.out";
-crypto prf_odh(HKDF_extract_DHE) [variables: x_33 -> a, x_35 -> b .];
+crypto prf_odh(HKDF_extract_DHE) [variables: x_32 -> a, x_34 -> b .];
 crypto prf2 *;
 crypto splitter(split2) *;
 crypto prf_fin_key_iv *;

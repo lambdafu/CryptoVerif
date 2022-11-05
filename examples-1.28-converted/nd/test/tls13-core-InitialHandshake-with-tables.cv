@@ -36,13 +36,13 @@ proof {
       out_game "g1.out" occ;
       (* After the first input in the server (which defines sgx), and new sr_???: nonce.
          gx is the value of gx in the client.  *)
-      insert 1688 "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
+      insert before "new y_2" "find j' <= N1 suchthat defined(gx[j']) && sgx = gx[j'] then";
       (* gy_446 is the value of gy in the server *)
       SArename gy_1;
       out_game "g2.out" occ;
       (* In the client, after "let sil_??? = ..." and before "let s_??? = exp(cgy, x_???)"
       	 gy_646 is the first variable obtained by renaming gy_446 in the server *)
-      insert 56 "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
+      insert before "let s:" "find j'' <= N6 suchthat defined(gy_2[j''], sgx[j'']) && gx = sgx[j''] && cgy = gy_2[j''] then";
       crypto rom(HKDF_extract_ES);
       remove_assign binder s;
       remove_assign binder s_3;

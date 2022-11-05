@@ -225,13 +225,16 @@ and display_restr b =
       print_string "new ";
       display_binder_with_type b
     end
+
+and display_def_list def_list = 
+  display_list (fun (b, l) -> display_var b l) def_list
    
 and display_findcond (def_list, t1) =
   let cond_printed = ref false in
   if def_list != [] then
     begin
       print_string "defined(";
-      display_list (fun (b,tl) -> display_var b tl) def_list;
+      display_def_list def_list;
       print_string ")";
       cond_printed := true
     end;
@@ -1652,6 +1655,48 @@ let display_instruct = function
   | GuessBranch(occ,_) ->
       print_string "guess branch at ";
       print_int occ
+
+(* Display facts; for debugging *)
+
+let display_elsefind (bl, def_list, t) =
+    print_string "for all ";
+    display_list display_repl_index bl;
+    print_string "; not(defined(";
+    display_def_list def_list;
+    print_string ") && ";
+    display_term t;
+    print_string ")";
+    print_newline()
+
+let display_facts (subst2, facts, elsefind) =
+  print_string "Substitutions:\n";
+  List.iter (fun t -> display_term t; print_newline()) subst2;
+  print_string "Facts:\n";
+  List.iter (fun t -> display_term t; print_newline()) facts;
+  print_string "Elsefind:\n";
+  List.iter display_elsefind elsefind
+
+let display_def_list_lines def_list = 
+  List.iter (fun (b, l) -> display_var b l; print_newline()) def_list
+
+(* Display program points, for debugging *)
+	
+let display_ppl (ppl, args) =
+  print_string "{";
+  display_list (fun pp -> print_int (Incompatible.occ_from_pp pp)) ppl;
+  print_string "}";
+  if args != [] then
+    begin
+      print_string "[";
+      display_list display_term args;
+      print_string "]"
+    end
+	
+let display_pps pps =
+  List.iter (fun ppl -> display_ppl ppl; print_newline()) pps
+
+	
+(* Functions related to the computation of probability bounds *)
 	
 let rec map_remove_empty f = function
   | [] -> []
@@ -2360,13 +2405,13 @@ let display_simplif_step = function
       else
 	begin
 	  print_string "    - Replaced defined condition ";
-	  display_list (fun (b,l) -> display_var b l) def_list
+	  display_def_list def_list
 	end;
       print_string " with ";
       if def_list' == [] then
 	print_string "an empty condition"
       else 
-	display_list (fun (b,l) -> display_var b l) def_list';
+	display_def_list def_list';
       print_string " in find at ";
       print_occ (Incompatible.occ_from_pp p);
       print_newline()

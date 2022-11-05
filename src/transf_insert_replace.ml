@@ -888,36 +888,41 @@ and insert_inso count occ ins env cur_array p =
 	let (p2', def3) = insert_inso count occ ins env cur_array p2 in
 	(Let(pat,t,p1',p2'), Terms.unionq (def2 @ def1) def3)
     | Find(l0,p3,find_info) ->
-	let (p3', def3) = insert_inso count occ ins env cur_array p3 in
-	let accu = ref def3 in
-	let l0' = List.fold_right (fun (bl, def_list, t, p1) laccu ->
-	  let vars = List.map fst bl in
-	  let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
-	  (* I will check that the newly added definitions do not concern 
-	     variables defined in the condition of find, so I do not need
-	     to add the variables defined in t to def *)
-	  let count_before = !count in
-	  let (p1', def) = insert_inso count occ ins env' cur_array p1 in
-	  let count_after = !count in
+	begin
 	  try
-	    let find_branch' = 
-	      if (count_before == 0) && (count_after == 1) then
-		let already_defined = Facts.get_def_vars_at (DProcess p) in
-		let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-		Facts.update_def_list_process already_defined newly_defined bl def_list t p1'
-	      else
-		(bl, def_list, t, p1')
+	    let def_vars_info = Facts.get_def_vars_at (DProcess p) in
+	    let (p3', def3) = insert_inso count occ ins env cur_array p3 in
+	    let accu = ref def3 in
+	    let l0' = List.fold_right (fun (bl, def_list, t, p1) laccu ->
+	      let vars = List.map fst bl in
+	      let env' = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
+	      (* I will check that the newly added definitions do not concern 
+		 variables defined in the condition of find, so I do not need
+		 to add the variables defined in t to def *)
+	      let count_before = !count in
+	      let (p1', def) = insert_inso count occ ins env' cur_array p1 in
+	      let count_after = !count in
+	      try
+		let find_branch' = 
+		  if (count_before == 0) && (count_after == 1) then
+		    Facts.update_def_list_process def_vars_info None bl def_list t p1'
+		  else
+		    (bl, def_list, t, p1')
+		in
+		check_noninter def vars;
+		accu := Terms.unionq (vars @ def) (!accu);
+		find_branch' :: laccu
+	      with Contradiction ->
+	        (* The variables in the defined condition cannot be defined,
+		   we can just remove the branch *)
+		laccu
+		  ) l0 []
 	    in
-	    check_noninter def vars;
-	    accu := Terms.unionq (vars @ def) (!accu);
-	    find_branch' :: laccu
+	    (Find(l0',p3',find_info), !accu)
 	  with Contradiction ->
-	    (* The variables in the defined condition cannot be defined,
-	       we can just remove the branch *)
-	    laccu
-	  ) l0 []
-	in
-	(Find(l0',p3',find_info), !accu)
+	    (* The find is in fact unreachable *)	    
+	    (Yield, [])
+	end
     | Output((c,tl),t,p) ->
 	let (p', def) = insert_ins count occ ins env cur_array p in
 	(Output((c,tl),t,p'), def)
@@ -927,7 +932,7 @@ and insert_inso count occ ins env cur_array p =
   if p.p_occ == occ then
     begin
       incr count;
-      let defined_refs = 
+      let (_, defined_refs, _) = 
 	try 
 	  Facts.get_def_vars_at (DProcess p)
 	with Contradiction ->
@@ -1031,9 +1036,9 @@ let rec replace_tt count env facts cur_array t =
     RepToDo (occ, ext_o, ins, ext_s,check_opt) when occ == t.t_occ ->
       if not (Terms.check_simple_term t) then
 	raise (Error("The term at " ^ (string_of_int occ) ^ "contains if, let, find, new, or event; you cannot replace it", ext_o));
-      let defined_refs = 
+      let (facts', _, defined_refs, _) = 
 	try 
-	  Facts.get_def_vars_at (DTerm t)
+	  Facts.get_facts_at (DTerm t)
 	with Contradiction ->
 	  raise (Error("The occurrence " ^ (string_of_int occ) ^ " at which you are replacing a term is in fact unreachable", ext_o))
       in
@@ -1046,7 +1051,6 @@ let rec replace_tt count env facts cur_array t =
 	    Depanal.reset [] (!whole_game);
 	    let r = 
 	      try 
-		let facts' = Facts.get_facts_at (DTerm t) in
 		let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
 		let facts'' = 
 		  if !Settings.elsefind_facts_in_replace then
@@ -1057,10 +1061,10 @@ let rec replace_tt count env facts cur_array t =
 		let simp_facts' = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts'') in
 		Facts.check_equal t t' simp_facts' 
 	      with Contradiction ->
-          (*   print_string "Got contradiction";
-	       print_newline ();*)
-          (* May happen when the program point of t is in fact unreachable
-	     I say true anyway because the program point is unreachable. *)
+                (*   print_string "Got contradiction";
+		    print_newline ();*)
+                (* May happen when the program point of t is in fact unreachable
+		   I say true anyway because the program point is unreachable. *)
 		true
 	    in
 	    if not r then
@@ -1146,37 +1150,42 @@ let rec replace_tt count env facts cur_array t =
 	    let t1' = replace_tt count env facts cur_array t1 in
 	    LetE(pat',t1',t2',topt')
 	| FindE(l0,t3, find_info) ->
-	    let t3' = replace_tt count env facts cur_array t3 in
-	    let l0' = List.fold_right (fun (bl, def_list, tc, p) laccu ->
-	      let vars = List.map fst bl in
-	      let repl_indices = List.map snd bl in
-	      
-	      (* Compute the environment in the then branch p *)
-	      let env_p = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
-	      (* Compute the environment in the condition tc *)
-	      let env_tc = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
-	      let count_before = !count in
-	      let p' = replace_tt count env_p facts cur_array p in
-	      let tc' = replace_tt count env_tc facts cur_array tc in
-	      let count_after = !count in
-	      (* Update def_list if needed *)
-	      try 
-		let find_branch' = 
-		  match count_before, count_after with
-		    RepToDo _, RepDone _ -> 
-		      let already_defined = Facts.get_def_vars_at (DTerm t) in
-		      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
-		      Facts.update_def_list_term already_defined newly_defined bl def_list tc' p'
-		  | _ -> (bl, def_list, tc', p')
+	    begin
+	      try
+		let def_vars_info = Facts.get_def_vars_at (DTerm t) in
+		let t3' = replace_tt count env facts cur_array t3 in
+		let l0' = List.fold_right (fun (bl, def_list, tc, p) laccu ->
+		  let vars = List.map fst bl in
+		  let repl_indices = List.map snd bl in
+		  
+	          (* Compute the environment in the then branch p *)
+		  let env_p = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
+	          (* Compute the environment in the condition tc *)
+		  let env_tc = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
+		  let count_before = !count in
+		  let p' = replace_tt count env_p facts cur_array p in
+		  let tc' = replace_tt count env_tc facts cur_array tc in
+		  let count_after = !count in
+	          (* Update def_list if needed *)
+		  try 
+		    let find_branch' = 
+		      match count_before, count_after with
+			RepToDo _, RepDone _ -> 
+			  Facts.update_def_list_term def_vars_info None bl def_list tc' p'
+		      | _ -> (bl, def_list, tc', p')
+		    in
+		    find_branch' :: laccu
+		  with Contradiction ->
+	            (* The variables in the defined condition cannot be defined,
+		       I can just remove the branch *)
+		    laccu
+		      ) l0 []
 		in
-		find_branch' :: laccu
+		FindE(l0',t3',find_info)
 	      with Contradiction ->
-	        (* The variables in the defined condition cannot be defined,
-		   I can just remove the branch *)
-		laccu
-		  ) l0 []
-	    in
-	    FindE(l0',t3',find_info))
+	        (* The find is in fact unreachable *)
+		(Stringmap.cst_for_type t.t_type).t_desc
+	    end)
 
 and replace_tpat count env facts cur_array = function
   | PatVar b -> PatVar b
@@ -1235,37 +1244,42 @@ and replace_to count env cur_array p =
 	let t' = replace_tt count env [] cur_array t in
 	Let(pat',t',p1',p2')
     | Find(l0,p3,find_info) ->
-	let p3' = replace_to count env cur_array p3 in
-	let l0' = List.fold_right (fun (bl, def_list, t, p1) laccu ->
-	  let vars = List.map fst bl in
-	  let repl_indices = List.map snd bl in
-
-	  (* Compute the environment in the then branch p1 *)
-	  let env_p1 = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
-	  (* Compute the environment in the condition t *)
-	  let env_t = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
-	  let count_before = !count in
-	  let p1' = replace_to count env_p1 cur_array p1 in
-	  let t' = replace_tt count env_t [] cur_array t in
-	  let count_after = !count in
-	  (* Update def_list if needed *)
+	begin
 	  try
-	    let find_branch' = 
-	      match count_before, count_after with
-		RepToDo _, RepDone _ ->
-		  let already_defined = Facts.get_def_vars_at (DProcess p) in
-		  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-		  Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
-	      | _ -> (bl, def_list, t', p1')
-	    in
-	    find_branch' :: laccu
-	  with Contradiction ->
+	    let def_vars_info = Facts.get_def_vars_at (DProcess p) in
+	    let p3' = replace_to count env cur_array p3 in
+	    let l0' = List.fold_right (fun (bl, def_list, t, p1) laccu ->
+	      let vars = List.map fst bl in
+	      let repl_indices = List.map snd bl in
+	      
+	  (* Compute the environment in the then branch p1 *)
+	      let env_p1 = List.fold_left (fun env1 b -> StringMap.add (Display.binder_to_string b) (EVar b) env1) env vars in	
+	  (* Compute the environment in the condition t *)
+	      let env_t = List.fold_left (fun env1 b -> StringMap.add (Display.repl_index_to_string b) (EReplIndex b) env1) env repl_indices in
+	      let count_before = !count in
+	      let p1' = replace_to count env_p1 cur_array p1 in
+	      let t' = replace_tt count env_t [] cur_array t in
+	      let count_after = !count in
+	  (* Update def_list if needed *)
+	      try
+		let find_branch' = 
+		  match count_before, count_after with
+		    RepToDo _, RepDone _ ->
+		      Facts.update_def_list_process def_vars_info None bl def_list t' p1'
+		  | _ -> (bl, def_list, t', p1')
+		in
+		find_branch' :: laccu
+	      with Contradiction ->
 	    (* The variables in the defined condition cannot be defined,
 	       I can just remove the branch *)
-	    laccu
-	  ) l0 []
-	in
-	Find(l0',p3',find_info)
+		laccu
+		  ) l0 []
+	    in
+	    Find(l0',p3',find_info)
+	  with Contradiction ->
+	    (* The find is in fact unreachable *)
+	    Yield
+	end
     | Output((c,tl),t,p) ->
 	let p' = replace_t count env cur_array p in
 	let t' = replace_tt count env [] cur_array t in

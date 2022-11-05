@@ -183,13 +183,13 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
     begin
       print_string "-----------------\n";
       print_string "Variables known to be currently defined: ";
-      Display.display_list (fun (b,tl) -> Display.display_var b tl) def_vars;
+      Display.display_def_list def_vars;
       print_newline();
       print_string "Variable known to be defined in an else branch of find: ";
       Display.display_var b tl;
       print_newline ();
       print_string "Elsefind_fact (before renaming): ";
-      Facts.display_elsefind elsefind_fact
+      Display.display_elsefind elsefind_fact
     end;
 
   (* decompose def_list into subterms: all *subterms* of def_list must
@@ -207,8 +207,9 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 
   (* Variables defined before or at the same time as (b,tl) *)
   let def_vars_before = 
-    try 
-      Terms.subst_def_list b_index tl (Facts.def_vars_from_defined None [Terms.binderref_from_binder b])
+    try
+      let (_, def_vars) = Facts.def_vars_from_defined [] [] None [Terms.binderref_from_binder b] in
+      Terms.subst_def_list b_index tl def_vars
     with Contradiction -> 
       (* Contradiction may be raised when b can in fact not be defined. *)
       []
@@ -234,8 +235,9 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
     | [] -> List.rev already_seen
     | ((b2,tl2)::l) ->
 	let before_br2 = 
-	  try 
-            Terms.subst_def_list b2.args_at_creation tl2 (Facts.def_vars_from_defined None [Terms.binderref_from_binder b2])
+	  try
+	    let (_, def_vars) = Facts.def_vars_from_defined [] [] None [Terms.binderref_from_binder b2] in
+            Terms.subst_def_list b2.args_at_creation tl2 def_vars
 	  with Contradiction -> 
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
@@ -269,7 +271,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
   if !Settings.debug_elsefind_facts then
     begin
       print_string "Elsefind_fact (after renaming): ";
-      Facts.display_elsefind (bl,def_list,t1)
+      Display.display_elsefind (bl,def_list,t1)
     end;
 
   (* We have [elsefind_fact = (bl,def_list,t1)], which means [forall bl, not (defined(def_list) && t1)].
@@ -448,7 +450,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		    ) order_assumptions;
                 print_string "\nDepinfo=previous lists";
                 print_string "\nFacts=\n";
-                Facts.display_facts simp_facts;
+                Display.display_facts simp_facts;
                 print_string "\nt'=";
                 Display.display_term t';
                 print_string "\n--End of args"; print_newline ();
@@ -551,14 +553,14 @@ let get_facts_of_elsefind_facts g cur_array simp_facts def_vars =
       print_newline ()
     end; 
 (*  print_string "Defined variables original:\n";
-  List.iter (fun (b,l) -> Display.display_var b l; print_newline()) def_vars; *)
+  Display.display_def_list_lines def_vars; *)
   let def_vars_tmp = ref [] in
   List.iter (fun (b,l) ->
     let br' = (b, List.map (Terms.try_no_var simp_facts) l) in
     Terms.add_binderref br' def_vars_tmp) def_vars;
   let def_vars = !def_vars_tmp in
 (*  print_string "Defined variables simplified:\n";
-  List.iter (fun (b,l) -> Display.display_var b l; print_newline()) def_vars; *)
+  Display.display_def_list_lines def_vars; *)
   let term_accu = ref [] in
   let effl = collect_eff def_vars in
   List.iter (fun (br, eff) -> get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts br eff) effl;

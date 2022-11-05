@@ -23,7 +23,8 @@ crypto uf_cma_corrupt(sign) rkA;
 success; (* prove query x:G, y:G, k:D; event inj-event(endB(A, B, x, y, k)) ==> inj-event(endA(A, B, x, y, k)) || evAcorrupted. *)
 crypto uf_cma_corrupt(sign) rkB;
 success; (* prove query x:G, y:G, k:D; event inj-event(endA(A, B, x, y, k)) ==> inj-event(beginB(A, B, x, y)) || evBcorrupted. *)
-crypto rom_partial(h) [terms: 516 -> O_1];
+show_game occ;
+crypto rom_partial(h) [terms: 515 -> O_1];
 SArename gab;
 remove_assign binder gab_7;
 crypto cdh(exp) a b;

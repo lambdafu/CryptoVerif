@@ -726,9 +726,13 @@ and simp_facts = term list * term list * elsefind_fact list
    [simp_facts] are facts are known to hold,
    [def_list] is a list of variables known to be defined. *)
 
+and program_point_args = program_point * term list
+      
+and program_points_args = program_point list * term list
+      
 and el_known_when_adv_wins = 
   | CollectorNoInfo
-  | CollectorFacts of repl_index list * (term list * program_point) list * simp_facts * binderref list
+  | CollectorFacts of repl_index list * program_points_args list * simp_facts * binderref list
   | CollectorProba of proba_state_t
 	
 and known_when_adv_wins =
@@ -1049,7 +1053,7 @@ type counted_indices = (repl_index * count_flag_t) list
 
 type compat_info_elem = term(* oracle call that is made or random variable that is created*) *
       term list(* true facts *) *
-      term list(* defined variables, stored as terms Var(b,l) *) *
+      program_points_args list (* program points *) * 
       term list(* above indices*) *
       repl_index list(* all indices *) * 
       repl_index list(* initial indices *) * 

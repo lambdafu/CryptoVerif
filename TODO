@@ -24,11 +24,49 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
+
+
+Add universal one-way hash functions:
+def UOW_hash(key, input1, output, f, f_oracle, Phash) {
+
+fun f(key, input1):output.
+
+collision k <-R key; forall x1:input1, y1:input1;
+        return(f(k, x1) = f(k, y1)) <=(Phash(time))=> return((x1 = y1))
+        if x1 independent-of k.
+
+channel ch1, ch2.
+
+let f_oracle(k: key) =
+    in(ch1, ());
+    out(ch2, k).
+
+}
+
+
+Restructure: in Display/Displaytex, have a function
+display_full_state
+  { states_to_display
+    proved_queries : list of (query, bounds, proba)
+    unproved_queries }
+display_conclusion unproved_queries
+And compute the states_to_display, proved_queries, unproved_queries
+elsewhere (in proba.ml?).
+I would like to move Display/Displaytex earlier in the build,
+but it looks like I need Polynom in display,
+to simplify probabilities (to display (Proof ql) instructions)
+Perhaps I could change the probability inside (Proof ql)
+from setf to probaf, to avoid that?
+
+
 When collecting future facts, I could be more precise: event_abort X
 means *any* fact is true, because the game will not reach the point that
 uses the future facts. (be careful with proof of correspondences,
 the correspondence needs to be proven even if the game aborts,
 see OPTIONAL in 20)
+=> 2 sets of future facts:
+- those that hold when the game does not abort (the block ends with an output)
+- those that hold when the game ends with an output or event_abort
 
 Have a notion of intermediate result: you prove an equivalence, and then
 reuse it with the associated probability to prove some other result.
@@ -849,6 +887,22 @@ let r:T = Oloop(M') in P else P'
 Here, the indices of the calls to O may not be in the same
 order as those with the "loop" construct, but these indices
 should not matter.
+
+A loop with mutable state can be encoded by:
+  newOracle O'';(
+     (Oinit(x0:T) :=
+     let res = O''(x0, state0) in
+     return(res)) | 
+     (!N O''(msg:T, state) :=
+      ... (* Compute the reply [replymsg] and the new state [state'] *)
+      return(replymsg);(* returned as a result of O'' to Oinit
+        or O', then returned to the adversary.
+	The adversary can then send a message x
+	by calling O'(x), which will result in a call to O'' *)
+      O'(x:T) := let res = O''(x, state') in return(res))
+For the adversary to know with which index it should call O',
+we should require that the call without explicit indices always uses
+the smallest available index, for instance.
 )
 
 It requires relatively few changes to the game transformations,
@@ -1411,8 +1465,36 @@ never removed. Is that a problem? Perhaps not.
    the correspondence needs to be proved even if the game terminates
    with abort.
    
+- Transf_simplify.DepAnal2.update_dep_infoo: Facts.def_vars_from_defined
+somewhat imprecise
+Check other calls to Facts.def_vars_from_defined [] [] ...
+
+- Transf_use_variable: subst_pps applies to all program points,
+including those before the considered "find"; that's not very
+efficient.
+
+- facts.ml, add_facts and add_facts_cases:
+        (* TODO If a program point is modified, I could redo the addition
+	   of facts and binderrefs for this program point.
+	   With which history? Should I keep the history associated with
+	   each program point? For simplicity, I do not do that. *)
+
+- facts.ml, update_def_list_term/process:
+    try
+      def_vars_from_defined already_pps already_defined history_pp needed_occur
+    with Contradiction ->
+      (* In general, the variables [needed_occur] should be defined,
+	 or when they are not defined, the branch of find could be
+	 removed. However, there is an exception to this situation:
+	 in [Transf_expand], when a variable originally defined
+	 in the branch of a find is moved outside: it cannot be defined
+	 at the program point of the find in the initial game. *)
+      ([], needed_occur)
+Would it be possible to fix that in a better way? Compute the
+defined variables on the transformed game? Seems complicated.
+
 - Better exploit compatibility tests:
-* improve case distinctions in Facts.add_facts, version for
+  improve case distinctions in Facts.add_facts, version for
   the proof of correspondences: when I assume that a variable
   is defined at a certain point, this implies that other variables
   are also defined at certain points and not others.
@@ -1505,6 +1587,11 @@ we can reorganize the code so that the decryption occurs
 before the corruption.
 (This remark comes from the proof of correctness in wireguard.)
 The same remark applies to other corruption cases.
+
+Using an independence condition may be useful in other cases.
+(For universal one-way hash functions, one needs such an
+independence condition, but one can model it by a collision
+statement, so it works now.)
 
 25) For SPRP block ciphers, tell the system that collisions between
 random numbers used for generating random permutations are already 
@@ -6601,3 +6688,116 @@ pt_proba_info =
 proof_t: Proved(ql,p,s) leads to an edge Case(ql,p) in the proof tree node
 corresponding to s.game
 DONE 6/9/2022
+
+Facts.filter_def_list could be made more precise by
+knowing program points, variables, and history. -> DONE
+Facts.update_def_list_term/update_def_list_process
+the call to def_vars_from_defined could be made more precise,
+by using current pps, def_vars, history.
+(That would remove more elements from def_list.)
+-> DONE
+
+use program points instead of variables for 
+Incompatible.def_list_at_pp_facts => DONE
+Incompatible.both_def_list_facts => DONE
+
+Depanal.filter_indices: use program points; add them in compat_info_elem,
+use them in is_compatible_indices.
+=> DONE
+
+DONE update def_vars_from_defined
+(def_vars_from_defined and facts_from_defined must take as argument
+the known def_vars and program_points. They can return only the
+new def_vars by initializing seen_refs without putting the known def_vars
+in it; the known def_vars are put in done_refs.
+   ==> That requires a small change to the current code: never add
+       to seen_refs an element that is already in done_refs
+       ==> Fixed in add_facts
+With the current def of add_facts, they cannot return only the new
+program points; they would return the union of the old and new.
+If the new program points are needed, I should separate the old and new
+program points in add_facts.
+   ==> Needed to avoid substituting the old program points to compute
+   the known pps in the then branch. That's just a performance issue,
+   because we get the correct result by substituting all program points.
+   So if it is just that, I am tempted to not enforce separation.
+   ==> Should no longer be needed for compatibility testing between
+   old and new program points, because that will be done in
+   facts_from_defined; it no longer needs to be done outside this function.
+   ==> In fact, not always: we call def_vars_from_defined in Improved_def,
+   in Transf_simplify.contradicts_known_when_adv_wins... )
+
+program points: pps_args = program_point list * term list
+instead of program_point_args in collector, secrecy, ...
+use only these program points and not defined variables
+for compatibility testing
+in [known_history], using nodes is a bit more convenient,
+because we get the program point at the beginning of a block
+by traversing nodes (but we can get the node from a program
+point via [Incompatible.get_facts pp]).
+
+facts.ml, add_facts and add_facts_cases:
+      (* TODO I could filter [seen_pps] to remove program points incompatible
+	 with [pp]. *)
+pp_list	and new pp
+0/ filter pp for compatibility with pp_list (already done)
+1/ remove from pp_list program points implied by pp
+2/ for each pp' in pp_list,
+   - filter pp' for compatibility with pp.
+   - if pp' implies pp, then forget pp
+   - if pp' changed by above filtering, then readd pp' (but using which
+   history? keep the history associated to each pp? perhaps costly
+   for little benefit?)
+DONE
+
+I could try not to test whether a fact is already in fact_accu
+before adding it. With the new code, duplicate facts should be less
+frequent, and if they are rare enough, that's not an issue.
+(It is just for performance.)
+ABANDONED duplicate facts may still occur
+
+Last commit validated: be98c4b79a59f8a99c518ca7e292b177a1f14a7f
+tests/test2022.10.18-17_13_46
+
+2b0e8a84383437b51c645d1ff56e3d5454a562df  tests/test2022.10.25-16_11_00 [many changes, hard to check; I did not find any problem so far] diff in diff-test2.diff
+   Negative impact line 10878 of diff-test2.diff, line 80021 of tests/test2022.10.25-16_11_00
+   PROTOCOL examples/basic/needham-schroeder-pkcorrKeyHash2.pcv
+   Defined condition on Na_6[u_73[ri_21]] instead of Na_9[ri_21]. Na_9[ri_21] or u_73[ri_21] seem valid.
+   Needed occur should be empty (test {204} if Na_4 = Na_6[u_73[u_27]] then always false)
+     -> fixed
+3fb37390384101bd1f019d7c6008e6bc06a15527  tests/test2022.10.25-18_08_26 [just a change of interface; no change of output wrt to the previous test, except in ONE case]
+   -> record information on the performed changes in case of contradiction?
+   transformations that may remove code due to contradiction in Facts.get_def_vars_at:
+   - crypto
+   - globaldepanal
+   - insert, replace
+   Does not seem immediate nor important, I give up on this point.
+   [cst_for_type may be considered different of other constants of the same type.
+   that's not a problem because here it is never actually used: the program point is unreachable]
+992d946fd4ca569b762583c963a3697059749a85  tests/test2022.10.25-22_05_53 [no change in test; almost no change in ndtest]
+b83509f2d3fa18c2a7b6f7d65e0ffa63f69dbf49
+   -> maybe the computation of common program points in Depanal.match_oracle_call
+   should take into account that program points after imply program points before,
+   to preserve more program points. DONE
+d095431e356414ad2dc56d3d5ccbd1c4c3701290
+   The improved computation of common program points improves the results, but sometimes
+   they are still less precise than in commit 992d946fd4ca569b762583c963a3697059749a85
+   for instance in PROTOCOL examplesnd/otest/success_simplify_internal_error.ocv
+   It was a bug, fixed in commit 10f6c07bd663b5a1cacc83605a35fa28636448b8
+10f6c07bd663b5a1cacc83605a35fa28636448b8   tests/test2022.11.02-16_38_16
+
+b373f66333c3f7087abd82fa2d60e01b2e0ba3af   tests/test2022.11.03-23_30_42
+   No change in test and ndtest wrt 10f6c07bd663b5a1cacc83605a35fa28636448b8
+   except for the fixed scripts for dhkem.
+
+Comparison between tests/test2022.10.18-17_13_46 and tests/test2022.11.02-16_38_16
+in diff-test3.diff Checked. ndtest in diff-ndtest.diff.
+checked until line 337619 of ndtest2022.11.02-
+Stopped, rather check with tests/test2022.11.03-23_30_42
+
+Comparison between tests/test2022.10.18-17_13_46 and tests/test2022.11.03-23_30_42
+ndtest, conv, tlsx, arinc, icao, ssh checked.
+textsecure: checked first 2 tests
+WG checked  (checked 1 desynchronized example over 6)
+PROTOCOL examples/wireguard/WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot.cv
+CHECKS DONE

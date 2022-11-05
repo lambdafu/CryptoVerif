@@ -2114,7 +2114,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
       let simp_facts = 
 	if !Settings.use_known_equalities_crypto then
 	  try 
-	    let facts = Facts.get_facts_at (DTerm t) in
+	    let (facts, _, _, _) = Facts.get_facts_at (DTerm t) in
 	    Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts 
 	  with Contradiction ->
 	    (* This term is in fact unreachable *)
@@ -2249,7 +2249,7 @@ and check_term where_info ta_above comp_neut cur_array defined_refs t torg =
 				  with NoMatch ->
 				    Parsing_helper.internal_error "reverse_subst failed and it should not"
 				in
-				let defined_refs = Facts.def_vars_from_defined None
+				let (_,defined_refs) = Facts.def_vars_from_defined [] [] None
 				    [Terms.binderref_from_binder b'_check]
 				in
 				if not (List.exists (Terms.equal_binderref (b_check,actual_l_check)) defined_refs) then
@@ -3719,24 +3719,29 @@ let rec update_def_list_simplif_t t =
 			     update_def_list_simplif_t t2,
 			     update_def_list_simplif_t t3)
   | FindE(l0, p2, find_info) ->
-      let l0' =
-	List.fold_right (fun (bl, def_list, t1, p1) laccu ->
-	  try
-	    let find_branch' =
-	      let t1' = update_def_list_simplif_t t1 in
-	      let p1' = update_def_list_simplif_t p1 in
-	      let already_defined = Facts.get_def_vars_at (DTerm t) in
-	      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t)) def_list in
-	      Facts.update_def_list_term already_defined newly_defined bl def_list t1' p1'
-	    in
-	    find_branch' :: laccu
-	  with Contradiction ->
-	    (* The variables in the defined condition cannot be defined,
-	       I can just remove the branch *)
-	    laccu
-	  ) l0 []
-      in
-      FindE(l0', update_def_list_simplif_t p2, find_info)
+      begin
+	try 
+	  let def_vars_info = Facts.get_def_vars_at (DTerm t) in
+	  let l0' =
+	    List.fold_right (fun (bl, def_list, t1, p1) laccu ->
+	      try
+		let find_branch' =
+		  let t1' = update_def_list_simplif_t t1 in
+		  let p1' = update_def_list_simplif_t p1 in
+		  Facts.update_def_list_term def_vars_info None bl def_list t1' p1'
+		in
+		find_branch' :: laccu
+	      with Contradiction ->
+	        (* The variables in the defined condition cannot be defined,
+		   I can just remove the branch *)
+		laccu
+		  ) l0 []
+	  in
+	  FindE(l0', update_def_list_simplif_t p2, find_info)
+	with Contradiction ->
+	  (* Program point unreachable *)
+	  (Stringmap.cst_for_type t.t_type).t_desc
+      end
   | LetE(pat, t1, t2, topt) ->
       LetE(update_def_list_simplif_pat pat,
 	   update_def_list_simplif_t t1,
@@ -3782,24 +3787,29 @@ and update_def_list_simplifo p =
 	   update_def_list_simplifo p1, 
 	   update_def_list_simplifo p2)
   | Find(l0, p2, find_info) ->
-      let l0' =
-	List.fold_right (fun (bl, def_list, t, p1) laccu ->
-	  try
-	    let find_branch' =
-	      let t' = update_def_list_simplif_t t in
-	      let p1' = update_def_list_simplifo p1 in
-	      let already_defined = Facts.get_def_vars_at (DProcess p) in
-	      let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-	      Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
-	    in
-	    find_branch' :: laccu
-	  with Contradiction ->
-	    (* The variables in the defined condition cannot be defined,
-	       I can just remove the branch *)
-	    laccu
-	  ) l0 []
-      in
-      Find(l0', update_def_list_simplifo p2, find_info)
+      begin
+	try
+	  let def_vars_info = Facts.get_def_vars_at (DProcess p) in
+	  let l0' =
+	    List.fold_right (fun (bl, def_list, t, p1) laccu ->
+	      try
+		let find_branch' =
+		  let t' = update_def_list_simplif_t t in
+		  let p1' = update_def_list_simplifo p1 in
+		  Facts.update_def_list_process def_vars_info None bl def_list t' p1'
+		in
+		find_branch' :: laccu
+	      with Contradiction ->
+	        (* The variables in the defined condition cannot be defined,
+		   I can just remove the branch *)
+		laccu
+		  ) l0 []
+	  in
+	  Find(l0', update_def_list_simplifo p2, find_info)
+	with Contradiction ->
+	  (* The find is in fact unreachable *)
+	  Yield
+      end
   | Let(pat,t,p1,p2) ->
       Let(update_def_list_simplif_pat pat,
 	  update_def_list_simplif_t t, 
@@ -4121,20 +4131,14 @@ let get_repl_from_map true_facts0 b_repl exp =
     | Some before_exp_instance -> before_exp_instance
   in
   (* Collect all facts that are known to be true *)
-  let true_facts = 
-    try
-      true_facts0 @ (Facts.get_facts_at (DTerm exp))
+  let (true_facts1, pps1, def_vars1, _) =
+    try 
+      Facts.get_facts_at (DTerm exp)
     with Contradiction ->
-      [Terms.make_false()]
+      ([Terms.make_false()], [], [], None)
   in
-  (* Collect all variables known to be defined *)
-  let defined_vars =
-    try
-      List.map Terms.term_from_binderref (Facts.get_def_vars_at (DTerm exp))
-    with Contradiction ->
-      []
-  in
-  let (indices_kept, compat_info_elem) = Depanal.filter_indices before_exp_instance true_facts defined_vars count_v.indices_above one_exp.cur_array_exp count_v.indices in
+  let true_facts = true_facts0 @ true_facts1 in
+  let (indices_kept, compat_info_elem) = Depanal.filter_indices before_exp_instance true_facts pps1 count_v.indices_above one_exp.cur_array_exp count_v.indices in
   let el =
     { el_compat_info = compat_info_elem;
       el_incompatible = [];
@@ -4266,7 +4270,7 @@ let get_repl_from_map_new b_repl b_new =
       | OracleCount _ -> raise Not_found
     in
     let br_new = Terms.binderref_from_binder b_new in
-    (* Collect all facts that are known to be true.
+    (* Collect all facts that are known to be true and variables known to be defined.
        Considering all definitions of [b_new] replaces the use of 
        [Depanal.same_oracle_call] done in [get_repl_from_map]
        for counting oracle calls.
@@ -4275,21 +4279,14 @@ let get_repl_from_map_new b_repl b_new =
        In [get_repl_from_map], we consider 2 oracle calls to be
        the same only if the common known facts allow to filter
        the same indices as the ones at one of the 2 oracle calls. *)
-    let true_facts =
+    let (true_facts, pps, def_vars) =
       try
-	Facts.facts_from_defined None [br_new]
+	Facts.facts_from_defined [] [] None [br_new]
       with Contradiction ->
-	[Terms.make_false()]
-    in
-    (* Collect all variables known to be defined *)
-    let defined_vars =
-      try
-	List.map Terms.term_from_binderref (Facts.def_vars_from_defined None [br_new])
-      with Contradiction ->
-	[]
+	[Terms.make_false()], [], []
     in
     let term_new = Terms.term_from_binderref br_new in
-    let (indices_kept, compat_info_elem) = Depanal.filter_indices term_new true_facts defined_vars count_v.indices_above b_new.args_at_creation count_v.indices in
+    let (indices_kept, compat_info_elem) = Depanal.filter_indices term_new true_facts pps count_v.indices_above b_new.args_at_creation count_v.indices in
     let el =
       { el_compat_info = compat_info_elem;
 	el_incompatible = [];

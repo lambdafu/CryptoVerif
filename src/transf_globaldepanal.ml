@@ -239,7 +239,9 @@ let add_collisions_for_current_check_dependency (cur_array, true_facts, facts_in
       then
 	lazy []
       else
-	lazy (Depanal.make_indep_facts Terms.simp_facts_id (current_bdepinfo()) (true_facts @ (Facts.get_facts_at facts_info)))
+	lazy
+	  (let (facts, _,_,_) = Facts.get_facts_at facts_info in
+	  Depanal.make_indep_facts Terms.simp_facts_id (current_bdepinfo()) (true_facts @ facts))
     in
     let proba_info = (probaf', dep_types,full_type,indep_types) in
     Depanal.add_term_collisions (cur_array, true_facts', Terms.make_true()) t1 t2 (!main_var) None proba_info
@@ -701,7 +703,7 @@ let almost_indep_test cur_array t =
   (* In case this version is not sufficient to eliminate the dependency,
      use a more costly and more precise version *)
   try
-    let true_facts = Facts.get_facts_at (DTerm t) in
+    let (true_facts,_,_,_) = Facts.get_facts_at (DTerm t) in
     let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
     let t' = Facts.simplify_term (dependency_anal cur_array) simp_facts t in
     (*print_string ("At " ^ (string_of_int t.t_occ) ^ ", the term ");
@@ -969,6 +971,7 @@ let rec almost_indep_fc cur_array t0 =
   | FindE(l0,p2,find_info) ->
       begin
       try
+	let def_vars_info = Facts.get_def_vars_at (DTerm t0) in
 	let never_else = ref false in
 	let check_br (b,l) = 
 	  List.iter (fun t -> if depends t then raise BadDep) l
@@ -996,9 +999,7 @@ let rec almost_indep_fc cur_array t0 =
 		      let t' = Terms.make_true() in
 		      let find_branch' = 
 			if not (Terms.equal_terms t t' && Terms.equal_terms p1 p1') then
-			  let already_defined = Facts.get_def_vars_at (DTerm t0) in
-			  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t0)) def_list in
-			  Facts.update_def_list_term already_defined newly_defined bl def_list t' p1'
+			  Facts.update_def_list_term def_vars_info None bl def_list t' p1'
 			else
 			  findbranch
 		      in
@@ -1015,9 +1016,7 @@ let rec almost_indep_fc cur_array t0 =
 		      let p1' = to_term (almost_indep_fc cur_array p1) in
 		      let find_branch' = 
 			if not (Terms.equal_terms t t' && Terms.equal_terms p1 p1') then
-			  let already_defined = Facts.get_def_vars_at (DTerm t0) in
-			  let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DTerm t0)) def_list in
-			  Facts.update_def_list_term already_defined newly_defined bl def_list t' p1'
+			  Facts.update_def_list_term def_vars_info None bl def_list t' p1'
 			else
 			  findbranch
 		      in
@@ -1070,6 +1069,7 @@ let rec almost_indep_fc cur_array t0 =
 		BothIndepB (Terms.build_term t0 (FindE(List.rev (!l0'), Terms.make_false(), find_info)))
 	  | BothDepB -> BothDepB
       with BadDep -> BothDepB
+      | Contradiction -> BothIndepB (Stringmap.cst_for_type t0.t_type)
       end
   | TestE(t',p1,p2) ->
       begin
@@ -1094,7 +1094,7 @@ let rec almost_indep_fc cur_array t0 =
               | BothIndepB t1', BothIndepB t2'  ->
 		  begin
 		    try
-                      let true_facts = Facts.get_facts_at (DTerm t0) in
+                      let (true_facts,_,_,_) = Facts.get_facts_at (DTerm t0) in
 		      let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
                       if Terms.simp_equal_terms simp_facts true t1' t2' then
 			BothIndepB t1' 
@@ -1245,7 +1245,7 @@ let rec almost_indep_fc cur_array t0 =
 		| BothIndepB t1', BothIndepB t2'  ->
 		    begin
 		      try 
-			let true_facts = Facts.get_facts_at (DTerm t0) in
+			let (true_facts,_,_,_) = Facts.get_facts_at (DTerm t0) in
 			let simp_facts = Facts.simplif_add_list (dependency_anal cur_array) ([],[],[]) true_facts in
 			if Terms.simp_equal_terms simp_facts true t1' t2' then
 			  BothIndepB t2' 
@@ -1387,6 +1387,9 @@ and check_depend_oprocess cur_array p =
 	    Terms.oproc_from_desc Yield
       end
   | Find(l0,p2,find_info) ->
+      begin
+	try
+      let def_vars_info = Facts.get_def_vars_at (DProcess p) in
       let never_else = ref false in
       let check_br (b,l) = 
 	List.iter (fun t -> 
@@ -1420,9 +1423,7 @@ and check_depend_oprocess cur_array p =
 		  try 
 		    let findbranch' = 
 		      if !defined_condition_update_needed then
-			let already_defined = Facts.get_def_vars_at (DProcess p) in
-			let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-			Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
+			Facts.update_def_list_process def_vars_info None bl def_list t' p1'
 		      else
 			(bl, def_list, t', p1')
 		    in
@@ -1444,9 +1445,7 @@ and check_depend_oprocess cur_array p =
 		  try 
 		    let findbranch'  = 
 		      if !defined_condition_update_needed then
-			let already_defined = Facts.get_def_vars_at (DProcess p) in
-			let newly_defined = Facts.def_vars_from_defined (Facts.get_initial_history (DProcess p)) def_list in
-			Facts.update_def_list_process already_defined newly_defined bl def_list t' p1'
+			Facts.update_def_list_process def_vars_info None bl def_list t' p1'
 		      else
 			(bl, def_list, t', p1')
 		    in
@@ -1469,6 +1468,9 @@ and check_depend_oprocess cur_array p =
 	end
       else
 	Terms.oproc_from_desc (Find(List.rev (!l0'), check_depend_oprocess cur_array p2, find_info))
+	with Contradiction ->
+	  Terms.oproc_from_desc Yield
+      end
   | Output((c,tl),t2,p) ->
       List.iter (fun t ->
 	if depends t then

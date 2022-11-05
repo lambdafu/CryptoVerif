@@ -9,7 +9,7 @@ let simplify_term t =
   if (Terms.check_simple_term t) && (not (Terms.is_true t || Terms.is_false t)) then
     begin
       try
-	let facts = Facts.get_facts_at (DTerm t) in
+	let (facts, _, _, _) = Facts.get_facts_at (DTerm t) in
 	let simp_facts = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts in
 	let t' = Facts.simplify_term Facts.no_dependency_anal simp_facts t in
 	(* When the obtained term is a complex term, using array accesses, I may

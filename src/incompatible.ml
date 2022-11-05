@@ -186,11 +186,11 @@ let incompatible_suffix_length_pp pp pp' =
   with Not_found ->
     Occ_map.find occ' occ_map 
 
-(* [both_pp (args, pp) (args', pp')] returns true when
+(* [both_pp (pp, args) (pp', args')] returns true when
    program point [pp] with indices [args] and 
    program point [pp'] with indices [args'] can both be executed. *)
 
-let both_pp (args, pp) (args', pp') =
+let both_pp (pp, args) (pp', args') =
   try
     let suffix_l = incompatible_suffix_length_pp pp pp' in
     let args_skip = Terms.lsuffix suffix_l args in
@@ -199,12 +199,12 @@ let both_pp (args, pp) (args', pp') =
   with Not_found -> 
     true
      
-(* [both_pp_add_fact fact_accu (args, pp) (args', pp')] 
+(* [both_pp_add_fact fact_accu (pp, args) (pp', args')] 
    adds to [fact_accu] a fact inferred from the execution of both
    program point [pp] with indices [args] and 
    program point [pp'] with indices [args'], if any.*)
 	
-let both_pp_add_fact fact_accu (args, pp) (args', pp') =
+let both_pp_add_fact fact_accu (pp, args) (pp', args') =
   try
     let suffix_l = incompatible_suffix_length_pp pp pp' in
     let args_skip = Terms.lsuffix suffix_l args in
@@ -213,14 +213,92 @@ let both_pp_add_fact fact_accu (args, pp) (args', pp') =
   with Not_found ->
     fact_accu
 
-(* [incompatible_suffix_length_onepp pp b'] returns a length [l] such
+(* [incompatible_suffix_length_pp_ppl pp ppl] returns a length [l] such
+   that if [pp] with indices [args] is executed and
+   a program point in [ppl] with indices [args'] is executed,
+   then the suffixes of length [l] of [args] and
+   [args'] must be different.
+   Raises [Not_found] when [pp] with indices [args]  
+   and a program point in [ppl] with indices [args'] can be executed
+   for any [args,args'].*)
+
+let incompatible_suffix_length_pp_ppl pp ppl =
+  let pp_occ, _, pp_occ_map = incomp_from_pp pp in
+  map_max (fun pp' ->
+    let (occ', _, occ_map') = incomp_from_pp pp' in
+    try 
+      Occ_map.find pp_occ occ_map' 
+    with Not_found ->
+      Occ_map.find occ' pp_occ_map 
+	) ppl
+
+(* [both_pp_ppl (pp, args) (ppl', args')] returns true when
+   program point [pp] with indices [args] and 
+   a program point in [ppl'] with indices [args'] can both be executed. *)
+
+let both_pp_ppl (pp, args) (ppl', args') =
+  try
+    let suffix_l = incompatible_suffix_length_pp_ppl pp ppl' in
+    let args_skip = Terms.lsuffix suffix_l args in
+    let args_skip' = Terms.lsuffix suffix_l args' in
+    not (List.for_all2 Terms.equal_terms args_skip args_skip')
+  with Not_found -> 
+    true
+     
+(* [both_pp_ppl_add_fact fact_accu (pp, args) (ppl', args')] 
+   adds to [fact_accu] a fact inferred from the execution of both
+   program point [pp] with indices [args] and 
+   a program point in [ppl'] with indices [args'], if any.*)
+	
+let both_pp_ppl_add_fact fact_accu (pp, args) (ppl', args') =
+  try
+    let suffix_l = incompatible_suffix_length_pp_ppl pp ppl' in
+    let args_skip = Terms.lsuffix suffix_l args in
+    let args_skip' = Terms.lsuffix suffix_l args' in
+    (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
+  with Not_found ->
+    fact_accu
+
+(* [incompatible_suffix_length_ppl_ppl ppl ppl'] returns a length [l]
+   such that if a program point in [ppl] with indices [args] and a
+   program point in [ppl'] with indices [args'] are executed, then the
+   suffixes of length [l] of [args] and [args'] must be different.
+   Raises [Not_found] when a program point in [ppl] with indices
+   [args] and a program point in [ppl'] with indices [args'] can be
+   executed for any [args,args']. *)
+
+let incompatible_suffix_length_ppl_ppl ppl ppl' = 
+  map_max (fun pp -> incompatible_suffix_length_pp_ppl pp ppl') ppl
+
+(* [both_ppl_ppl_add_fact fact_accu (ppl, args) (ppl', args')] 
+   adds to [fact_accu] a fact inferred from the execution of both
+   a program point in [ppl] with indices [args] and 
+   a program point in [ppl'] with indices [args'], if any.*)
+	
+let both_ppl_ppl_add_fact fact_accu (ppl, args) (ppl', args') =
+  try
+    let suffix_l = incompatible_suffix_length_ppl_ppl ppl ppl' in
+    let args_skip = Terms.lsuffix suffix_l args in
+    let args_skip' = Terms.lsuffix suffix_l args' in
+    (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
+  with Not_found ->
+    fact_accu
+
+let both_ppl_ppl_add_facts fact_accu ppl1 ppl2 = 
+  List.fold_left (fun accu pp2 ->
+    List.fold_left (fun accu pp1 ->
+      both_ppl_ppl_add_fact accu pp1 pp2
+	) accu ppl1
+      ) fact_accu ppl2
+      
+(* [incompatible_suffix_length_pp_var pp b'] returns a length [l] such
    that if [pp] with indices [args] is executed and [b'[args]] 
    is defined, then the suffixes of length [l] of [args] and
    [args'] must be different.
    Raises [Not_found] when [pp] with indices [args] can be executed 
    and [b'[args']] can be defined for any [args,args'].*)
 
-let incompatible_suffix_length_onepp pp b' =
+let incompatible_suffix_length_pp_var pp b' =
   let pp_occ, _, pp_occ_map = incomp_from_pp pp in
   map_max (fun n' ->
     let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
@@ -230,14 +308,14 @@ let incompatible_suffix_length_onepp pp b' =
       Occ_map.find occ' pp_occ_map 
 	) b'.def
 
-(* [incompatible_suffix_length b b'] returns a length [l] such that if
+(* [incompatible_suffix_length_var_var b b'] returns a length [l] such that if
    [b[args]] and [b'[args']] are both defined, then the suffixes of
    length [l] of [args] and [args'] must be different.
    Raises [Not_found] when [b[args]] and [b'[args']] can be defined 
    for any [args,args']. *)
 
-let incompatible_suffix_length b b' =
-  map_max (fun n -> incompatible_suffix_length_onepp n.definition_success b') b.def
+let incompatible_suffix_length_var_var b b' =
+  map_max (fun n -> incompatible_suffix_length_pp_var n.definition_success b') b.def
 
 (* [is_compatible (b,args) (b',args')] returns true when
    [b[args]] and [b'[args']] may both be defined *)
@@ -245,21 +323,7 @@ let incompatible_suffix_length b b' =
 let is_compatible (b,args) (b',args') =
   (b == b') || 
   (try
-    let suffix_l = incompatible_suffix_length b b' in
-    let args_skip = Terms.lsuffix suffix_l args in
-    let args_skip' = Terms.lsuffix suffix_l args' in
-    (not (List.for_all2 Terms.equal_terms args_skip args_skip'))
-  with Not_found -> true)
-
-(* [is_compatible_node (b,args) n (b',args')] returns true when
-   [b[args]] and [b'[args']] may both be defined, with [b[args]]
-   defined at node [n]. *)
-
-let is_compatible_node (b,args) n (b',args') =
-  (b == b') || 
-  (try
-    let suffix_l = incompatible_suffix_length_onepp n.definition_success b' in
-    (*print_string ("incompatible_suffix_length 1 " ^ b.sname ^ "_" ^ (string_of_int b.vname) ^ " " ^ b'.sname ^ "_" ^ (string_of_int b'.vname) ^ " = "); print_int suffix_l; print_newline(); *)
+    let suffix_l = incompatible_suffix_length_var_var b b' in
     let args_skip = Terms.lsuffix suffix_l args in
     let args_skip' = Terms.lsuffix suffix_l args' in
     (not (List.for_all2 Terms.equal_terms args_skip args_skip'))
@@ -272,7 +336,7 @@ let is_compatible_node (b,args) n (b',args') =
 let both_def_add_fact fact_accu (b,args) (b',args') =
   if b != b' then 
     try
-      let suffix_l = incompatible_suffix_length b b' in
+      let suffix_l = incompatible_suffix_length_var_var b b' in
       let args_skip = Terms.lsuffix suffix_l args in
       let args_skip' = Terms.lsuffix suffix_l args' in
       (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
@@ -281,12 +345,12 @@ let both_def_add_fact fact_accu (b,args) (b',args') =
   else
     fact_accu
 
-(* [both_def_list_facts old_def_list def_list] returns facts
-   inferred from the knowledge that the variables in [def_list] and
-   [old_def_list] are simultaneously defined. It considers pairs
-   of variables in [def_list] and of one variable in [def_list]
-   and one in [old_def_list], but does not consider pairs of variables
-   in [old_def_list] as those should have been taken into account before.
+(* [both_ppl_facts old_ppl ppl] returns facts
+   inferred from the knowledge that the program points in [ppl] and
+   [old_ppl] are both executed. It considers pairs 
+   of variables in [ppl] and of one variable in [ppl]
+   and one in [old_ppl], but does not consider pairs of variables
+   in [old_ppl] as those should have been taken into account before.
    Uses the field "incompatible" set by Terms.build_compatible_defs
  *)
 
@@ -296,44 +360,15 @@ let rec accu_pair f accu = function
       let accu = List.fold_left (fun accu' a' -> f accu' a a') accu l in
       accu_pair f accu l
 
-let both_def_list_facts fact_accu old_def_list def_list =
-  (* Remove the already defined variables from the new def_list *)
-  let new_def_list = List.filter (fun br -> not (Terms.mem_binderref br old_def_list)) def_list in
-  (* Check that the newly defined variables are compatible with each other *)
-  let fact_accu = accu_pair both_def_add_fact fact_accu new_def_list in
+let both_ppl_facts fact_accu old_ppl ppl =
+  (* Remove the already executed program points from the list of new program points *)
+  let new_ppl = List.filter (fun pp -> not (List.exists (Terms.equal_pps_args pp) old_ppl)) ppl in
+  (* Check that the new program points are compatible with each other *)
+  let fact_accu = accu_pair both_ppl_ppl_add_fact fact_accu new_ppl in
   (* ... and with all the previously defined variables *)
-  List.fold_left (fun accu br -> List.fold_left (fun accu' br' -> 
-    both_def_add_fact accu' br br') accu new_def_list) fact_accu old_def_list
+  both_ppl_ppl_add_facts fact_accu old_ppl new_ppl
 
-(* [def_pp_add_fact fact_accu (pp,args) (b',args')] 
-   adds to [fact_accu] a fact inferred from the execution of 
-   program point [pp] with indices [args] and 
-   the definition of variable [b'] with indices [args'], if any.
-   [b[args']] may be defined before or after the execution
-   of program point [pp] with indices [args]. *)
-
-let def_pp_add_fact fact_accu (pp,args) (b',args') =
-  try
-    let suffix_l = incompatible_suffix_length_onepp pp b' in
-    let args_skip = Terms.lsuffix suffix_l args in
-    let args_skip' = Terms.lsuffix suffix_l args' in
-    (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
-  with Not_found -> 
-    fact_accu
-
-(* [def_list_pp fact_accu pp_args def_list] returns facts
-   inferred from the knowledge that the variables in [def_list] are
-   defined and the program point [pp_args] is executed.
-   (The variables in [def_list] may be defined before or after
-   executing the program point [pp_args].
-   Uses the field "incompatible" set by Terms.build_compatible_defs
- *)
-let def_list_pp fact_accu pp_args def_list =
-  List.fold_left (fun accu br -> 
-     def_pp_add_fact accu pp_args br) fact_accu def_list
-
-
-(* [not_after_suffix_length_one_pp pp length_cur_array_pp b'] returns
+(* [not_after_suffix_length_pp_var pp length_cur_array_pp b'] returns
    the shortest length [l] such that the program point [pp] cannot be
    executed with indices [args] after the definition of variable [b']
    with indices [args'] when [args] and [args'] have a common suffix of
@@ -343,7 +378,7 @@ let def_list_pp fact_accu pp_args def_list =
    [length_cur_array_pp] is the number of replication indices at
    program point [pp]. *)
 
-let not_after_suffix_length_one_pp pp length_cur_array_pp b' =
+let not_after_suffix_length_pp_var pp length_cur_array_pp b' =
   let pp_occ, pp_max_occ, pp_occ_map = incomp_from_pp pp in
   map_max (fun n' ->
     let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
@@ -359,19 +394,45 @@ let not_after_suffix_length_one_pp pp length_cur_array_pp b' =
 	  raise Not_found
 	) b'.def
 
-(* [not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n'] returns
+(* [not_after_suffix_length_pp_ppl pp length_cur_array_pp ppl] returns
    the shortest length [l] such that the program point [pp] cannot be
-   executed with indices [args] after the node [n']
+   executed with indices [args] after a program point in [ppl]
    with indices [args'] when [args] and [args'] have a common suffix of
    length [l].  
    Raises [Not_found] when [pp] with indices [args] can be executed
-   after the node [n'[args']] for any [args,args'].
+   after a program point in [ppl] with indices [args']] for any [args,args'].
    [length_cur_array_pp] is the number of replication indices at
    program point [pp]. *)
 
-let not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n' =
+let not_after_suffix_length_pp_ppl pp length_cur_array_pp ppl =
   let pp_occ, pp_max_occ, pp_occ_map = incomp_from_pp pp in
-  let (occ', _, occ_map') = incomp_from_pp n'.definition_success in
+  map_max (fun pp' ->
+    let (occ', _, occ_map') = incomp_from_pp pp' in
+    try 
+      Occ_map.find pp_occ occ_map' 
+    with Not_found ->
+      try
+	Occ_map.find occ' pp_occ_map
+      with Not_found ->
+	if pp_occ <= occ' && occ' <= pp_max_occ then
+	  length_cur_array_pp (* since pp' is under pp, pp' has more indices than pp *)
+	else
+	  raise Not_found
+	) ppl
+
+(* [not_after_suffix_length_pp pp length_cur_array_pp pp'] returns
+   the shortest length [l] such that the program point [pp] cannot be
+   executed with indices [args] after the program point [pp']
+   with indices [args'] when [args] and [args'] have a common suffix of
+   length [l].  
+   Raises [Not_found] when [pp] with indices [args] can be executed
+   after the program point [pp'[args']] for any [args,args'].
+   [length_cur_array_pp] is the number of replication indices at
+   program point [pp]. *)
+
+let not_after_suffix_length_pp pp length_cur_array_pp pp' =
+  let pp_occ, pp_max_occ, pp_occ_map = incomp_from_pp pp in
+  let (occ', _, occ_map') = incomp_from_pp pp' in
   try 
     Occ_map.find pp_occ occ_map' 
   with Not_found ->
@@ -406,59 +467,58 @@ let get_facts pp =
   | DTerm t ->  t.t_facts
   | _ -> None
 
-(* [incompatible_current_suffix_length history n] returns the shortest
+(* [incompatible_current_suffix_length history pp] returns the shortest
    length [l] such that the current program point of [history] cannot
-   be executed with indices [args] after the node [n] with indices
+   be executed with indices [args] after the program point [pp] with indices
    [args'] when [args] and [args'] have a common suffix of length [l].
    Raises [Not_found] when that program point with indices [args] can
    be executed after the node [n[args']] for any [args,args']. *)
 
-let incompatible_current_suffix_length history n =
-  let pp = 
+let incompatible_current_suffix_length history pp =
+  let pp' = 
     if history.current_in_different_block then
       get_start_block_pp history.current_node
     else
       history.current_point
   in
   let cur_array =
-    match get_facts pp with
+    match get_facts pp' with
       None -> raise Not_found
     | Some(cur_array,_,_,_,_,_,_) -> cur_array
   in
-  not_after_suffix_length_one_pp_one_node pp (List.length cur_array) n
+  not_after_suffix_length_pp pp' (List.length cur_array) pp
 
-(* [incompatible_nodelist_different_block_suffix_length (nl, args) n]
+(* [incompatible_nodelist_different_block_suffix_length (nl, args) pp]
    returns the shortest length [l] such that an input...output block
    containing a node in [nl] cannot be executed with indices [args]
-   after the node [n] with indices [args'] when [args] and [args']
+   after the program piont [pp] with indices [args'] when [args] and [args']
    have a common suffix of length [l].
    Raises [Not_found] when they can be executed for any [args,args']. *)
 
-let incompatible_nodelist_different_block_suffix_length (nl, args) n =
+let incompatible_nodelist_different_block_suffix_length (nl, args) pp =
   let length_cur_array_pp = List.length args in
   map_max (fun n1 ->
-    let pp = get_start_block_pp n1 in
-    not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n) nl
+    let pp' = get_start_block_pp n1 in
+    not_after_suffix_length_pp pp' length_cur_array_pp pp) nl
 
-(* [incompatible_nodelist_same_block_suffix_length (nl, args) n]
+(* [incompatible_nodelist_same_block_suffix_length (nl, args) pp]
    returns the shortest length [l] such that a node in [nl] cannot be
-   executed with indices [args] after the node [n] with indices
+   executed with indices [args] after the program point [pp] with indices
    [args'] when [args] and [args'] have a common suffix of length [l].
    Raises [Not_found] when they can be executed for any [args,args']. *)
 
-let incompatible_nodelist_same_block_suffix_length (nl, args) n =
+let incompatible_nodelist_same_block_suffix_length (nl, args) pp =
   let length_cur_array_pp = List.length args in
   map_max (fun n1 ->
-    let pp = n1.definition in
-    not_after_suffix_length_one_pp_one_node pp length_cur_array_pp n) nl
+    not_after_suffix_length_pp n1.definition length_cur_array_pp pp) nl
 
-(* [is_compatible_history (n,args) history] returns true when 
+(* [is_compatible_history (pp,args) history] returns true when 
    the information in [history] is compatible with the execution
-   of node [n] with indices [args] before that history. *)
+   of program point [pp] with indices [args] before that history. *)
     
-let is_compatible_history (n,args) history =
+let is_compatible_history (pp,args) history =
   (try
-    let suffix_l = incompatible_current_suffix_length history n in
+    let suffix_l = incompatible_current_suffix_length history pp in
     (*print_string "is_compatible_history "; print_int suffix_l;
     print_string " args length: "; print_int (List.length args);
     print_string " cur_array length: "; print_int (List.length history.cur_array); print_newline(); *)
@@ -468,7 +528,7 @@ let is_compatible_history (n,args) history =
   with Not_found -> true) &&
   (List.for_all (fun (nl',args') ->
     try
-      let suffix_l = incompatible_nodelist_different_block_suffix_length (nl', args') n in
+      let suffix_l = incompatible_nodelist_different_block_suffix_length (nl', args') pp in
       let args_skip = Terms.lsuffix suffix_l args in
       let args_skip' = Terms.lsuffix suffix_l args' in
       (not (List.for_all2 Terms.equal_terms args_skip args_skip'))
@@ -476,21 +536,21 @@ let is_compatible_history (n,args) history =
 	) history.def_vars_in_different_blocks) && 
   (List.for_all (fun (nl',args') ->
     try
-      let suffix_l = incompatible_nodelist_same_block_suffix_length (nl', args') n in
+      let suffix_l = incompatible_nodelist_same_block_suffix_length (nl', args') pp in
       let args_skip = Terms.lsuffix suffix_l args in
       let args_skip' = Terms.lsuffix suffix_l args' in
       (not (List.for_all2 Terms.equal_terms args_skip args_skip'))
     with Not_found -> true
 	) history.def_vars_maybe_in_same_block)
 
-(* [facts_compatible_history fact_accu (nl,args) history] returns
+(* [facts_compatible_history fact_accu (ppl,args) history] returns
    [fact_accu] with additional facts inferred from the execution of a
-   node in [nl] with indices [args] before the history [history]. *)
+   program point in [ppl] with indices [args] before the history [history]. *)
 
-let facts_compatible_history fact_accu (nl,args) history = 
+let facts_compatible_history fact_accu (ppl,args) history = 
   let fact_accu1 =
     try
-      let suffix_l = map_max (incompatible_current_suffix_length history) nl in
+      let suffix_l = map_max (incompatible_current_suffix_length history) ppl in
     (*print_string ("incompatible_suffix_length 1 " ^ b.sname ^ "_" ^ (string_of_int b.vname) ^ " " ^ b'.sname ^ "_" ^ (string_of_int b'.vname) ^ " = "); print_int suffix_l; print_newline(); *)
       let args_skip = Terms.lsuffix suffix_l args in
       let args_skip' = Terms.lsuffix suffix_l history.cur_array in
@@ -500,7 +560,7 @@ let facts_compatible_history fact_accu (nl,args) history =
   let fact_accu2 =
     List.fold_left (fun fact_accu (nl',args') ->
       try
-	let suffix_l = map_max (incompatible_nodelist_different_block_suffix_length (nl', args')) nl in
+	let suffix_l = map_max (incompatible_nodelist_different_block_suffix_length (nl', args')) ppl in
 	let args_skip = Terms.lsuffix suffix_l args in
 	let args_skip' = Terms.lsuffix suffix_l args' in
 	(Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
@@ -509,36 +569,37 @@ let facts_compatible_history fact_accu (nl,args) history =
   in
   List.fold_left (fun fact_accu (nl',args') ->
     try
-      let suffix_l = map_max (incompatible_nodelist_same_block_suffix_length (nl', args')) nl in
+      let suffix_l = map_max (incompatible_nodelist_same_block_suffix_length (nl', args')) ppl in
       let args_skip = Terms.lsuffix suffix_l args in
       let args_skip' = Terms.lsuffix suffix_l args' in
       (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
     with Not_found -> fact_accu
 	) fact_accu2 history.def_vars_maybe_in_same_block
   
-(* [def_at_pp_add_fact fact_accu pp args (b',args')] adds to
-   [fact_accu] a fact that always holds when [b'[args']] is defined
+(* [ppl_at_pp_add_fact fact_accu (pp, args) (ppl,args')] adds to
+   [fact_accu] a fact that always holds when a program point in 
+   [ppl] is executed with indices [args']
    before the execution of program point [pp] with indices [args], if
    any. *)
 
-let def_at_pp_add_fact fact_accu pp args (b',args') =
+let ppl_before_pp_add_fact fact_accu (pp, args) (ppl,args') =
   let length_cur_array_pp = List.length args in
   try
-    let suffix_l = not_after_suffix_length_one_pp pp length_cur_array_pp b' in
+    let suffix_l = not_after_suffix_length_pp_ppl pp length_cur_array_pp ppl in
     let args_skip = Terms.lsuffix suffix_l args in
     let args_skip' = Terms.lsuffix suffix_l args' in
     (Terms.make_or_list (List.map2 Terms.make_diff args_skip args_skip')) :: fact_accu
   with Not_found -> 
     fact_accu
     
-(* [def_list_at_pp_facts pp args def_list] returns facts
+(* [ppl_before_pp_facts pp_args def_list] returns facts
    inferred from the knowledge that the variables in [def_list]
    are defined before the execution of program point [pp] with indices [args].
    (Typically, that some indices in [args] are different
    from some indices of variables in [def_list].) *)
 
-let def_list_at_pp_facts fact_accu pp args def_list =
-    List.fold_left (fun accu -> def_at_pp_add_fact accu pp args) fact_accu def_list
+let ppl_before_pp_facts fact_accu pp_args ppls =
+    List.fold_left (fun accu -> ppl_before_pp_add_fact accu pp_args) fact_accu ppls
 
 (* [may_def_before (b,args) (b',args')] returns true when
    [b[args]] may be defined before or at the same time as [b'[args']] *)
@@ -549,9 +610,32 @@ let may_def_before (b,args) (b',args') =
   (* b[args] defined before b'[args'] *)
   (try
     let length_cur_array_b' = List.length args' in
-    let suffix_l = map_max (fun n -> not_after_suffix_length_one_pp n.definition_success length_cur_array_b' b) b'.def in
+    let suffix_l = map_max (fun n -> not_after_suffix_length_pp_var n.definition_success length_cur_array_b' b) b'.def in
     let args_skip = Terms.lsuffix suffix_l args in
     let args_skip' = Terms.lsuffix suffix_l args' in
     (not (List.for_all2 Terms.equal_terms args_skip args_skip'))
   with Not_found -> true)
 
+(* [is_under pp pp'] returns true when the program point [pp] is
+   syntactically under [pp']. *)
+
+let is_under pp pp' =
+  try 
+    let occ = occ_from_pp pp in
+    let occ', max_occ', _ = incomp_from_pp pp' in
+    (occ' <= occ) && (occ <= max_occ')
+  with Not_found -> false
+
+(* [implies_ppl (ppl, args) (ppl', args')] returns true when the
+   execution of a program point in [ppl] with indices [args]
+   implies the execution of a program point in [ppl'] with
+   indices [args'] (without taking into account defined conditions). *)
+
+let implies_ppl (ppl, args) (ppl', args') =
+  let l' = List.length args' in
+  (List.length args >= l') &&
+  (let args_suffix = Terms.lsuffix l' args in
+  List.for_all2 Terms.equal_terms args_suffix args') &&
+  (List.for_all (fun pp ->
+    List.exists (fun pp' -> is_under pp pp') ppl'
+      ) ppl)

@@ -14,7 +14,7 @@ open Parsing_helper
    [current_history] is the known history at the find, at which [def_list]
    is tested (may be returned by [Facts.get_initial_history]) *)
 
-let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
+let prove_unique g cur_array simp_facts pps def_vars dep_info node l0 =
   let l0' = List.map (fun (bl, def_list1, t1, _) ->
     let (sure_facts, defined_vars, _) = Info_from_term.def_vars_and_facts_from_term (Some g) g.expanded true t1 in
     (bl, defined_vars @ def_list1, sure_facts)
@@ -28,10 +28,8 @@ let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
     let def_list2 = Terms.subst_def_list repl_index1 repl_index2_term def_list1 in
     let tl2 = List.map (Terms.subst repl_index1 repl_index2_term) tl1 in
     try 
-      let def_vars1 = Facts.def_vars_from_defined node def_list1 in
-      let facts_def_list1 = Facts.facts_from_defined node def_list1 in
-      let def_vars2 = Facts.def_vars_from_defined node def_list2 in
-      let facts_def_list2 = Facts.facts_from_defined node def_list2 in
+      let (facts_def_list1, _, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
+      let (facts_def_list2, _, def_vars2) = Facts.facts_from_defined pps def_vars node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
       let diff_ri1_ri2 = Terms.make_or_list (List.map2 Terms.make_diff repl_index1_term repl_index2_term) in
       let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
@@ -47,10 +45,8 @@ let prove_unique g cur_array simp_facts def_vars dep_info node l0 =
     let def_list2 = Terms.subst_def_list repl_index2_orig repl_index2_term def_list2_orig in
     let tl2 = List.map (Terms.subst repl_index2_orig repl_index2_term) tl2_orig in
     try 
-      let def_vars1 = Facts.def_vars_from_defined node def_list1 in
-      let facts_def_list1 = Facts.facts_from_defined node def_list1 in
-      let def_vars2 = Facts.def_vars_from_defined node def_list2 in
-      let facts_def_list2 = Facts.facts_from_defined node def_list2 in
+      let (facts_def_list1, _, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
+      let (facts_def_list2, _, def_vars2) = Facts.facts_from_defined pps def_vars node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
       let simp_facts = Facts.simplif_add_list dep_info simp_facts (tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
       let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
@@ -89,10 +85,9 @@ let prove_unique1 pp l0 find_info ext =
 	    | Some(cur_array,_,_,_,_,_,_) -> cur_array
 	    | None -> failwith "(missing information, should not happen)"
 	  in
-	  let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id (Facts.get_facts_at pp) in
-	  let def_vars = Facts.get_def_vars_at pp in
-	  let current_history = Facts.get_initial_history pp in 
-	  if prove_unique (!whole_game) cur_array true_facts def_vars Facts.no_dependency_anal current_history l0 then
+	  let (true_facts1, pps, def_vars, current_history) = Facts.get_facts_at pp in
+	  let true_facts = Facts.simplif_add_list Facts.no_dependency_anal Terms.simp_facts_id true_facts1 in
+	  if prove_unique (!whole_game) cur_array true_facts pps def_vars Facts.no_dependency_anal current_history l0 then
 	    proved()
 	  else
 	    failwith ""
@@ -225,9 +220,9 @@ let prove_unique_game initial_game g =
       Settings.changed := true;
       (g', Depanal.final_add_proba(), transfos)
     
-let infer_unique g cur_array simp_facts def_vars dep_info node l0' find_info =
+let infer_unique g cur_array simp_facts pps def_vars dep_info node l0' find_info =
   let prove() =
-    if prove_unique g cur_array simp_facts def_vars dep_info node l0' then
+    if prove_unique g cur_array simp_facts pps def_vars dep_info node l0' then
       (Unique, true)
     else
       (find_info, false)

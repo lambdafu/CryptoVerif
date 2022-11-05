@@ -1231,7 +1231,7 @@ let rec get_counted = function
   | _::l ->
       get_counted l
     
-let filter_indices lhs_instance true_facts defined_vars above_indices all_indices used_indices =
+let filter_indices lhs_instance true_facts pps above_indices all_indices used_indices =
   let proba_state = Proba.get_current_state() in
   let used_indices' = get_counted used_indices in
   (* Try to remove useless indices using [true_facts] *)
@@ -1242,7 +1242,7 @@ let filter_indices lhs_instance true_facts defined_vars above_indices all_indice
       (* I removed no index, I can just leave things as they were *)
       Proba.restore_state proba_state;
       (used_indices,
-       (lhs_instance, true_facts, defined_vars,
+       (lhs_instance, true_facts, pps, 
 	above_indices, all_indices, initial_indices, used_indices', used_indices))
     end
   else
@@ -1252,7 +1252,7 @@ let filter_indices lhs_instance true_facts defined_vars above_indices all_indice
 	  ) used_indices
     in
     (updated_indices, 
-     (lhs_instance, true_facts, defined_vars,
+     (lhs_instance, true_facts, pps, 
       above_indices, all_indices, initial_indices, used_indices', updated_indices))
 
 (***** Test if two expressions can be evaluated with the same value of *****
@@ -1330,8 +1330,8 @@ let build_idx_mapping (above_indices1, used_indices1) (above_indices2, used_indi
 	) used_indices1
 
 let is_compatible_indices 
-    (t1, true_facts1, defined_vars1, above_indices1, all_indices1, _, _, really_used_indices1) 
-    (t2, true_facts2, defined_vars2, above_indices2, all_indices2, _, _, really_used_indices2) =
+    (t1, true_facts1, pps1, above_indices1, all_indices1, _, _, really_used_indices1) 
+    (t2, true_facts2, pps2, above_indices2, all_indices2, _, _, really_used_indices2) =
   (*
   print_string "Depanal.is_compatible_indices ";
   Display.display_term t1;
@@ -1353,8 +1353,7 @@ let is_compatible_indices
 	Terms.ri_link i (TLink (Terms.term_from_repl_index i'))
 	  ) mapping;
   let true_facts2' = List.map (Terms.copy_term Terms.Links_RI) true_facts2 in
-  let defined_vars2' = List.map (fun t ->
-    Terms.binderref_from_term (Terms.copy_term Terms.Links_RI t)) defined_vars2 in
+  let pps2' = List.map (fun (ppl, args) -> (ppl, List.map (Terms.copy_term Terms.Links_RI) args)) pps2 in
   (* when we bound the replication parameter of an oracle, 
      2 oracles calls need to be counted simultaneously only when the 
      indices of the names above the currently considered replication are the same *)
@@ -1366,14 +1365,7 @@ let is_compatible_indices
   Terms.ri_cleanup();
   try
     let fact_accu = eq_above_idx @ true_facts1 @ true_facts2' in
-    let fact_accu =
-      List.fold_left (fun accu t ->
-	let br = Terms.binderref_from_term t in
-	List.fold_left (fun accu' br' ->
-	  Incompatible.both_def_add_fact accu' br br'
-	    ) accu defined_vars2'
-	  ) fact_accu defined_vars1
-    in
+    let fact_accu = Incompatible.both_ppl_ppl_add_facts fact_accu pps1 pps2' in
     ignore (Terms.auto_cleanup (fun () -> 
       Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) fact_accu));
     (* The terms t1 and t2 are compatible: they may occur for the same indices *)
@@ -1418,9 +1410,108 @@ Then we replace both calls with
   for all indices in t1 and common_facts such that common_facts holds, call t1
 This is more general than t1 and t2 and yields the same cardinal as t1. *)
 
+let add_pp l1 pp2 = 
+  if List.exists (Incompatible.is_under pp2) l1 then
+    (* If [pp2] is under some [pp1] in [l1] then [pp1 or pp2] is [pp1],
+       so no need to add [pp2] *)
+    l1
+  else
+    (* Remove the [pp1] in [l1] such that [pp1] is under [pp2],
+       because in this case [pp1 or pp2] is [pp2] *)
+    pp2::List.filter (fun pp1 -> not (Incompatible.is_under pp1 pp2)) l1
+     
+let rec union_pp l1 = function
+  | [] -> l1
+  | pp2::l2 ->
+      union_pp (add_pp l1 pp2) l2
+
+let update_to_length1 l orig_l pp =
+  let n =
+    match Incompatible.get_facts pp with
+    | None -> raise Not_found
+    | Some (_,_,_,_,_,_,n) -> n
+  in
+  let rec aux n =
+    match Incompatible.get_facts n.definition_success with
+    | None -> raise Not_found
+    | Some (cur_array,_,_,_,_,_,n) -> 
+	if List.length cur_array == l then
+	  n.definition_success
+	else if List.length cur_array < l then
+	  raise Not_found
+	else
+	  match n.above_node with
+	  | None -> raise Not_found
+	  | Some n' -> aux n'
+  in
+  aux n
+
+let update_to_length l orig_l ppl =
+  if l == orig_l then ppl else
+  List.fold_left (fun accu pp -> add_pp accu (update_to_length1 l orig_l pp)) [] ppl
+    
+let find_common_pp accu simp_facts2 (pp1, args1) pps2 =
+  let rec find_common_length l1 l2 =
+    match (l1,l2) with
+    | [], _ | _, [] -> 0
+    | t1::l1', t2::l2' ->
+	try
+	  Facts.match_term_list3 simp_facts2 (fun () -> ()) [t1] [t2] ();
+	  1 + find_common_length l1' l2'
+	with NoMatch -> 0
+  in
+  let max_common_length = ref 0 in
+  let common_pps = ref [] in
+  List.iter (fun ((pp2, args2) as pp_args2) ->
+    let common_length = find_common_length (List.rev args1) (List.rev args2) in
+    if common_length == (!max_common_length) then
+      common_pps := pp_args2 :: (!common_pps)
+    else if common_length > (!max_common_length) then
+      begin
+	max_common_length := common_length;
+	common_pps := [pp_args2]
+      end
+	    ) pps2;
+  let args1' = Terms.lsuffix (!max_common_length) args1 in
+  try 
+    let pp1' = update_to_length (!max_common_length) (List.length args1) pp1 in
+    let add pp =
+      if not (List.exists (fun pp' -> Incompatible.implies_ppl pp' pp) (!accu)) then
+	accu := pp :: (List.filter (fun pp' -> not (Incompatible.implies_ppl pp' pp)) (!accu))
+    in
+    List.iter (fun (pp2, args2) ->
+      try 
+	let pp2' = update_to_length (!max_common_length) (List.length args2) pp2 in
+	add (union_pp pp1' pp2', args1')
+      with Not_found -> ()
+	      ) (!common_pps)
+  with Not_found -> ()
+
+let find_common_pps simp_facts2 pps1 pps2 =
+  let accu = ref [] in
+  List.iter (fun pp1 -> find_common_pp accu simp_facts2 pp1 pps2) pps1;
+  (* print_string "Links: ";
+  List.iter (fun ri ->
+    Display.display_repl_index ri;
+    print_string " -> ";
+    begin
+      match ri.ri_link with
+      | TLink t -> Display.display_term t
+      | _ -> assert false
+    end;
+    print_newline()
+	    ) (!Terms.current_bound_ri);
+  print_string "Common pps between\n";
+  Display.display_pps pps1;
+  print_string "and\n";
+  Display.display_pps pps2;
+  print_string "Result = \n";
+  Display.display_pps (!accu); *)
+  !accu
+      
 let match_oracle_call simp_facts2 
-    (t1, true_facts1, defined_vars1, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1) 
-    (t2, true_facts2, defined_vars2, above_indices2, all_indices2, initial_indices2, used_indices2, really_used_indices2) =
+    (t1, true_facts1, pps1, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1) 
+    (t2, true_facts2, pps2, above_indices2, all_indices2, initial_indices2, used_indices2, really_used_indices2) =
   
   (*
   print_string "Depanal.match_oracle_call ";
@@ -1445,7 +1536,7 @@ let match_oracle_call simp_facts2
     try
       Facts.match_term_list3 simp_facts2 (fun () -> 
 	let common_facts = find_common match_fun true_facts1 true_facts2 in
-	let common_def_vars = find_common match_fun defined_vars1 defined_vars2 in
+	let common_pps = find_common_pps simp_facts2 pps1 pps2 in
 	Terms.ri_cleanup();
         (* Check that we can remove the same indices using common_facts as with all facts *)
 	let proba_state = Proba.get_current_state() in
@@ -1469,7 +1560,7 @@ let match_oracle_call simp_facts2
 	  List.iter (fun t ->
 	    Display.display_term t; print_newline()) common_facts;
 	  *)
-	    Some (t1, common_facts, common_def_vars, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1)
+	    Some (t1, common_facts, common_pps, above_indices1, all_indices1, initial_indices1, used_indices1, really_used_indices1)
 	  end
 	else
 	  begin

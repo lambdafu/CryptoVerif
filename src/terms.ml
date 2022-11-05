@@ -1605,6 +1605,21 @@ let try_no_var_rec simp_facts t =
 let equal_term_lists l1 l2 =
   equal_lists equal_terms l1 l2
 
+let equal_pp pp1 pp2 =
+  match pp1, pp2 with
+  | DProcess p1, DProcess p2 -> p1 == p2
+  | DInputProcess p1, DInputProcess p2 -> p1 == p2
+  | DTerm t1, DTerm t2
+  | DFunArgs t1, DFunArgs t2 -> t1 == t2
+  | DFunRestr, DFunRestr
+  | DGenVar, DGenVar
+  | DNone, DNone -> true
+  | _ -> false
+
+let equal_pps_args (ppl1,args1) (ppl2,args2) = 
+  (equal_lists_sets equal_pp ppl1 ppl2) &&
+  (equal_term_lists args1 args2)
+	
 let equal_action a1 a2 =
   match a1, a2 with
     AFunApp f, AFunApp f' -> f == f'
@@ -2499,7 +2514,12 @@ let subst_simp_facts cur_array l (substs, facts, elsefind) =
   List.iter (fun b -> b.ri_link <- NoLink) cur_array;
   (substs', facts', List.map (subst_else_find cur_array l) elsefind)
 
-
+let subst_pps cur_array l ppsl =
+  List.iter2 (fun b t -> b.ri_link <- (TLink t)) cur_array l;
+  let ppsl' = List.map (fun (ppl, args) -> (ppl, List.map (copy_term Links_RI) args)) ppsl in
+  List.iter (fun b -> b.ri_link <- NoLink) cur_array;
+  ppsl'
+    
 (* Substitution of v[v.args_at_creation] only
    Preserves occurrences of the original term. This is useful so that
    we can designate variables by occurrences in simplify coll_elim;
@@ -2768,7 +2788,9 @@ let make_equal_ext ext t t' =
   new_term Settings.t_bool ext
     (FunApp(Settings.f_comp Equal t.t_type t'.t_type, [t;t']))
 
-let make_equal t t' = make_equal_ext Parsing_helper.dummy_ext t t'
+let make_equal t t' = 
+  if equal_terms t t' then make_true() else
+  make_equal_ext Parsing_helper.dummy_ext t t'
 
 let make_let_equal t t' =
   begin
@@ -2782,7 +2804,9 @@ let make_diff_ext ext t t' =
   new_term Settings.t_bool ext
     (FunApp(Settings.f_comp Diff t.t_type t'.t_type, [t;t']))
 
-let make_diff t t' = make_diff_ext Parsing_helper.dummy_ext t t'
+let make_diff t t' = 
+  if equal_terms t t' then make_false() else
+  make_diff_ext Parsing_helper.dummy_ext t t'
 
 let make_for_all_diff t t' =
   app (Settings.f_comp ForAllDiff t.t_type t'.t_type) [t;t']
