@@ -835,9 +835,6 @@ let display_up_to_proba ?separate_time p =
       print_string "$"
     end
 
-let display_up_to_proba_set ?separate_time s =
-  display_up_to_proba ?separate_time (Polynom.proba_from_set s)
-  
 (* Result of an oracle in an equivalence *)
 
 let rec display_procasterm t = 
@@ -1471,9 +1468,9 @@ let display_instruct = function
       print_string "merge branches"
   | Proof ql -> 
       print_string "proof of ";
-      display_list (fun ((q,g), set) -> 
+      display_list (fun ((q,g), proba) -> 
 	display_query3 q;
-	display_up_to_proba_set ~separate_time:true set) ql
+	display_up_to_proba ~separate_time:true proba) ql
   | IFocus(ql) ->
       print_string "focus on queries";
       List.iter (fun q -> print_string "\\\\\n\\qquad -- "; display_query3 q) ql
@@ -1497,20 +1494,8 @@ let display_instruct = function
       print_string "guess branch at ";
       print_int occ
 	
-(* Explain probability formulas *)
-
-let display_proba_bound = function
-  | Display.BLeq(a,b) ->
-      print_string "$";
-      display_proba ~separate_time:true 0 a;
-      print_string " \\leq ";
-      display_proba ~separate_time:true 0 b;
-      print_string "$\\\\\n"
-  | Display.BSameGame(g1,g2,p) -> 
-      print_string ("Game "^(Display.get_game_id g1)^" is the same as game "^(Display.get_game_id g2));
-      display_up_to_proba ~separate_time:true p;
-      print_string ".\\\\\n"
-
+(* Display transformation steps *)
+	
 let display_pat_simp t =
   print_string (match t with 
     DEqTest -> " (equality test)"
@@ -1561,19 +1546,19 @@ let display_simplif_step = function
       print_string "\\\\\n"
   | STestTrue(p) ->
       print_string "\\qquad -- Test at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " always true\\\\\n"
   | STestFalse(p) ->
       print_string "\\qquad -- Test at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " always false\\\\\n"
   | STestMerge(p) ->
       print_string "\\qquad -- Merge branches of test at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | STestOr(p) ->
       print_string ("\\qquad -- Expand $" ^ (if !nice_tex then "\\vee " else "\\|\\|") ^ "$ in test at ");
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | STestEElim(t) ->
       print_string "\\qquad -- Transformed test at ";
@@ -1583,25 +1568,25 @@ let display_simplif_step = function
       print_string "\\qquad -- Remove branch ";
       get_find_branch p br;
       print_string " in find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindBranchNotTaken(p,br) -> 
       print_string "\\qquad -- Branch ";
       get_find_branch p br;
       print_string " not taken in find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindSingleBranch(p,br) ->
       print_string "\\qquad -- A single branch always succeeds in find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindRemoved(p) ->
       print_string "\\qquad -- Find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " removed (else branch kept if any)\\\\\n"
   | SFindElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindBranchMerge(p, brl) ->
       if get_nbr_find_branch p = List.length brl then
@@ -1612,7 +1597,7 @@ let display_simplif_step = function
 	  display_list (get_find_branch p) brl;
 	  print_string " with else branch of find at ";
 	end;
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindDeflist(p, def_list, def_list') ->
       if def_list == [] then
@@ -1633,29 +1618,29 @@ let display_simplif_step = function
 	  print_string "$"
 	end;
       print_string " in find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindCondition(p, t) ->
       print_string "\\qquad -- Simplified find at ";
       print_occ t.t_occ;
       print_string " in condition of find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindinFindBranch(p,p') ->
       print_string "\\qquad -- Simplified find at ";
-      print_occ (Incompatible.occ_from_pp p');
+      print_occ (Terms.occ_from_pp p');
       print_string " in branch of find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SFindtoTest(p) ->
       print_string "\\qquad -- Transformed find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " into a test\\\\\n"
   | SFindIndexKnown(p, br, subst) ->
       print_string "\\qquad -- In branch ";
       get_find_branch p br;
       print_string " of find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string ", substituting ";
       display_list (fun (b,t) -> 
 	print_string "$"; display_binder b; print_string "$ with $";
@@ -1663,43 +1648,43 @@ let display_simplif_step = function
       print_string "\\\\\n" 
   | SFindInferUnique(p) ->
       print_string "\\qquad -- Inferred that find at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " is [unique]\\\\\n" 
                    
   | SLetElseRemoved(p) ->
       print_string "\\qquad -- Remove else branch of let at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SLetRemoved(p) ->
       print_string "\\qquad -- Remove let at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SLetSimplifyPattern(p, l) -> 
       print_string "\\qquad -- Simplify ";
       display_pat_simp_list l;
       print_string " at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
 
   | SResRemoved(p) ->
       print_string "\\qquad -- Remove random number generation at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
   | SResToAssign(p) ->
       print_string "\\qquad -- Transform unused random number generation at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " into constant assignment";
       print_string "\\\\\n"
 
   | SEventRemoved(p) ->
       print_string "\\qquad -- Removed event at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " (no longer used in queries)";
       print_string "\\\\\n"
 	
   | SAdvLoses(p) ->
       print_string "\\qquad -- Adversary always loses at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string "\\\\\n"
 
 let display_detailed_ins = function
@@ -1709,7 +1694,7 @@ let display_detailed_ins = function
       print_string "$\\\\\n"
   | DProveUnique p ->
       print_string "\\quad -- Proved that [unique] annotation at ";
-      print_occ (Incompatible.occ_from_pp p);
+      print_occ (Terms.occ_from_pp p);
       print_string " is correct\\\\\n";
   | DExpandIfFind(l) ->
       print_string "\\quad -- Expand if/find/let\\\\\n";
@@ -1731,7 +1716,7 @@ let display_detailed_ins = function
       print_string "\\quad -- Simplify ";
       display_pat_simp_list l;
       print_string " at ";
-      print_occ (Incompatible.occ_from_pp let_p);
+      print_occ (Terms.occ_from_pp let_p);
       print_string "\\\\\n"
   | DRemoveAssign(b, def_ch, usage_ch) ->
       print_string "\\quad -- Remove assignments on $";
@@ -1877,7 +1862,7 @@ let rec display_state ins_next s =
 	  List.iter (fun ((q,g), p') -> 
 	    print_string "Proved ";
 	    display_query (q, s'.game);
-	    display_up_to_proba_set ~separate_time:true p';
+	    display_up_to_proba ~separate_time:true p';
 	    print_string "\\\\\n"
 	      ) ql;
 	  if p != [] then
@@ -1907,6 +1892,20 @@ let rec display_state ins_next s =
 	  Display.useful_occs := []
     end
 
+(* Display probability bounds *)
+
+let display_proba_bound = function
+  | BLeq(a,b) ->
+      print_string "$";
+      display_proba ~separate_time:true 0 a;
+      print_string " \\leq ";
+      display_proba ~separate_time:true 0 b;
+      print_string "$\\\\\n"
+  | BSameGame(g1,g2,p) -> 
+      print_string ("Game "^(Display.get_game_id g1)^" is the same as game "^(Display.get_game_id g2));
+      display_up_to_proba ~separate_time:true p;
+      print_string ".\\\\\n"
+
 let display_time_id_eq cat =
   match cat with
   | Game(g) | Context(g) when g.game_number <> -1 ->
@@ -1914,42 +1913,28 @@ let display_time_id_eq cat =
       display_time_id cat
   | _ -> ()
 		
-let display_state s =
+let display_state sdi =
   (* Display the proof tree *)
   times_to_display := [];
   already_displayed := [];
-  let initial_queries = Display.get_initial_queries s in
-  let states_needed_in_queries = Display.get_all_states_from_queries initial_queries in
-  let states_to_display = Display.remove_duplicate_states [] (s::states_needed_in_queries) in
   (* Set a tab stop after the occurrence display *)
   print_string "\\begin{tabbing}\n";
   print_string (String.make (Display.len_num (!Terms.max_occ) + 2) '0');
   print_string "\\=\\kill\n";
-  List.iter (fun s -> display_state [] s) states_to_display;  
+  List.iter (fun s -> display_state [] s) sdi.states_to_display;  
   print_string "\\end{tabbing}\n";
 
   (* Display the probabilities of proved queries *)
-  let (non_unique_initial_queries, other_initial_queries) =
-    List.partition Terms.is_nonunique_event_query initial_queries
-  in
-  if List.for_all (fun ((q,_),poptref) -> Display.is_full_poptref q poptref) non_unique_initial_queries then
-    List.iter (fun (((q,_) as q_g, poptref) as full_q) ->
-      if Display.is_full_poptref q poptref then
-	begin
-          let (bounds, p'') = Display.compute_proba full_q in
-	  List.iter display_proba_bound bounds;	  
-	  if Display.has_assume p'' then
-	    begin
-	      print_string "RESULT Using unchecked commands, shown ";
-	      poptref := ToProve
-	    end
-	  else
-            print_string "RESULT Proved ";
-          display_query q_g;
-	  display_up_to_proba ~separate_time:true (Polynom.simplify_proba p'');
-	  print_string "\\\\\n"
-	end
-	  ) other_initial_queries;
+  List.iter (fun (q_g, bounds, assume, p) ->
+    List.iter display_proba_bound bounds;	  
+    if assume then
+      print_string "RESULT Using unchecked commands, shown "
+    else
+      print_string "RESULT Proved ";
+    display_query q_g;
+    display_up_to_proba ~separate_time:true p;
+    print_string "\\\\\n"
+      ) sdi.proved_queries;
 
   (* Display the runtimes *)
   let rec display_times() = 
@@ -1973,14 +1958,14 @@ let display_state s =
   display_times();
 
   (* List the unproved queries *)
-  let rest = List.filter (function (q, poptref) -> (!poptref) == ToProve || (!poptref) == Inactive) initial_queries in
-  let rest' = List.filter (function (AbsentQuery, _),_ -> false | _ -> true) rest in
+  let rest = sdi.unproved_queries in
+  let rest' = List.filter (function (AbsentQuery, _) -> false | _ -> true) rest in
   if rest = [] then
     print_string "All queries proved.\\\\\n"
   else if rest' != [] then
     begin
       print_string "RESULT Could not prove ";
-      display_list (fun (q, _) -> display_query q) rest;
+      display_list display_query rest;
       print_string ".\\\\\n"
     end
 

@@ -619,7 +619,7 @@ and instruct =
   | ReplaceTerm of string(*term*) * Parsing_helper.extent * int (*occurrence of replacement*) * Parsing_helper.extent * replace_check_opt_t
   | MergeArrays of (binder * Parsing_helper.extent) list list * merge_mode
   | MergeBranches
-  | Proof of ((query * game) * setf list) list
+  | Proof of ((query * game) * probaf) list
   | IFocus of query list
   | Guess of guess_arg_t
   | GuessBranch of int(*occurrence of branching instruction to guess*) * Parsing_helper.extent
@@ -1070,3 +1070,15 @@ type count_elem =
       mutable el_active : bool;
       mutable el_color : int;
       mutable el_index : int }
+
+(* Information to display the state *)
+
+type proba_bound =
+  | BLeq of probaf * probaf
+  | BSameGame of game * game * probaf
+
+type state_display_info =
+    { states_to_display : state list;
+      proved_queries : ((query * game) * proba_bound list * bool * probaf) list;
+      unproved_queries : (query * game) list }
+      

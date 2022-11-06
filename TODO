@@ -24,22 +24,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-
-Restructure: in Display/Displaytex, have a function
-display_full_state
-  { states_to_display
-    proved_queries : list of (query, bounds, proba)
-    unproved_queries }
-display_conclusion unproved_queries
-And compute the states_to_display, proved_queries, unproved_queries
-elsewhere (in proba.ml?).
-I would like to move Display/Displaytex earlier in the build,
-but it looks like I need Polynom in display,
-to simplify probabilities (to display (Proof ql) instructions)
-Perhaps I could change the probability inside (Proof ql)
-from setf to probaf, to avoid that?
-
-
 When collecting future facts, I could be more precise: event_abort X
 means *any* fact is true, because the game will not reach the point that
 uses the future facts. (be careful with proof of correspondences,
@@ -6809,4 +6793,15 @@ let f_oracle(k: key) =
     out(ch2, k).
 
 }
+DONE 6/11/2022
+
+Restructure: in Display/Displaytex, have a function
+display_full_state
+  { states_to_display
+    proved_queries : list of (query, bounds, proba)
+    unproved_queries }
+display_conclusion unproved_queries
+And compute the states_to_display, proved_queries, unproved_queries
+elsewhere (in proba.ml?).
+I would like to move Display/Displaytex earlier in the build
 DONE 6/11/2022

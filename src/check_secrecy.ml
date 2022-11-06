@@ -522,10 +522,10 @@ let check_one_session_secrecy collector b pub_vars =
     if !not_found_flag then raise Not_found;
     if (!advise) == [] then
       begin
-	let proba = Depanal.get_proba() in
+	let proba = Polynom.proba_from_set (Depanal.get_proba()) in
 	print_string "Proved one-session secrecy of ";
 	Display.display_binder b;
-	Display.display_up_to_proba_set proba;
+	Display.display_up_to_proba proba;
 	print_newline();
 	detected_leaks := [];
 	current_restr := None;
@@ -541,7 +541,7 @@ let check_one_session_secrecy collector b pub_vars =
 	detected_leaks := [];
 	current_restr := None;
 	public_vars := [];
-	(false, [])
+	(false, Zero)
       end
   with Not_found ->
     display_leaks b;
@@ -549,7 +549,7 @@ let check_one_session_secrecy collector b pub_vars =
     detected_leaks := [];
     current_restr := None;
     public_vars := [];
-    (false, [])
+    (false, Zero)
 
 (*****
    [check_distinct b g] shows that elements of the array [b] 
@@ -680,17 +680,17 @@ let check_secrecy g collector b pub_vars one_session =
     if r1 = false && Terms.collector_useless collector then
       begin
 	Depanal.final_empty_state();
-	(one_session_result, Some (false, [])) 
+	(one_session_result, Some (false, Zero)) 
       end
     else
       let r2 = check_distinct collector b in
       if r1 && r2 then
 	begin
           (* Add probability for eliminated collisions *)
-	  let proba = Depanal.final_add_proba() in 
+	  let proba = Polynom.proba_from_set (Depanal.final_add_proba()) in 
 	  print_string "Proved secrecy of ";
 	  Display.display_binder b;
-	  Display.display_up_to_proba_set proba;
+	  Display.display_up_to_proba proba;
 	  print_newline();
 	  (one_session_result, Some(true, proba))
 	end
@@ -703,5 +703,5 @@ let check_secrecy g collector b pub_vars one_session =
 			    (Display.binder_to_string b) ^ " failed:\n");
 	      print_string "  Proved one-session secrecy but not secrecy.\n";
 	    end;
-	  (one_session_result, Some(false, []))
+	  (one_session_result, Some(false, Zero))
 	end

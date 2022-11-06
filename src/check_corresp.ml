@@ -256,14 +256,14 @@ let case_check facts
        after the one at [end_pp], we are not sure that the full
        input..output block of [end_pp] has been executed,
        so we are not sure that the future_defvars are really defined. *)
-    if (Incompatible.occ_from_pp end_pp != Incompatible.occ_from_pp end_pp') &&
+    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
       (Facts.is_before_same_block end_pp end_pp') then
       []
     else
       get_future_defvars end_pp new_end_sid
   in
   let future_def_vars' =
-    if (Incompatible.occ_from_pp end_pp != Incompatible.occ_from_pp end_pp') &&
+    if (Terms.occ_from_pp end_pp != Terms.occ_from_pp end_pp') &&
       (Facts.is_before_same_block end_pp' end_pp) then
       []
     else
@@ -290,7 +290,7 @@ let check_inj_compat
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
 	if List.for_all2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
-	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (* The program points of end events are the same, we require some indices to be different *)
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
@@ -354,7 +354,7 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
 	    let display_end_sid_occ (end_pp, end_sid) =
-	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
+	      print_int (Terms.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
 	    Display.display_list display_end_sid_occ injrepidx_pps;
@@ -665,14 +665,14 @@ let optim_non_unique collector event_accu ((t1,t2,pub_vars) as q) =
 		List.iter (fun (t1',end_pp) ->
 		  add_to_collector_f_false collector q end_pp t1'
 		    ) event_accu;
-	      Some (false, [])
+	      Some (false, Zero)
 	    end
 	  else
 	    (* Do the detailed proof *)
 	    None
 	with Not_found ->
 	  (* Event [f] does not occur in the game, the query is proved *)
-	  Some (true, [])
+	  Some (true, Zero)
       end
   | None ->
       (* Do the detailed proof *)
@@ -930,11 +930,11 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
   in
   if r then
     (* Add probability for eliminated collisions *)
-    (true, Depanal.final_add_proba())
+    (true, Polynom.proba_from_set (Depanal.final_add_proba()))
   else
     begin
       Terms.add_to_collector collector (CollectorProba (Depanal.get_and_final_empty_state()));
-      (false, [])
+      (false, Zero)
     end
       )
 
@@ -968,7 +968,7 @@ let check_inj_compat
       (* different end events: injrepidx_pps \neq injrepidx_pps' *)
       let facts'' =
 	if List.for_all2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
-	  Incompatible.occ_from_pp end_pp == Incompatible.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
+	  Terms.occ_from_pp end_pp == Terms.occ_from_pp end_pp') injrepidx_pps injrepidx_pps' then
 	  (* The program points of end events are the same, we require some indices to be different *)
 	  (Terms.make_or_list (List.concat (List.map2 (fun (end_pp, end_sid) (end_pp', end_sid') ->
 	    (List.map2 Terms.make_diff end_sid end_sid')) injrepidx_pps injrepidx_pps'))) ::facts'
@@ -1029,7 +1029,7 @@ let add_inj (simp_facts, elsefind_facts_list, injrepidx_pps, repl_indices, vars)
 	    List.iter (fun f -> Display.display_term f; print_newline()) new_facts;
 	    print_string "Inj rep idxs:";
 	    let display_end_sid_occ (end_pp, end_sid) =
-	      print_int (Incompatible.occ_from_pp end_pp); print_string ", ";
+	      print_int (Terms.occ_from_pp end_pp); print_string ", ";
 	      Display.display_list Display.display_term end_sid
 	    in
 	    Display.display_list display_end_sid_occ injrepidx_pps;

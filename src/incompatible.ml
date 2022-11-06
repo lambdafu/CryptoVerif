@@ -139,14 +139,6 @@ and compatible_def_oprocess cur_array_length current_incompatible p =
 let build_compatible_defs p = 
   compatible_def_process 0 Occ_map.empty p
 
-(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
-
-let occ_from_pp = function
-    DProcess(p) -> p.p_occ
-  | DTerm(t) -> t.t_occ
-  | DInputProcess(p) -> p.i_occ
-  | _ -> raise Not_found
-
 (* [incomp_from_pp pp] returns a triple containing
    - the occurrence of program point [pp]
    - the maximum occurrence of program points under [pp] in the syntax tree.
@@ -621,7 +613,7 @@ let may_def_before (b,args) (b',args') =
 
 let is_under pp pp' =
   try 
-    let occ = occ_from_pp pp in
+    let occ = Terms.occ_from_pp pp in
     let occ', max_occ', _ = incomp_from_pp pp' in
     (occ' <= occ) && (occ <= max_occ')
   with Not_found -> false

@@ -78,8 +78,8 @@ let check_equivalence collector state game =
     (check_active " on the other side" state.game) &&
     (check_included " on this side" game " on the other side" state.game) &&
     (check_included " on the other side" state.game " on this side" game)
-  then (true, proba)
-  else (false, [])
+  then (true, Polynom.proba_from_set proba)
+  else (false, Zero)
       
 (* [check_query q] proves the query [q]. 
    It returns [(true, proba)] when [q] holds up to probability [proba].
@@ -100,7 +100,7 @@ let check_query collector event_accu = function
   | (AbsentQuery,_) ->
       (* The adversary may always win *)
       Terms.collector_set_no_info collector;
-      (false, [])
+      (false, Zero)
   | (query, _) ->
       let (r, proba) =
 	match query with
@@ -117,11 +117,11 @@ let check_query collector event_accu = function
 	begin
 	  print_string "Proved query ";
 	  Display.display_query3 query;
-	  Display.display_up_to_proba_set proba;
+	  Display.display_up_to_proba proba;
 	  print_newline();
 	  (true, proba)
 	end
-      else (false, [])
+      else (false, Zero)
 
 (* [check_query_list collector event_accu state qlist] takes a list of queries [qlist], tries to prove
    those that are not proved yet, and returns
@@ -142,45 +142,12 @@ let rec check_query_list collector event_accu state = function
 	  if res then
 	    begin
 	      (* The query is proved *)
-              poptref := Proved([fst a], Polynom.proba_from_set proba, state);
+              poptref := Proved([fst a], proba, state);
 	      ((a,proba)::l', b)
 	    end
 	  else 
 	    (* The query is not proved *)
 	    (l', false)
-
-(* [update_full_proof query_list (q, poptref, popt)] updates [poptref]
-   with the proof of query [q] when [q] is fully proved.
-   Indeed, when we introduce events during the proof of a query [q],
-   it is not enough to prove [q] on the final game, we must also 
-   bound the probability that the events introduced during the proof happen. 
-   [popt = Some(proba, state)] records the proof that the query [q] 
-   is proved in the final game of [state], so that it holds up to 
-   probability [proba] in the initial game. 
-   However, [proba] may refer to the probabilities of events introduced
-   during the proof. 
-   [update_full_proof] sets [poptref] to [proba] when the probability
-   of these events has also been bounded. *)
-
-let rec update_full_proof state =
-  match state.prev_state with
-    None -> ()
-  | Some(_, proba, _, s') ->
-      if List.for_all Display.is_full_proba proba then
-	begin
-	  (* Transfer proved queries from [state] to the previous state [s'] *)
-	  List.iter (fun (q, poptref) ->
-	    if !poptref = ToProve then
-	      let poptref' = List.assq q state.game.current_queries in
-	      match !poptref' with
-	      | Proved(ql, proba_info, state') ->
-		  if Display.is_full_probaf (fst q) proba_info then
-		    poptref := !poptref'
-	      | _ -> ()
-		  ) s'.game.current_queries;
-	  update_full_proof s'
-	end
-
     
 (* [is_success collector state] tries to prove queries that still need to be
    proved in [state]. It updates the proofs of the queries inside
@@ -205,7 +172,7 @@ let is_success collector state =
     | _ -> false) g.current_queries in
   let queries = equiv_queries @ other_queries in
   let res = check_query_list collector (!event_accu) state queries in
-  update_full_proof state;
+  Compute_state_display_info.update_full_proof state;
   Terms.set_var_num_state vcounter; (* Forget created variables *)
   proved_one_session_secrets := [];
   Improved_def.empty_improved_def_game true g;

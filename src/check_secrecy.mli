@@ -13,4 +13,4 @@ open Types
    and [result = false] when the property is not proved.
 *)
 val check_secrecy : game -> known_when_adv_wins ref option ->
-  binder -> binder list -> bool -> (bool * setf list) * (bool * setf list) option
+  binder -> binder list -> bool -> (bool * probaf) * (bool * probaf) option

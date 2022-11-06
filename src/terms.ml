@@ -602,6 +602,14 @@ let new_occ() =
   if !occ > !max_occ then max_occ := !occ;
   !occ
 
+(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
+
+let occ_from_pp = function
+    DProcess(p) -> p.p_occ
+  | DTerm(t) -> t.t_occ
+  | DInputProcess(p) -> p.i_occ
+  | _ -> raise Not_found
+
 (* Get the else branch of let for terms *)
 
 let get_else = function

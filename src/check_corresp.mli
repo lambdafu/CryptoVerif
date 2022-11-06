@@ -7,7 +7,7 @@ open Types
    collisions eliminated to reach that result. *)
 val check_corresp : 
     known_when_adv_wins ref option -> (term * program_point) list -> 
-    (bool * term) list * qterm * binder list -> game -> bool * setf list
+    (bool * term) list * qterm * binder list -> game -> bool * probaf
 
 (* [remove_inj event_accu g q] returns
    - [Some(q',proba)] when [q] is an injective correspondence and 

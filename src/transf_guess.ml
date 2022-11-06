@@ -248,7 +248,7 @@ let is_guess_var cur_array pp b =
 		true
 	      end
 	    else
-	      raise (Error("Just before occurrence "^(string_of_int (Incompatible.occ_from_pp pp))^", cannot determine whether the guessed variable has the desired indices or not", ext_command()))
+	      raise (Error("Just before occurrence "^(string_of_int (Terms.occ_from_pp pp))^", cannot determine whether the guessed variable has the desired indices or not", ext_command()))
 	  with Contradiction ->
             (* The program point [p] is in fact unreachable
 	       or we proved that [eq] is false, so l <> cur_array *)

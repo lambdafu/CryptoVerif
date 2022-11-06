@@ -781,32 +781,8 @@ let rec issuccess_with_advise collector state =
     else
       (state'', is_done'')
 
-let rec undo_absent_query state =
-  List.iter (function 
-      (AbsentQuery, g), poptref -> poptref := ToProve
-    | _ -> ()) state.game.current_queries;
-  match state.prev_state with
-      None -> ()
-    | Some(_, _, _, s') -> undo_absent_query s'
-	
 let display_state final state =
-  (* AbsentQuery is proved in the current state, if present *)
-  let state' = 
-    let eq_queries = List.filter (function (AbsentQuery, _),_ -> true | _ -> false) state.game.current_queries in
-    if eq_queries == [] then
-      state
-    else
-      begin
-	List.iter (function 
-	  | (AbsentQuery, g), poptref -> 
-	      poptref := Proved([AbsentQuery], Zero, state)
-	  | q -> ()) eq_queries;
-	Success.update_full_proof state;
-	{ game = state.game;
-	  prev_state = Some (Proof (List.map (fun (q, _) -> (q, [])) eq_queries), [], [], state);
-	  tag = None }
-      end
-  in
+  let state_display_info = Compute_state_display_info.compute_state_display_info state in
   (* Display the state *)
   if final && ((!Settings.proof_output) <> "" || (!Settings.tex_output) <> "") then
     begin
@@ -815,20 +791,18 @@ let display_state final state =
 	  print_string ("Outputting proof in " ^ (!Settings.proof_output));
 	  print_newline();
 	  Display.file_out (!Settings.proof_output) dummy_ext (fun () ->
-	    Display.display_state state')
+	    Display.display_state state_display_info)
 	end;
       if (!Settings.tex_output) <> "" then
 	begin
 	  print_string ("Outputting latex proof in " ^ (!Settings.tex_output));
 	  print_newline();
-	  Displaytex.display_state state';
+	  Displaytex.display_state state_display_info;
 	end;
-      Display.display_conclusion state'
+      Display.display_conclusion state_display_info
     end
   else
-    Display.display_state state';
-  (* Undo the proof of AbsentQuery *)
-  undo_absent_query state
+    Display.display_state state_display_info
 
 let rec display_short_state state =
   match state.prev_state with

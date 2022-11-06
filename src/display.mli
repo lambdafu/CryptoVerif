@@ -36,7 +36,7 @@ val display_statement : statement -> unit
 val display_collision : collision -> unit
 val display_pattern : pattern -> unit
 val display_proba : ?separate_time:bool -> int -> probaf -> unit
-val display_up_to_proba_set : ?separate_time:bool -> setf list -> unit
+val display_up_to_proba : ?separate_time:bool -> probaf -> unit
 val display_polynom : polynom -> unit
 val display_equiv : equiv_nm -> unit
 val display_equiv_with_name : equiv_nm -> unit
@@ -62,35 +62,8 @@ val display_def_list_lines : binderref list -> unit
 val display_ppl : program_points_args -> unit
 val display_pps : program_points_args list -> unit
     
-(*** The next functions are made public so that displaytex can call them ***)
-
-val has_assume : probaf -> bool
-    
-(* [is_full_*] returns [true] when the probability of its argument
-   is fully determined (that is, it does not refer to a query that
-   has not been proved yet. *)
-val is_full_poptref : query -> proof_t ref -> bool
-val is_full_probaf : query -> probaf -> bool
-val is_full_proba : setf -> bool
-
-type proba_bound =
-  | BLeq of probaf * probaf
-  | BSameGame of game * game * probaf
-    
-(* [compute_proba ((q,g),poptref)] computes the probability [p] of
-   breaking query [q] in game [g], and returns [(bounds, p)].
-   All intermediate events and queries needed to prove [q] must be proved,
-   otherwise it causes an internal error.
-   Intermediate results are stored in [bounds] to be displayed after the function 
-   returns. *)
-val compute_proba :
-    (query * game) * proof_t ref -> proba_bound list * probaf
-    
 val get_initial_game : state -> game
-val get_initial_queries : state -> cur_queries_t
-val get_all_states_from_queries : cur_queries_t -> state list
-val remove_duplicate_states : state list -> state list -> state list
 
 (*** Display the result ***)
-val display_state : state -> unit
-val display_conclusion : state -> unit
+val display_state : state_display_info -> unit
+val display_conclusion : state_display_info -> unit

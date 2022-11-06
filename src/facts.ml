@@ -3340,7 +3340,7 @@ let display_fact_pp pp =
     let (facts, _, _, _) = get_facts_at pp in
     List.iter (fun f -> Display.display_term f; Display.print_newline()) facts
   with Contradiction ->
-    Display.print_string ("Program point at "^(string_of_int (Incompatible.occ_from_pp pp))^" is unreachable.");
+    Display.print_string ("Program point at "^(string_of_int (Terms.occ_from_pp pp))^" is unreachable.");
     Display.print_newline()
   
 let rec display_facts_at p occ =

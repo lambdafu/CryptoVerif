@@ -278,6 +278,8 @@ val ri_auto_cleanup_failure : (unit -> 'a) -> 'a
 val max_occ : int ref
 (* [new_occ()] returns a new occurrence number *)
 val new_occ : unit -> int
+(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
+val occ_from_pp : program_point -> int
 
 (* State used to choose variable numbers *)
 type var_num_state

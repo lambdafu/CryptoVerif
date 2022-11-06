@@ -7,7 +7,7 @@ val display_statement : statement -> unit
 val display_equiv : equiv_nm -> unit
 val display_process : inputprocess -> unit
 
-val display_state : state -> unit
+val display_state : state_display_info -> unit
 
 val print_string : string -> unit
 val start : unit -> unit

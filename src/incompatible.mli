@@ -7,9 +7,6 @@ val build_compatible_defs : inputprocess -> unit
 (* [get_facts pp] returns the fact_info at program point [pp] *)
 val get_facts : program_point -> fact_info
 
-(* [occ_from_pp pp] returns the occurrence of program point [pp] *)
-val occ_from_pp : program_point -> int
-    
 (* [incompatible_suffix_length_var_var b b'] returns a length [l] such that if
    [b[args]] and [b'[args']] are both defined, then the suffixes of
    length [l] of [args] and [args'] must be different.
