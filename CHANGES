@@ -3,6 +3,7 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Added universal one-way hash functions to the library of primitives.
 - Allow explicit quantifiers in correspondence queries:
   forall xi:Ti; ... ==> exists yj:T'j; ...  
   (This is now the recommended syntax. The old syntax is still

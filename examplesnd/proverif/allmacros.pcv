@@ -136,6 +136,10 @@ expand CollisionResistant_hash_3(key, hashinput1, hashinput2, hashinput3, hashou
 expand CollisionResistant_hash_4(key, hashinput1, hashinput2, hashinput3, hashinput4, hashoutput, hash9, hashoracle9, Phash).
 expand CollisionResistant_hash_5(key, hashinput1, hashinput2, hashinput3, hashinput4, hashinput5, hashoutput, hash10, hashoracle10, Phash).
 
+expand UniversalOneWay_hash(key, hashinput, hashoutput, hash6ow, hashoracle6ow, Phash).
+expand UniversalOneWay_hash_2(key, hashinput1, hashinput2, hashoutput, hash7ow, hashoracle7ow, Phash).
+expand UniversalOneWay_hash_3(key, hashinput1, hashinput2, hashinput3, hashoutput, hash8ow, hashoracle8ow, Phash).
+
 proba Phash2.
 expand HiddenKeyCollisionResistant_hash(key, hashinput, hashoutput, hash6h, hashoracle6h, qH6h, Phash2).
 expand HiddenKeyCollisionResistant_hash_2(key, hashinput1, hashinput2, hashoutput, hash7h, hashoracle7h, qH7h, Phash2).

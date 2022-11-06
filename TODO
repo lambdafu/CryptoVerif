@@ -25,25 +25,6 @@ HIGH PRIORITY
 0.1) For the next release:
 
 
-
-Add universal one-way hash functions:
-def UOW_hash(key, input1, output, f, f_oracle, Phash) {
-
-fun f(key, input1):output.
-
-collision k <-R key; forall x1:input1, y1:input1;
-        return(f(k, x1) = f(k, y1)) <=(Phash(time))=> return((x1 = y1))
-        if x1 independent-of k.
-
-channel ch1, ch2.
-
-let f_oracle(k: key) =
-    in(ch1, ());
-    out(ch2, k).
-
-}
-
-
 Restructure: in Display/Displaytex, have a function
 display_full_state
   { states_to_display
@@ -458,7 +439,7 @@ Beware of quantum random oracles https://eprint.iacr.org/2010/428.pdf
    to the session identifiers of ProVerif)
 
    - Encode more ProVerif queries in CryptoVerif
-choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
+diff/choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
 choosing new b:bool at the beginning and 
 replacing choice[M1,M2] with "if b then M1 else M2"
       We prove the secrecy of b.
@@ -475,20 +456,30 @@ replacing choice[M1,M2] with "if b then M1 else M2"
       f(test(b,M1,M2)) = test(b,f(M1),f(M2)),...)
       or as if b then M1 else M2 in CryptoVerif (leads to expansion).
 
-      But needs a test function for each type, while choice is
+      But needs a test function for each type, while diff/choice is
       polymorphic in ProVerif. Better results would be obtained
-      by using choice as input, encoded in CryptoVerif by a special
-      test function with homomorphic properties and that can be
+      by using diff/choice as input, encoded in CryptoVerif by a special
+      test (written diff) function with homomorphic properties and that can be
       expanded to "if b then M1 else M2" when desired.
-      For the expansion of "test(b,M1,M2)" into
+      For the expansion of "diff(b,M1,M2)" into
       "if b then M1 else M2", use the "replace" command.
       Extend it to accept "if" in the new term,
-      transform "if" into "test" before checking equality
+      transform "if" into "diff" before checking equality
       with the old term.
-      When the new term contains "if", the resulting
+      When the new term contains "if", the resulting game
       is not expanded.
       Call "expand" after "replace" to expand it when
       auto_expand is set.
+      Perhaps a specific command would be better: "diff_to_if"
+      taking as argument occurrences, or nothing -> do it everywhere.
+
+      Transformation "move_diff_up" which can take an occurrence
+      (or occurrences) as argument: the term at that occurrence
+      should contain diff somewhere, replace it with diff at the top.
+      "move_diff_up" with a function symbol as argument applies
+      that to all terms with this function symbol at the root.
+      "auto_move_diff_up <fct symbols>" applies that to the function
+      symbols in the list as part of simplify.
       
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
@@ -6801,3 +6792,21 @@ textsecure: checked first 2 tests
 WG checked  (checked 1 desynchronized example over 6)
 PROTOCOL examples/wireguard/WG.25519.AB-BA.S_i_compr.S_r_compr.replay_prot.cv
 CHECKS DONE
+
+Add universal one-way hash functions:
+def UOW_hash(key, input1, output, f, f_oracle, Phash) {
+
+fun f(key, input1):output.
+
+collision k <-R key; forall x1:input1, y1:input1;
+        return(f(k, x1) = f(k, y1)) <=(Phash(time))=> return((x1 = y1))
+        if x1 independent-of k.
+
+channel ch1, ch2.
+
+let f_oracle(k: key) =
+    in(ch1, ());
+    out(ch2, k).
+
+}
+DONE 6/11/2022

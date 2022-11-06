@@ -105,6 +105,7 @@ let rom_hash_prefix =
    output: type of the output of the hash function, must be \"bounded\" or \"nonuniform\" (typically \"fixed\").
 
    f: the hash function.
+   f_oracle(k): hash oracle with key k.
    WARNING: f is a keyed hash function.
    The key must be generated once and for all at the beginning of the game 
    and the hash oracle must be made available to the adversary,
@@ -153,7 +154,8 @@ let coll_hash_prefix =
    output: type of the output of the hash function
 
    f: the hash function.
-   Phash: probability of breaking collision resistance.
+   f_oracle(k): oracle that outputs the key k.
+   Phash(t): probability of breaking collision resistance.
    WARNING: A collision resistant hash function is a keyed hash function.
    The key must be generated once and for all at the beginning of the game,
    and immediately made available to the adversary, for instance by
@@ -189,7 +191,8 @@ let gen_coll() =
 
 let hidden_key_coll_hash_prefix =
 "(* Hidden-key collision resistant hash function
-   The interface is similar to collision-resistant hash functions, except for the addition of qH.
+   The interface is similar to collision-resistant hash functions, except for
+   the addition of qH. f_oracle(k) is a hash oracle with key k, it does not return k.
    WARNING: A hidden-key collision resistant hash function is a keyed hash function.
    The key must be generated once and for all at the beginning of the game,
    and the hash oracle must be made available to the adversary,
@@ -479,6 +482,51 @@ let gen_fixed_pre() =
     (fixed_pre_hash_macro())
     fixed_pre_hash_suffix
       
+(* Universal one-way hash functions *)
+    
+let uow_hash_prefix =
+"(* Universal one-way hash function 
+   key: type of the key of the hash function, must be \"bounded\" or \"nonuniform\", typically \"fixed\"
+   input%: type of the %-th input of the hash function
+   output: type of the output of the hash function
+
+   f: the hash function.
+   f_oracle(k): oracle that outputs the key k.
+   Phash(t): probability of breaking universal one-wayness.
+   WARNING: A (family of) universal one-way hash function(s) is a keyed hash
+   function.  The key must be made available to the adversary, for
+   instance by including the process f_oracle(k), where
+   k is the key. The key is often generated once and for all
+   at the beginning of the game, and immediately made available to the
+   adversary.
+
+   The types key, input%, output, and the probability Phash
+   must be declared before this macro.  The function f and the
+   process f_oracle are defined by this macro. They must not be
+   declared elsewhere, and they can be used only after expanding the
+   macro.
+
+ *)\n\n"
+      
+let uow_hash_macro() =
+"def UniversalOneWay_hash_%(key, $input%$, $, output, f, f_oracle, Phash) {
+
+fun f(key, $input%$, $):output.\n\n"
+    ^(if (!front_end = ProVerif) then "" else 
+      "collision k <-R key; forall $x%:input%$, $, $y%:input%$, $;
+         return(f(k, $x%$, $) = f(k, $y%$, $)) <=(Phash(time))=> return($(x% = y%)$ && $)
+         if $x% independent-of k$ && $.\n\n")	
+    ^(key_ret_oracle())
+    ^ "\n\n}\n\n"
+
+let uow_hash_suffix =
+"def UniversalOneWay_hash(key, input, output, f, f_oracle, Phash) {
+expand UniversalOneWay_hash_1(key, input, output, f, f_oracle, Phash).
+}\n\n"
+
+let gen_uow() =
+  var_arg_macro uow_hash_prefix (uow_hash_macro()) uow_hash_suffix
+
 (* Pseudo random functions *)
 
 let prf_prefix =
@@ -687,6 +735,7 @@ let gen s =
   | "PreimageResistant_hash" -> gen_pre()
   | "HiddenKeyPreimageResistant_hash" -> gen_hidden_key_pre()
   | "FixedPreimageResistant_hash" -> gen_fixed_pre()
+  | "UniversalOneWay_hash" -> gen_uow()	
   | "PRF" -> gen_prf false
   | "PRF_large" -> gen_prf true
   | "ICM_cipher" -> gen_icm()
@@ -702,6 +751,7 @@ let gen s =
       gen_pre();
       gen_hidden_key_pre();
       gen_fixed_pre();
+      gen_uow();
       gen_prf false;
       gen_prf true;
       gen_icm();
@@ -752,5 +802,5 @@ let _ =
 	    final := n) ],
 	  "<min> <max>\tgenerate primitives with from <min> to <max> arguments"
     ]
-    gen ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  cryptogen [options] <primitive>\nto print macro for the primitive <primitive>.\n\nAllowed primitives:\n  ROM_hash\n  ROM_hash_large\n  CollisionResistant_hash\n  HiddenKeyCollisionResistant_hash\n  SecondPreimageResistant_hash\n  HiddenKeySecondPreimageResistant_hash\n  FixedSecondPreimageResistant_hash\n  PRF\n  PRF_large\n  ICM_cipher\n  random_split\n  all (to print macros for all primitives above)\n\nOptions:")
+    gen ("Crypto library generator, by Bruno Blanchet\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  cryptogen [options] <primitive>\nto print macro for the primitive <primitive>.\n\nAllowed primitives:\n  ROM_hash\n  ROM_hash_large\n  CollisionResistant_hash\n  HiddenKeyCollisionResistant_hash\n  SecondPreimageResistant_hash\n  HiddenKeySecondPreimageResistant_hash\n  FixedSecondPreimageResistant_hash\n  UniversalOneWay_hash\n  PRF\n  PRF_large\n  ICM_cipher\n  random_split\n  all (to print macros for all primitives above)\n\nOptions:")
 
