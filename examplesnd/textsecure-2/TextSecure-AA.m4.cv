@@ -28,7 +28,7 @@ crypto rom(H4);
 out_game "g3.cv";
 crypto gdh(gexp_div_8) [variables: secA0 -> a, sephSecAB1 -> a, ephSecAB1 -> a, ephSecBA1 -> a, ephSecBA1' -> a, ephSecBA2 -> a, ephSecBA2' -> a .];
 crypto int_ctxt(enc) *;
-crypto ind_cpa(enc) *;
+crypto ind_cpa(enc) **;
 success
 }
 

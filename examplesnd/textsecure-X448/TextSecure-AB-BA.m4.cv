@@ -40,7 +40,7 @@ crypto rom(H4);
 out_game "g3.out.cv";
 crypto gdh(gexp_div_8) [variables: x_13 -> a, x_12 -> b, x_11 -> b, x_10 -> b, x_9 -> a, x_8 -> a, x_7 -> a, x_6 -> a  .];
 crypto int_ctxt(enc) *;
-crypto ind_cpa(enc) *;
+crypto ind_cpa(enc) **;
 success
 }
 
