@@ -157,7 +157,8 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\nonterm{queryterm} ::= \texttt{(}\nonterm{queryterm}\texttt{)}\\
 &\phqt \nonterm{queryterm}\texttt{ \&\& }\nonterm{queryterm}\\
 &\phqt \nonterm{queryterm}\texttt{ || }\nonterm{queryterm}\\
-&\phqt \nonterm{queryterm}\texttt{ ==> }[\texttt{exists }\neseq{vartypeb}\texttt{;}]\nonterm{queryterm}\\
+&\phqt \nonterm{queryterm}\texttt{ ==> }\nonterm{queryterm}\\
+&\phqt \texttt{exists }\neseq{vartypeb}\texttt{;}\nonterm{queryterm}\\
 &\phqt \nonterm{event}\\
 &\phqt \nonterm{basicpat} \texttt{ <- } \nonterm{letterm}\texttt{;}\nonterm{queryterm}\\
 &\phqt \texttt{let } \nonterm{basicpat} \texttt{ = }\nonterm{letterm}\texttt{ in }\nonterm{queryterm}\\
@@ -2564,8 +2565,8 @@ In the other syntax, the query declaration is of the form $\texttt{query }x_1\te
 that occur in correspondence queries that follow. (We use $x_i \texttt{<=} N_i$ instead of
   $x_i\texttt{:} T_i$ when $x_i$ is of type $[1,N_i]$, where $N_i$ is
   a parameter, declared by $\texttt{param }N_i$.) Second, we give the queries $Q_1, \dots, Q_n$ themselves,
-without any $[\texttt{forall }x_1\texttt{:}T_1\texttt{,} \dots\texttt{,} x_j\texttt{:}T_j\texttt{;}]$ and 
-$[\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]$.
+without any $\texttt{forall }x_1\texttt{:}T_1\texttt{,} \dots\texttt{,} x_j\texttt{:}T_j\texttt{;}$ and 
+$\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}$.
 This form is not recommended because the quantifiers applied to the variables are less
 obvious to the user: variables that occur before \texttt{==>} are universally quantified
 and variables that occur after \texttt{==>} but not before \texttt{==>} are existentially quantified
@@ -2591,7 +2592,7 @@ In addition to the option \texttt{cv\_onesession}, the options \texttt{real\_or\
 but ignored. Real-or-random secrecy is the default for CryptoVerif and
 the options starting with \texttt{pv\_} are for ProVerif.
 
-\item $[\texttt{forall }x_1\texttt{:}T_1\texttt{,} \dots\texttt{,} x_j\texttt{:}T_j\texttt{;}]\ M_0\ [\texttt{public\_vars}\ l]$, where in $M_0$, \texttt{==>} is not allowed under \texttt{\&\&} or \texttt{||}, and the term before \texttt{==>} cannot contain \texttt{||}, so that after replacing variables bound by assignments by their value, $M_0$ is of form $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$ or $M$, where $M$ and $M'$ do not contain \texttt{==>}. The query $M$ is an abbreviation for $M \texttt{ ==> false}$, so we only need to consider $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$. (We use $x_i \texttt{<=} N_i$ instead of
+\item $[\texttt{forall }x_1\texttt{:}T_1\texttt{,} \dots\texttt{,} x_j\texttt{:}T_j\texttt{;}]\ M_0\ [\texttt{public\_vars}\ l]$, where in $M_0$, \texttt{==>} is not allowed under \texttt{\&\&}, \texttt{||}, or \texttt{exists}, and \texttt{||} and \texttt{exists} are allowed only after \texttt{==>}, so that after replacing variables bound by assignments by their value and moving existential quantifiers just after \texttt{==>}, $M_0$ is of form $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$ or $M$, where $M$ and $M'$ do not contain \texttt{==>}. The query $M$ is an abbreviation for $M \texttt{ ==> false}$, so we only need to consider $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$. (We use $x_i \texttt{<=} N_i$ instead of
   $x_i\texttt{:} T_i$ when $x_i$ is of type $[1,N_i]$, where $N_i$ is
   a parameter, declared by $\texttt{param }N_i$. We use the same notation for $y_i$.)
 

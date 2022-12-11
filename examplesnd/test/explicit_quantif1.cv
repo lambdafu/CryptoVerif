@@ -168,6 +168,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> exists x: bitstring; inj-event(fullA(B, k, x)) with public variables keyA.
+RESULT Could not prove forall x: bitstring, k: shkey; inj-event(fullB(A, k, x)) ==> exists x_1: bitstring; inj-event(fullA(B, k, x_1)) with public variables keyA.
 0.252s (user 0.240s + system 0.012s), max rss 23060K
 END *)

@@ -1928,7 +1928,14 @@ let set_var_num_state (n,x,y) =
   max_source_idx := n;
   vcounter := x;
   used_ids := y
-    
+
+let get_reset_var_num_state () =
+  let res = (!max_source_idx, !vcounter, !used_ids) in
+  max_source_idx := 0;
+  vcounter := Hashtbl.create 7;
+  used_ids := Hashtbl.create 7;
+  res
+  
 
 (* [record_id s ext] records the identifier [s] so that it will not be reused elsewhere.
    [record_id] must be called only before calls to [fresh_id] or [new_var_name], so that

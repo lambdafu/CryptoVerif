@@ -5,7 +5,8 @@ Version
 
 - Added universal one-way hash functions to the library of primitives.
 - Allow explicit quantifiers in correspondence queries:
-  forall xi:Ti; ... ==> exists yj:T'j; ...  
+  forall xi:Ti; ... ==> exists yj:T'j; ...
+  and the existential quantifiers can occur anywhere after ==>.
   (This is now the recommended syntax. The old syntax is still
   accepted for compatibility.)
 - Allow _ in patterns.

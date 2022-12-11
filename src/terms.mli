@@ -285,7 +285,8 @@ val occ_from_pp : program_point -> int
 type var_num_state
 val get_var_num_state : unit -> var_num_state
 val set_var_num_state : var_num_state -> unit
-
+val get_reset_var_num_state : unit -> var_num_state
+    
 val get_id_n : string -> string * int
 val new_var_name : string -> string * int
 val record_id : string -> Parsing_helper.extent -> unit

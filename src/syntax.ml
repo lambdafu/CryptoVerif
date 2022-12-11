@@ -3989,7 +3989,27 @@ let rec check_term_query1 env = function
       check_term_query1 env' t2
   | _,ext2 -> raise_error "the left-hand side of a correspondence query should be an event or a conjunction of events" ext2
 
-let rec check_term_query2 env = function
+let add_in_env_query env s ext t =
+    let b = Terms.create_binder s t [] in
+    if (StringMap.mem s env) then
+      input_warning ("identifier " ^ s ^ " rebound") ext;
+    (StringMap.add s (EVar b) env, b)
+
+let rec check_binder_list_typaram env = function
+    [] -> (env,[])
+  | ((s1,ext1),ty)::l ->
+      let t =
+	match ty with
+	  Tid (s2,ext2) -> get_type env s2 ext2 
+	| TBound (s2,ext2) -> 
+	    let p = get_param env s2 ext2 in
+	    type_for_param p
+      in
+      let (env',b) = add_in_env_query env s1 ext1 t in
+      let (env'',l') = check_binder_list_typaram env' l in
+      (env'', b::l')
+
+let rec check_term_query2 syntax env = function
     (PIdent (s, ext), ext2) as x ->
       begin
       try 
@@ -4020,9 +4040,9 @@ let rec check_term_query2 env = function
   | PQEvent _, ext ->
       raise_error "Events should be function applications" ext
   | PAnd(t1,t2), ext ->
-      QAnd(check_term_query2 env t1, check_term_query2 env t2)
+      QAnd(check_term_query2 syntax env t1, check_term_query2 syntax env t2)
   | POr(t1,t2), ext ->
-      QOr(check_term_query2 env t1, check_term_query2 env t2)
+      QOr(check_term_query2 syntax env t1, check_term_query2 syntax env t2)
   | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
       begin
@@ -4035,39 +4055,22 @@ let rec check_term_query2 env = function
       end;
       let env',b = add_in_env_nobe env s1 ext1 t1'.t_type in
       b.link <- TLink t1';
-      check_term_query2 env' t2
-  | x -> 
-      let x' = check_term_nobe env x in
-      check_type (snd x) x' Settings.t_bool;
-      QTerm x'
-
-let rec check_binder_list_typaram env = function
-    [] -> (env,[])
-  | ((s1,ext1),ty)::l ->
-      let t =
-	match ty with
-	  Tid (s2,ext2) -> get_type env s2 ext2 
-	| TBound (s2,ext2) -> 
-	    let p = get_param env s2 ext2 in
-	    type_for_param p
-      in
-      let (env',b) = add_in_env_nobe env s1 ext1 t in
-      let (env'',l') = check_binder_list_typaram env' l in
-      (env'', b::l')
-
-let check_term_query2_optexists syntax env = function
+      check_term_query2 syntax env' t2
   | PExists(vl,t),ext ->
       if syntax = ImplicitQuantifiers then
 	raise_error "cannot mix implicit and explicit quantifiers in queries" ext;
       let (env', l') = check_binder_list_typaram env vl in
-      let t' = check_term_query2 env' t in
+      let t' = check_term_query2 syntax env' t in
       List.iter2 (fun b ((_,ext_b),_) ->
 	if not (Terms.refers_to_qterm b t') then
 	  Parsing_helper.input_warning ("unused variable "^(Display.binder_to_string b)) ext_b
 	    ) l' vl;
       t'
-  | t -> check_term_query2 env t
-	
+  | x -> 
+      let x' = check_term_nobe env x in
+      check_type (snd x) x' Settings.t_bool;
+      QTerm x'
+
 let rec check_term_query3 syntax env = function
   | PLetE((PPatVar(Ident(s1,ext1),tyopt),ext2),t1,t2,None), ext ->
       let t1' = check_term_nobe env t1 in
@@ -4084,7 +4087,7 @@ let rec check_term_query3 syntax env = function
       check_term_query3 syntax env' t2
   | PBefore(t1,t2),ext ->
       let t1' = check_term_query1 env t1 in
-      let t2' = check_term_query2_optexists syntax env t2 in
+      let t2' = check_term_query2 syntax env t2 in
       (t1',t2')
   | x -> 
       let x' = check_term_query1 env x in
@@ -4112,8 +4115,10 @@ let check_query = function
       QSecret (get_global_binder "in a secrecy query" i,
 	       get_qpubvars pub_vars, !onesession)
   | (PQEventQ (syntax,vl,t, pub_vars),ext_full) ->
+      let var_num_state = Terms.get_reset_var_num_state() in
       let (env',l') = check_binder_list_typaram (!env) vl in
       let t1',t2' = check_term_query3 syntax env' t in
+      Terms.set_var_num_state var_num_state;
       let has_inj_before_impl = List.exists (fun (b,_) -> b) t1' in
       let has_inj_after_impl = find_inj t2' in
       if has_inj_before_impl && not has_inj_after_impl then
