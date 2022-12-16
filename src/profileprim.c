@@ -71,8 +71,8 @@ value pop_stack(info) /* ML */
       value info;
 {
    sp--;
-   modify(&Field(info,2), Val_int(stack[sp].self_ctr + Int_val(Field(info,2))));
-   modify(&Field(info,3), Val_int(stack[sp].total_ctr + Int_val(Field(info,3))));
+   caml_modify(&Field(info,2), Val_int(stack[sp].self_ctr + Int_val(Field(info,2))));
+   caml_modify(&Field(info,3), Val_int(stack[sp].total_ctr + Int_val(Field(info,3))));
 
    return Val_unit;
 }

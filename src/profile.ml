@@ -3,7 +3,11 @@
 (* Authors: Mark Hayden, 4/96; Bruno Blanchet 7/96 *)
 (**************************************************************)
 open Printf
+
+let stdout_channel = stdout
+
 open Unix
+  
 (**************************************************************)
 let name = "PROFILE"
 let failwith s = failwith (name^":"^s)
@@ -66,7 +70,7 @@ let stop () =
      let end_time = t.tms_utime +. t.tms_stime in
      let ticks = prof_stop() in
 
-     let cmp i1 i2 = i1.self_ctr > i2.self_ctr in
+     let cmp i1 i2 = i2.self_ctr - i1.self_ctr in
 
      match !start_time with
      | Some(start_time) -> (
@@ -88,8 +92,8 @@ let stop () =
 	       (foi info.self_ctr *. sample /. foi info.ncalls *. 1000.)
 	       (foi info.total_ctr *. sample /. foi info.ncalls *. 1000.)
 	       (info.name)
-         ) (Sort.list cmp !funcs) ;
-         printf "\n" ; flush Pervasives.stdout
+         ) (List.sort cmp !funcs) ;
+         printf "\n" ; flush stdout_channel
        )
 
      | _ -> failwith "sanity"
