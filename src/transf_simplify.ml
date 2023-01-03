@@ -572,7 +572,7 @@ let contradicts_known_when_adv_wins (pp, cur_array) simp_facts =
 	      let simp_facts3 = Facts.simplif_add_list dep_anal simp_facts' facts2 in
 	      let simp_facts4 = Facts.convert_elsefind dep_anal (def_list @ def_list') simp_facts3 in
 	      if !Settings.elsefind_facts_in_success_simplify then
-		let facts5 = Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (def_list @ def_list') in
+		let facts5 = Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) (cur_array @ all_indices') simp_facts4 (pp_list @ pp_list') None (def_list @ def_list') in
 		let _ = Facts.simplif_add_list dep_anal simp_facts4 facts5 in 
 		false
 	      else
@@ -1051,7 +1051,7 @@ let rec simplify_term_w_find cur_array true_facts t =
 	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_init_and_cond
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 pps_init_and_cond current_history def_vars_init_and_cond
 		else
 		  []
 	      in
@@ -1582,7 +1582,7 @@ and simplify_oprocess cur_array dep_info true_facts p =
 	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_init_and_cond
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t pps_init_and_cond current_history def_vars_init_and_cond
 		else
 		  []
 	      in

@@ -283,7 +283,7 @@ let simplify_term_find rec_simplif pp cur_array true_facts l0 t3 find_info =
 	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 def_vars_init_and_cond
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t1 pps_init_and_cond current_history def_vars_init_and_cond
 		else
 		  []
 	      in
@@ -815,7 +815,7 @@ let simplify_find rec_simplif is_yield get_pp pp cur_array true_facts l0 p2 find
 	      let def_vars_init_and_cond = Terms.union_binderref def_vars_cond def_vars in
 	      let facts_from_elsefind_facts =
 		if !Settings.elsefind_facts_in_simplify then
-		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t def_vars_init_and_cond
+		  Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array_cond true_facts_t pps_init_and_cond current_history def_vars_init_and_cond
 		else
 		  []
 	      in

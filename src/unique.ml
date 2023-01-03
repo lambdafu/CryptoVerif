@@ -28,12 +28,12 @@ let prove_unique g cur_array simp_facts pps def_vars dep_info node l0 =
     let def_list2 = Terms.subst_def_list repl_index1 repl_index2_term def_list1 in
     let tl2 = List.map (Terms.subst repl_index1 repl_index2_term) tl1 in
     try 
-      let (facts_def_list1, _, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
-      let (facts_def_list2, _, def_vars2) = Facts.facts_from_defined pps def_vars node def_list2 in
+      let (facts_def_list1, pps1, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
+      let (facts_def_list2, pps2, def_vars2) = Facts.facts_from_defined pps1 def_vars node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
       let diff_ri1_ri2 = Terms.make_or_list (List.map2 Terms.make_diff repl_index1_term repl_index2_term) in
       let simp_facts = Facts.simplif_add_list dep_info simp_facts (diff_ri1_ri2 :: tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
-      let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
+      let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts pps2 node def_vars in
       let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
       false
     with Contradiction -> true
@@ -45,11 +45,11 @@ let prove_unique g cur_array simp_facts pps def_vars dep_info node l0 =
     let def_list2 = Terms.subst_def_list repl_index2_orig repl_index2_term def_list2_orig in
     let tl2 = List.map (Terms.subst repl_index2_orig repl_index2_term) tl2_orig in
     try 
-      let (facts_def_list1, _, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
-      let (facts_def_list2, _, def_vars2) = Facts.facts_from_defined pps def_vars node def_list2 in
+      let (facts_def_list1, pps1, def_vars1) = Facts.facts_from_defined pps def_vars node def_list1 in
+      let (facts_def_list2, pps2, def_vars2) = Facts.facts_from_defined pps1 def_vars node def_list2 in
       let def_vars = Terms.union_binderref (Terms.union_binderref def_vars def_vars1) def_vars2 in
       let simp_facts = Facts.simplif_add_list dep_info simp_facts (tl2 @ tl1 @ facts_def_list1 @ facts_def_list2) in
-      let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts def_vars in
+      let new_facts = Facts_of_elsefind.get_facts_of_elsefind_facts g cur_array simp_facts pps2 node def_vars in
       let _ = Facts.simplif_add_list dep_info simp_facts new_facts in
       false
     with Contradiction -> true

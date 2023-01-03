@@ -876,7 +876,7 @@ let check_corresp collector event_accu ((t1,t2,pub_vars) as q) g =
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
 	    if !Settings.elsefind_facts_in_success then
-	      Facts_of_elsefind.get_facts_of_elsefind_facts g vars' facts' def_vars' 
+	      Facts_of_elsefind.get_facts_of_elsefind_facts g vars' facts' collector_pp' None def_vars' 
 	    else
 	      []
 	  in
@@ -1101,7 +1101,7 @@ let proved_inj event_accu (t1,t2,pub_vars) g =
 	Terms.auto_cleanup (fun () -> 
 	  let facts2 = 
 	    if !Settings.elsefind_facts_in_success then
-	      Facts_of_elsefind.get_facts_of_elsefind_facts g vars' facts' def_vars' 
+	      Facts_of_elsefind.get_facts_of_elsefind_facts g vars' facts' collector_pp' None def_vars' 
 	    else
 	      []
 	  in

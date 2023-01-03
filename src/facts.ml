@@ -1871,10 +1871,16 @@ and add_facts_list history fact_accu_opt seen_pps seen_refs done_refs br_list =
   List.iter (add_facts history fact_accu_opt seen_pps seen_refs done_refs) br_list
       
 (* [def_vars_from_defined known_pps known_def_vars history def_list]
-   returns the variables that
-   are known to be defined when the condition of a find with defined condition 
-   [def_list] holds. [history] is the history of the find, at which [def_list]
-   is tested (may be returned by [get_initial_history]). *)
+   returns the program points known to be executed and the variables
+   known to be defined when the condition of a find with defined
+   condition [def_list] holds.
+   [known_pss] are the program points already known to be executed.
+   [known_def_vars] are the variables already known to be defined.
+   [history] is the history of the find, at which [def_list] is tested
+   (may be returned by [get_initial_history], [get_def_vars_at], or
+   [get_facts_at]).
+   The returned program points include [known_pss]. The returned defined
+   variables do not include [known_def_vars]. *)
 
 let def_vars_from_defined known_pps known_def_vars history def_list =
   let subterms = ref [] in
@@ -1884,12 +1890,34 @@ let def_vars_from_defined known_pps known_def_vars history def_list =
   add_facts_list history None seen_pps seen_refs (ref known_def_vars) (!subterms);
   (!seen_pps, !seen_refs)
 
+
+(* [def_vars_before known_pps br] with [br = (b,tl)]
+   returns the variables known to be defined before [b[al]] when
+   [tl] evaluates to [al].
+   [known_pss] are the program points already known to be executed. *)
+
+let def_vars_before known_pps br =
+  let seen_refs = ref [] in
+  let seen_pps = ref known_pps in
+  (* No history, because I do not want future variables
+     Ideally, I could consider the definition(s) of b as the current
+     program point(s) and the program point at which we work as
+     a future program point. But that requires extensions to the type
+     [known_history]. *)
+  add_facts_list None None seen_pps seen_refs (ref []) [br];
+  !seen_refs
+    
 (* [facts_from_defined known_pps known_def_vars history def_list]
    returns the facts known to hold, the program points known to be
    executed, and the variables known to be defined when the condition
-   of a find with defined condition [def_list] holds. [history] is the
-   history of the find, at which [def_list] is tested (may be returned
-   by [get_initial_history], [get_def_vars_at], or [get_facts_at]). *)
+   of a find with defined condition [def_list] holds.
+   [known_pss] are the program points already known to be executed.
+   [known_def_vars] are the variables already known to be defined.
+   [history] is the history of the find, at which [def_list] is tested
+   (may be returned by [get_initial_history], [get_def_vars_at], or
+   [get_facts_at]).
+   The returned program points include [known_pss]. The returned defined
+   variables do not include [known_def_vars]. *)
 
 let facts_from_defined known_pps known_def_vars history def_list =
   let def_list_subterms = ref [] in

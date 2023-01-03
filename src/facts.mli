@@ -131,21 +131,45 @@ val is_before_same_block : program_point -> program_point -> bool
    point [pp] *)
 val get_initial_history : program_point -> known_history option
 val get_initial_history_args : program_point_args -> known_history option
+
+(* [get_compatible_def_nodes history pps b l] *)
+val get_compatible_def_nodes : known_history option -> program_points_args list
+    -> binder -> term list -> def_node list
     
-(* [def_vars_from_defined current_history def_list] returns the variables that
-   are known to be defined when the condition of a find with defined condition 
-   [def_list] holds. [current_history] is the known history at the find, at which [def_list]
-   is tested (may be returned by [get_initial_history]).
+(* [def_vars_from_defined known_pps known_def_vars history def_list]
+   returns the program points known to be executed and the variables
+   known to be defined when the condition of a find with defined
+   condition [def_list] holds.
+   [known_pss] are the program points already known to be executed.
+   [known_def_vars] are the variables already known to be defined.
+   [history] is the history of the find, at which [def_list] is tested
+   (may be returned by [get_initial_history], [get_def_vars_at], or
+   [get_facts_at]).
+   The returned program points include [known_pss]. The returned defined
+   variables do not include [known_def_vars].
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
 val def_vars_from_defined : program_points_args list -> binderref list ->
   known_history option -> binderref list ->
     program_points_args list * binderref list
 
-(* [facts_from_defined current_history def_list] returns the facts that
-   are known to hold when the condition of a find with defined condition 
-   [def_list] holds. [current_history] is the known history at the find, at which [def_list]
-   is tested (may be returned by [get_initial_history]).
+(* [def_vars_before known_pps br] with [br = (b,tl)]
+   returns the variables known to be defined before [b[al]] when
+   [tl] evaluates to [al].
+   [known_pss] are the program points already known to be executed. *)
+val def_vars_before :  program_points_args list -> binderref -> binderref list 
+      
+(* [facts_from_defined known_pps known_def_vars history def_list]
+   returns the facts known to hold, the program points known to be
+   executed, and the variables known to be defined when the condition
+   of a find with defined condition [def_list] holds.
+   [known_pss] are the program points already known to be executed.
+   [known_def_vars] are the variables already known to be defined.
+   [history] is the history of the find, at which [def_list] is tested
+   (may be returned by [get_initial_history], [get_def_vars_at], or
+   [get_facts_at]).
+   The returned program points include [known_pss]. The returned defined
+   variables do not include [known_def_vars]. 
    Raises Contradiction when a variable that must be defined when [def_list]
    is defined has no definition in the game. *)
 val facts_from_defined :  program_points_args list -> binderref list ->

@@ -1036,7 +1036,7 @@ let rec replace_tt count env facts cur_array t =
     RepToDo (occ, ext_o, ins, ext_s,check_opt) when occ == t.t_occ ->
       if not (Terms.check_simple_term t) then
 	raise (Error("The term at " ^ (string_of_int occ) ^ "contains if, let, find, new, or event; you cannot replace it", ext_o));
-      let (facts', _, defined_refs, _) = 
+      let (facts', pps, defined_refs, current_history) = 
 	try 
 	  Facts.get_facts_at (DTerm t)
 	with Contradiction ->
@@ -1054,7 +1054,7 @@ let rec replace_tt count env facts cur_array t =
 		let simp_facts = Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) (facts'@facts)) in
 		let facts'' = 
 		  if !Settings.elsefind_facts_in_replace then
-		    Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts defined_refs 
+		    Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) cur_array simp_facts pps current_history defined_refs 
 		  else
 		    []
 		in

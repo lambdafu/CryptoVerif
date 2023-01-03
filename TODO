@@ -24,6 +24,12 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
+- success simplify: for correspondences \psi ==> \phi, add not(\phi)
+to the collected facts.
+
+- prove OEKE forward secrecy sks.
+
+
 When collecting future facts, I could be more precise: event_abort X
 means *any* fact is true, because the game will not reach the point that
 uses the future facts. (be careful with proof of correspondences,
@@ -6805,3 +6811,21 @@ And compute the states_to_display, proved_queries, unproved_queries
 elsewhere (in proba.ml?).
 I would like to move Display/Displaytex earlier in the build
 DONE 6/11/2022
+
+- branch 2022.23.6 Use program points in Facts_of_elsefind:
+    * test2022.12.18-10_21_13: usage of program points in collect_eff,
+    breaks examples/basic/signedDH-forward-secrecy.cv
+    * test2022.12.20-15_32_13: better usage of defined_before (fixes
+    the result of examples/basic/signedDH-forward-secrecy.cv), more usage
+    of program points in Facts_of_elsefind.
+    * test2022.12.24-15_05_51: fixes a bug in the previous version.
+    * DONE    Redefine a variant of Facts.def_vars_from_defined
+    that allows taking into account program points (and history)
+    * test2022.12.25-... Add history as argument.
+    * test2022.12.26-... Use program points in defined_after
+    Still to check that the changes in games are ok
+
+    Now that only possible definitions of variables are considered
+    in get_fact_of_elsefind_fact, Contradiction does not happen often
+    in collect_eff. So its current approximate treatment should be ok.
+DONE 3/1/2023

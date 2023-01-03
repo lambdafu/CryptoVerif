@@ -153,32 +153,37 @@ let final_next4 bl def_list t fact_accu () =
    * if this succeeds, we can conclude that not(t1) holds in all cases.
 *)
 
-let defined_after b b1 =
-  List.for_all (fun n -> List.memq b1 (Terms.add_def_vars_node [] n)) b.def
+let defined_after pps b bargs b1 =
+  let nodes = Facts.get_compatible_def_nodes None pps b bargs in
+  List.for_all (fun n -> List.memq b1 (Terms.add_def_vars_node [] n)) nodes
 
-let rec add_latest ((b,tl) as br) elsefind = function
+let rec add_latest pps ((b,tl) as br) elsefind = function
     [] -> [(br,elsefind)]
   | ((b', tl') as br',elsefind')::l ->
       if (Terms.equal_elsefind_facts elsefind elsefind') && (Terms.equal_term_lists tl tl') then
-	if defined_after b b' then
+	if defined_after pps b tl b' then
 	  (br,elsefind)::l
-	else
+	else if defined_after pps b' tl' b then
 	  (br',elsefind')::l
+	else
+	  (br',elsefind')::(add_latest pps br elsefind l)
       else
-	(br',elsefind')::(add_latest br elsefind l)
+	(br',elsefind')::(add_latest pps br elsefind l)
 
-let rec collect_eff = function
+let rec collect_eff pps history = function
     [] -> []
-  | br::l ->
-      let last_effl = collect_eff l in
+  | ((b,bargs) as br)::l ->
+      let last_effl = collect_eff pps history l in
       let new_effl = 
-	try 
-          Terms.intersect_list Terms.equal_elsefind_facts (List.map (fun n -> n.elsefind_facts_at_def) (fst br).def)
-	with Contradiction -> []
+	try
+	  let nodes = Facts.get_compatible_def_nodes history pps b bargs in
+          Terms.intersect_list Terms.equal_elsefind_facts (List.map (fun n -> n.elsefind_facts_at_def) nodes)
+	with Contradiction ->
+	  []
       in
-      List.fold_right (add_latest br) new_effl last_effl
+      List.fold_right (add_latest pps br) new_effl last_effl
 
-let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) ((bl,def_list,t1) as elsefind_fact) =
+let get_fact_of_elsefind_fact term_accu g cur_array pps history def_vars simp_facts (b,tl) ((bl,def_list,t1) as elsefind_fact) =
   if !Settings.debug_elsefind_facts then
     begin
       print_string "-----------------\n";
@@ -203,13 +208,13 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
      for the original fact corresponds to our variable (b,tl):
      substitute b.args_at_creation with tl. *)
   let b_index = b.args_at_creation in
+  let b_nodes = Facts.get_compatible_def_nodes history pps b tl in
   let (bl, def_list, t1) = Terms.subst_else_find b_index tl (bl, def_list, t1) in
 
   (* Variables defined before or at the same time as (b,tl) *)
   let def_vars_before = 
     try
-      let (_, def_vars) = Facts.def_vars_from_defined [] [] None [Terms.binderref_from_binder b] in
-      Terms.subst_def_list b_index tl def_vars
+      Facts.def_vars_before pps (b,tl)
     with Contradiction -> 
       (* Contradiction may be raised when b can in fact not be defined. *)
       []
@@ -221,7 +226,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
       print_newline ()
     end;
   
-  let vars_at_b = List.concat (List.map (fun n -> n.binders) b.def) in
+  let vars_at_b = List.concat (List.map (fun n -> n.binders) b_nodes) in
   (* Variables defined strictly before (b,tl) *)  
   let def_vars_strictly_before = Terms.setminus_binderref def_vars_before (List.map (fun b' -> (b',tl)) vars_at_b) in
   
@@ -234,10 +239,10 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
   let rec filter_def_list already_seen = function
     | [] -> List.rev already_seen
     | ((b2,tl2)::l) ->
+	let b2_nodes = Facts.get_compatible_def_nodes history pps b2 tl2 in
 	let before_br2 = 
 	  try
-	    let (_, def_vars) = Facts.def_vars_from_defined [] [] None [Terms.binderref_from_binder b2] in
-            Terms.subst_def_list b2.args_at_creation tl2 def_vars
+	    Facts.def_vars_before pps (b2, tl2)
 	  with Contradiction -> 
 	    (* Contradiction may be raised when b2 can in fact not be defined. *)
 	    []	
@@ -248,12 +253,12 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	let strictly_before_b_tl =
 	  if not (List.exists (fun b2_n -> List.exists (fun b_n ->
 	    (b2_n != b_n) && (Facts.is_reachable_same_block b2_n b_n)
-	      ) b.def) b2.def) then
+	      ) b_nodes) b2_nodes) then
 	    (* When br2 = (b2,tl2) is defined strictly before (b,tl), 
                the block that defines (b2,tl2) has been entirely executed before defining (b,tl) *)
 	    let same_block_after_b2 =
 	      try 
-		(Terms.intersect_list (==)  (List.map (fun n -> n.binders @ n.future_binders) b2.def))
+		(Terms.intersect_list (==)  (List.map (fun n -> n.binders @ n.future_binders) b2_nodes))
 	      with Contradiction ->
 		(* Happens when b2 is never defined *)
 		[]
@@ -356,7 +361,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 		(* Add variables defined in the same block as (b,tl) to def_vars_before *)
 		let future_or_at_b =
 		  try
-		    Terms.intersect_list (==) (List.map (fun n -> n.binders @ n.future_binders) b.def)
+		    Terms.intersect_list (==) (List.map (fun n -> n.binders @ n.future_binders) b_nodes)
 		  with Contradiction ->
 		    (* Happens when b is never defined *)
 		    []
@@ -469,7 +474,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 
             let (subst, facts, _) = simp_facts in
 	    let fact_accu = ref [] in
-	    let elsefind_facts = collect_eff future_vars in
+	    let elsefind_facts = collect_eff pps history future_vars in
 	    List.iter (fun ((b',tl'), (bl, def_list, t1)) ->
 	      (* The "elsefind" fact (bl, def_list, t1) holds
 		 at the definition of b', and I know that b'[tl'] is defined *)
@@ -515,7 +520,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
                 print_newline ()
               end;
             true
-              ) (fst br).def
+              ) (Facts.get_compatible_def_nodes history pps (fst br) (snd br))
 	  )
           ) def_list'; 
       )
@@ -545,7 +550,7 @@ let get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts (b,tl) (
 	) (!result)
 
 
-let get_facts_of_elsefind_facts g cur_array simp_facts def_vars =
+let get_facts_of_elsefind_facts g cur_array simp_facts pps history def_vars =
   if !Settings.debug_elsefind_facts then
     begin
       print_string "__________________\n";
@@ -560,10 +565,17 @@ let get_facts_of_elsefind_facts g cur_array simp_facts def_vars =
     Terms.add_binderref br' def_vars_tmp) def_vars;
   let def_vars = !def_vars_tmp in
 (*  print_string "Defined variables simplified:\n";
-  Display.display_def_list_lines def_vars; *)
+    Display.display_def_list_lines def_vars; *)
+  (* Simplify program points *)
+  let pps =
+    List.map (fun (pps,l) ->
+      (pps, List.map (Terms.try_no_var simp_facts) l)
+	) pps
+  in
+  
   let term_accu = ref [] in
-  let effl = collect_eff def_vars in
-  List.iter (fun (br, eff) -> get_fact_of_elsefind_fact term_accu g cur_array def_vars simp_facts br eff) effl;
+  let effl = collect_eff pps history def_vars in
+  List.iter (fun (br, eff) -> get_fact_of_elsefind_fact term_accu g cur_array pps history def_vars simp_facts br eff) effl;
   if !Settings.debug_elsefind_facts then
     begin
       print_string "__________________\n";

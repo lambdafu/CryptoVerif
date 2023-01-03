@@ -226,9 +226,7 @@ let add_facts_at known_facts cur_array new_eqs pp =
      program points more precise *)
   let new_facts1 = List.map (fun (i1, i2) -> Terms.make_equal i1 i2) new_eqs in
   let (new_facts2, pp_list1, defined_refs1) = Facts.get_facts_at_args pp_list0 defined_refs0 (pp, lidx') in
-  let simp_facts1 = Terms.auto_cleanup (fun () -> 
-    Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 (new_facts1 @ new_facts2)) 
-  in
+  let simp_facts1 = Facts.simplif_add_list Facts.no_dependency_anal simp_facts0 (new_facts1 @ new_facts2) in
   (lidx', (new_indices @ all_indices0, pp_list1, simp_facts1, defined_refs1))
 
 (* [collect_bargs args_accu b t] collects in [args_accu] the arguments
@@ -281,17 +279,17 @@ let rec check_usage_term state used t =
 	     facts union (rename Facts.get_facts_at t.t_facts) union (lidx = rename l) implies a contradiction *)
 	  try
 	    let eq_index = List.combine l state.lidx in 
-	    let (lidx', (all_indices, _, simp_facts, defined_refs)) = add_facts_at state.facts state.cur_array eq_index (DTerm t) in
+	    let (lidx', (all_indices, pps, simp_facts, defined_refs)) = add_facts_at state.facts state.cur_array eq_index (DTerm t) in
 	    let facts2 = 
 	      if !Settings.elsefind_facts_in_success then
-		Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) all_indices simp_facts defined_refs 
+		Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) all_indices simp_facts pps None defined_refs 
 	      else
 		[]
 	    in
-	    ignore (Terms.auto_cleanup (fun () -> Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts2));
+	    ignore (Facts.simplif_add_list Facts.no_dependency_anal simp_facts facts2);
 	    (* For debugging*)
 	    add_leak_for_current_restr (Leak(state.b, [t.t_occ]));
-	    (* print_string "Known facts:\n";
+	    (*print_string "Known facts:\n";
 	    Display.display_facts simp_facts; 
 	    print_string "Defined variables:\n";
 	    Display.display_def_list_lines defined_refs;	    
@@ -613,13 +611,10 @@ let check_distinct collector b =
 	in
 	let facts1 = diff_index :: eq_b :: d2facts @ d1facts in
 	let facts2 = Incompatible.both_ppl_ppl_add_facts facts1 d1pps d2pps in
-	let simp_facts12 = Terms.auto_cleanup (fun () -> 
-	  Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts2) 
-	in
+	let simp_facts12 = Facts.simplif_add_list Facts.no_dependency_anal ([],[],[]) facts2 in
 	let facts_ef = 
 	  if !Settings.elsefind_facts_in_success then
-	    Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) indices12 simp_facts12
-	      def_vars12
+	    Facts_of_elsefind.get_facts_of_elsefind_facts (!whole_game) indices12 simp_facts12 pp12 None def_vars12
 	  else
 	    []
 	in
