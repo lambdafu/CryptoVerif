@@ -37,7 +37,7 @@ insert after "OH(" "let concat(x01,x02,x03,x04,x05) = x1 in"; (* just after OH(.
 crypto rom(h0);
 insert after "OH_1" "let concat(x11,x12,x13,x14,x15) = x1_1 in"; (* just after OH_1(..):= *)
 crypto rom(h1);
-insert after "OS2" "if defined(xcorrupt) then else find j <= NU suchthat defined(X[j]) && X[j] = X_s then else find jh <= qH1 suchthat defined(x11[jh], x12[jh], x13[jh], x14[jh], r_6[jh]) && (U = x11[jh]) && (S = x12[jh]) && (X_s = x13[jh]) && (Y = x14[jh]) && (auth_s = r_6[jh]) then event_abort Auth"; (* just after OS2(..):= , in else branch of "if defined(xcorrupt) then" *)
+insert after "OS2" "if defined(xcorrupt) then else find j <= NU suchthat defined(X[j]) && X[j] = X_s then else find jh <= qH1 suchthat defined(x11[jh], x12[jh], x13[jh], x14[jh], r_7[jh]) && (U = x11[jh]) && (S = x12[jh]) && (X_s = x13[jh]) && (Y = x14[jh]) && (auth_s = r_7[jh]) then event_abort Auth"; (* just after OS2(..):= , in else branch of "if defined(xcorrupt) then" *)
 simplify;
 insert after "OC2" "if defined(xcorrupt) then";
 crypto icm(enc);
@@ -52,7 +52,7 @@ for some exponents x,y. That allows eliminating similar conditions in the rest o
 - We test x15 = exp(g, mult(x[i], y[j])) as last condition, so that the test is executed only when x13 and x14 are the right public keys. CryptoVerif then realizes that the test is made for a single i,j for each hash query.
  *)
 show_game;
-insert before "find \\[unique\\] u_23 "
+insert before "find \\[unique\\] u_32 "
   "          find ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_3[ri_8]) && (x14 = exp(g, x_3[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_3[ri_8], x[ri_7]))) then
             event_abort cdh
           orfind ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_4[ri_8]) && (x14 = exp(g, x_4[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_4[ri_8], x[ri_7]))) then
@@ -66,7 +66,7 @@ insert before "find \\[unique\\] u_23 "
           orfind ri_6 <= NP suchthat defined(yp[ri_6], xp[ri_6], Xp[ri_6], Yp[ri_6]) && (x14 = Yp[ri_6]) && (x13 = Xp[ri_6]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(xp[ri_6], yp[ri_6]))) then
             event_abort cdh";
 (* We rewrite the "find" at the beginning of OH in a similar way *)
-insert before "find \\[unique\\] u_7 "
+insert before "find \\[unique\\] u_9 "
   "          find ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_3[ri_70]) && (x04 = exp(g, x_3[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_3[ri_70], x[ri_69]))) then
             event_abort cdh
           orfind ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_4[ri_70]) && (x04 = exp(g, x_4[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_4[ri_70], x[ri_69]))) then
@@ -98,7 +98,7 @@ move array X_4; (* variable chosen in OS1 and not used immediately *)
 (*show_game;
 merge_arrays X_1 Y_1;*)
 show_game;
-insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_6[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_6[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
+insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_7[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_7[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
 simplify;
 merge_branches;
 allowed_collisions noninteractive^2/large, small/password;
@@ -159,7 +159,8 @@ fun AcceptAttacker(hash0): bitstring [data].
 
 (* Queries *)
 
-query secret sk_u_secret.
+query secret sk_u_secret public_vars sk_p.
+query secret sk_p public_vars sk_u_secret.
 
 event termS(host, G, host, G, hash1, hash0).
 event acceptU(host, G, host, G, hash1, hash0, NU).
@@ -167,10 +168,10 @@ event corrupt.
 
 query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0, u <= NU;
 	inj-event(termS(x,X,y,Ystar,a,k)) ==> inj-event(acceptU(x,X,y,Ystar,a,k,u)) || event(corrupt)
-	public_vars sk_u_secret.
+	public_vars sk_u_secret, sk_p.
 query x:host, X:G, y:host, Ystar:G, a: hash1, k:hash0, k':hash0, u <= NU, u' <= NU;
 	event(acceptU(x,X,y,Ystar,a,k,u)) && event(acceptU(x,X,y,Ystar,a,k',u')) ==> u = u'
-	public_vars sk_u_secret.
+	public_vars sk_u_secret, sk_p.
 
 (* Client *)
 
