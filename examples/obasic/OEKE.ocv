@@ -83,7 +83,9 @@ insert before "find \\[unique\\] u_9 "
           orfind i15 <= NU, i22 <= NS suchthat defined(X[i15], Y[i22], x[i15], y[i22]) && (x04 = Y[i22]) && (x03 = X[i15]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(y[i22], x[i15]))) then
             event_abort cdh
           orfind i13 <= NU, i23 <= NP suchthat defined(X[i13], Yp[i23], x[i13], yp[i23]) && (x04 = Yp[i23]) && (x03 = X[i13]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[i23], x[i13]))) then
-            event_abort cdh";
+            event_abort cdh
+	  orfind ri_8 <= NP suchthat defined(Xp[ri_8],xp[ri_8],Yp[ri_8],yp[ri_8]) && (x04 = Yp[ri_8]) && (x03 = Xp[ri_8]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[ri_8], xp[ri_8]))) then
+	    event_abort cdh";
 simplify;
 success; (* Prove secrecy and authentication, the probabilities of events cdh, Auth, Encrypt are still to bound. However, the probabilities that follow will not be multiplied by 2 for secrecy *)
 crypto cdh(exp);
@@ -238,14 +240,14 @@ process
 I can overapproximate the probabilities as follows:
 Proved 
 event(acceptU(x,X,y,Ystar,a,k,u)) && event(acceptU(x,X,y,Ystar,a,k',u')) ==> u = u'
-with public variables sk_u, sk_s up to probability NU^2/2|G|
+with public variables sk_u, sk_s, sk_p up to probability NU^2/2|G|
 
 Proved
 inj-event(termS(x, X, y, Ystar, a, k)) ==> inj-event(acceptU(x, X, y, Ystar, a, k,u) 
-with public variables sk_u, sk_s up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2q^2 / |G| + (qH1^2+NS) / |hash1| 
-Proved secrecy of sk_s && sk_u up to probability 
-(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 4q^2 / |G| + (qH1^2+2NS) / |hash1| 
+with public variables sk_u, sk_s, sk_p up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 2q^2 / |G| + (qH1^2+NS.qH1+NS) / |hash1| 
+Proved secrecy of sk_s, sk_u, and sk_p up to probability 
+(NU + NS) / |passwd| + (qH1 + qH0) * pCDH(time_1) + 4q^2 / |G| + (qH1^2+2NS.qH1+2NS) / |hash1| 
 where q = qE + qD + qH0 + qH1 + 3(NS + NU + NP) = O(t_A). 
 (NS,NU,NP are typically much less than qE,qD,qH0,qH1, so q is about qE + qD + qH0 + qH1)
 *)
