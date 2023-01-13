@@ -24,12 +24,6 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
-- success simplify: for correspondences \psi ==> \phi, add not(\phi)
-to the collected facts.
-
-- prove OEKE forward secrecy sks.
-
-
 When collecting future facts, I could be more precise: event_abort X
 means *any* fact is true, because the game will not reach the point that
 uses the future facts. (be careful with proof of correspondences,
@@ -470,7 +464,16 @@ replacing choice[M1,M2] with "if b then M1 else M2"
       that to all terms with this function symbol at the root.
       "auto_move_diff_up <fct symbols>" applies that to the function
       symbols in the list as part of simplify.
-      
+
+      May need a different notion of secrecy for the bit b:
+      notion specific to a bit b assigned once inside the game.
+      The adversary outputs b',
+        if defined(b) then
+          if b' = b then event S else event Sbar
+      Advt = Pr[S] - Pr[Sbar]
+      Compare this notion with the one-session secrecy of b
+      and with the probability to distinguish the game with b = true
+      from the game with b = false.
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
 receiving m1,m2 at the beginning 
@@ -904,7 +907,47 @@ The game at the end of the hybrid argument is G(max).
 
 The presence of oracle calls is also useful for implementing
 composition results of Charlie Jacomme.
-   
+
+Idea of Charlie Jacomme:
+To formalize the general semantics, we could have an oracle call
+construct:
+let pat = O[M1...Mm](N1...Nn) in P else P'
+in which some indices M1,...,Mn can be unspecified (say _)
+and in this case, one takes one index among the available oracles
+at random. That allows to formalize the usual oracle semantics
+(in which all indices are specified) as well as the one above
+O[i_m,...,i_{n+1},_,...,_] with the last indices unspecified
+and one takes one available. Perhaps we want only the last indices
+to be _, not indices in the middle. Perhaps we want the unspecified
+indices to be only for replications just above the definition of O
+(with no other oracle in between; because otherwise, the calls
+to the oracles in between imply that the value of the indices
+matter: calling the oracle with one index or another is not equivalent).
+Would we like a way to obtain the index that was used, to be able
+to reuse that index in calls to subsequent oracles after the return
+from O? In terms of syntax, that might be done using
+something like patterns for indices M1...Mm of O. Suggestions:
+   - let pat = O[=M1...=Mm,x1,...,xk](N1...Nn) in P else P'
+   This notation reuses the syntax of pattern matching.
+   However, it may be rather misleading: =Mi suggests an
+   equality test between a received value and Mi. This is not
+   what happens here: Mi is passed as index. So perhaps the notation
+   below is better.
+   - let pat = O[M1...Mm,?x1,...,?xk](N1...Nn) in P else P'
+x1...xk are bound when the oracle is called. They might
+be bound even in the else branch, but that not essential
+because x1...xk are useful when the oracle O successfully returns
+(to call the next oracles), so it would be ok to bind them only
+in the then branch. That would be more similar to what
+happens with pat.
+P is executed when oracle O terminates with return,
+P' is executed when O terminates with yield (or when no oracle is
+available? Or do we block when no oracle is available?)
+
+Having an unspecified index that is returned is similar
+to what happens in the cv2fstar compilation (for oracles
+just under a replication).
+
 7) More generally, allow some reordering of instructions:
 - move "let"s up, when that reduces the number of occurrences of
   crypto primitives to compute. Risk: we may compute the expression
@@ -1336,6 +1379,25 @@ we translate the input/output calculus into OCaml, functional calculus.
 LOW PRIORITY:
 
 20) Small details
+
+success simplify: for correspondences \psi ==> \phi, add not(noninj(\phi))
+to the collected facts, where noninj(inj-event(...)) = false,
+noninj(M) = M, noninj(event(M)) = event(M), ...
+When \phi has existentially quantified variables, that's an overapproximation
+(because we do as if they were universally quantified).
+Easy to implement, but seems rather hard to prove, and perhaps not
+essential in practice.
+Define a modified version prove' of prove such that
+\neg {|prove'^{\corresp}(C,\theta,\tup{\pp_j},\tup{\case_j})|} =>
+\exists \theta_1\replidx{\pp_1}...\exists \theta_m\replidx{\pp_m}
+\exists \tup{x}\in\tup{T}\exists\tup{y}\in\tup{T}'
+\bigwedge \theta_1\fset_{F_1,\pp_1,\case_1} ... \wedge \neg\noninj(\phi)
+For that, it is enough to define formula'(\fset |=>_{\theta}^{I,V,C} \phi),
+modified version of {| \fset |=>_{\theta}^{I,V,C} \phi |} such that
+\neg formula'(\fset |=>_{\theta}^{I,V,C} \phi) => \exists \tup{z} \in \tup{T}''
+\exists \tup{y} \in \tup{T}' (\bigwedge \fset \wedge \neg \noninj(\phi))
+that is
+\forall \tup{z} \in \tup{T}'' \forall \tup{y} \in \tup{T}' ((\neg \bigwedge \fset) \vee \noninj(\phi)) => formula'(\fset |=>_{\theta}^{I,V,C} \phi)
 
 In elimination of collisions, when filter_indices_coll fails to
 reduce the probability sufficiently, I should remember that result to
