@@ -1,5 +1,12 @@
 (* One-Encryption Key Exchange - forward secrecy
 
+   This version assumes the following definition of freshness of an instance:
+   - First, the instance has computed and accepted a session key.
+   - Second, no Corrupt-query has been made by the adversary since the beginning of the game (before the session key is accepted).
+   - Third, the instance has not been asked for a Reveal-query and if it has a partner, then its partner has not been asked for a Reveal-query.
+   Test queries are allowed for fresh instances, hence we prove secrecy of session keys for fresh instances.
+   We prove secrecy of sk_u, the session key of the user. Session keys of the server are then also secret, because all session keys of the server are session keys of the user by authentication of the user U to the server S. We prove this property using GDH.
+
    We obtain the probability:
    (NU + NS)/|passwd| + pGDH(time_1, 3(qH1 + qH0)) + O(t_A^2)/|hash1| + O(t_A^2)/|G|,
    where t_A is the runtime of the adversary

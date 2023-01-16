@@ -1,7 +1,11 @@
 (* One-Encryption Key Exchange - forward secrecy
 
-   Proving secrecy of sk_s using CDH
-   (instead of secrecy of sk_u using GDH).
+   This version assumes the following definition of freshness of an instance:
+   - First, the instance has computed and accepted a session key.
+   - Second, no Corrupt-query has been made by the adversary since the beginning of the game (before the session key is accepted).
+   - Third, the instance must have a partner and neither it nor its partner have been asked for a Reveal-query.
+   Test queries are allowed for fresh instances, hence we prove secrecy of session keys for fresh instances.
+   This is weaker than the notion used in OEKE-forward-secrecy.ocv, since fresh instances must have a partner, hence we prove secrecy of session keys only for sessions that have a partner. We do that by proving secrecy of sk_s, the session key of the server. Indeed, if a instance has a partner, then either the instance or its partner is an instance of S, so it suffices to prove secrecy for session keys of S. Conversely, all instances of S that accept have a partner (with the same session key), by authentication of the user U to the server S. We prove this property using CDH (while the stronger property shown in OEKE-forward-secrecy.ocv relies on GDH).
 
    We obtain the probability:
    (NU + NS)/|passwd| + (qH1 + qH0)(1+3NU)(1+3NS)pCDH(time_1) + O(t_A^2)/|hash1| + O(t_A^2)/|G|,
