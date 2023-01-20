@@ -5,8 +5,9 @@
    - Second, no Corrupt-query has been made by the adversary since the beginning of the game (before the session key is accepted).
    - Third, the instance has not been asked for a Reveal-query and if it has a partner, then its partner has not been asked for a Reveal-query.
    Test queries are allowed for fresh instances, hence we prove secrecy of session keys for fresh instances.
-   We prove secrecy of sk_u, the session key of the user. Session keys of the server are then also secret, because all session keys of the server are session keys of the user by authentication of the user U to the server S. We prove this property using GDH.
+   We prove secrecy of sk_u, the session key of the user. Session keys of the server are then also secret, because all session keys of the server are session keys of the user by authentication of the user U to the server S. We prove this property using CDH.
 
+   TODO
    We obtain the probability:
    (NU + NS)/|passwd| + pGDH(time_1, 3(qH1 + qH0)) + O(t_A^2)/|hash1| + O(t_A^2)/|G|,
    where t_A is the runtime of the adversary
@@ -60,9 +61,8 @@ for some exponents x,y. That allows eliminating similar conditions in the rest o
  *)
 show_game;
 insert before "find \\[unique\\] u_32 "
-  "          find ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_3[ri_8]) && (x14 = exp(g, x_3[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_3[ri_8], x[ri_7]))) then
-            event_abort cdh
-          orfind ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_4[ri_8]) && (x14 = exp(g, x_4[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_4[ri_8], x[ri_7]))) then
+  "          if defined(xcorrupt) then else
+          find ri_7 <= NU, ri_8 <= NU suchthat defined(x[ri_7], X[ri_7], x_3[ri_8]) && (x14 = exp(g, x_3[ri_8])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_3[ri_8], x[ri_7]))) then
             event_abort cdh
           orfind ri_7 <= NU, ri_9 <= qD suchthat defined(x[ri_7], X[ri_7], x_2[ri_9]) && (x14 = exp(g, x_2[ri_9])) && (x13 = X[ri_7]) && (x12 = S) && (x11 = U) && (x15 = exp(g, mult(x_2[ri_9], x[ri_7]))) then
             event_abort cdh
@@ -74,27 +74,33 @@ insert before "find \\[unique\\] u_32 "
             event_abort cdh";
 (* We rewrite the "find" at the beginning of OH in a similar way *)
 insert before "find \\[unique\\] u_9 "
-  "          find ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_3[ri_70]) && (x04 = exp(g, x_3[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_3[ri_70], x[ri_69]))) then
-            event_abort cdh
-          orfind ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_4[ri_70]) && (x04 = exp(g, x_4[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_4[ri_70], x[ri_69]))) then
+  "          if defined(xcorrupt) then
+          find ri_8 <= NP suchthat defined(Xp[ri_8],xp[ri_8],Yp[ri_8],yp[ri_8]) && (x04 = Yp[ri_8]) && (x03 = Xp[ri_8]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[ri_8], xp[ri_8]))) then
+	    event_abort cdh_corrupt
+	  else
+        else
+          find ri_69 <= NU, ri_70 <= NU suchthat defined(X[ri_69], x[ri_69], x_3[ri_70]) && (x04 = exp(g, x_3[ri_70])) && (x03 = X[ri_69]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_3[ri_70], x[ri_69]))) then
             event_abort cdh
           orfind ri_67 <= NU, ri_71 <= qD suchthat defined(X[ri_67], x[ri_67], x_2[ri_71]) && (x04 = exp(g, x_2[ri_71])) && (x03 = X[ri_67]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_2[ri_71], x[ri_67]))) then
             event_abort cdh
-          orfind ri_65 <= NU, ri_92 <= NS suchthat defined(X[ri_65], Y[ri_92], x[ri_65], y[ri_92]) && (x04 = Y[ri_92]) && (x03 = X[ri_65]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(y[ri_92], x[ri_65]))) then
+          orfind ri_65 <= NU, ri_99 <= NS suchthat defined(X[ri_65], Y[ri_99], x[ri_65], y[ri_99]) && (x04 = Y[ri_99]) && (x03 = X[ri_65]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(y[ri_99], x[ri_65]))) then
             event_abort cdh
           orfind ri_63 <= NU, ri_73 <= NP suchthat defined(X[ri_63], Yp[ri_73], x[ri_63], yp[ri_73]) && (x04 = Yp[ri_73]) && (x03 = X[ri_63]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[ri_73], x[ri_63]))) then
             event_abort cdh
           orfind ri_8 <= NP suchthat defined(Xp[ri_8],xp[ri_8],Yp[ri_8],yp[ri_8]) && (x04 = Yp[ri_8]) && (x03 = Xp[ri_8]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(yp[ri_8], xp[ri_8]))) then
 	    event_abort cdh";
 simplify;
-success; (* Prove secrecy and authentication, the probabilities of events cdh, Auth, Encrypt are still to bound. However, the probabilities that follow will not be multiplied by 2 for secrecy *)
-
-crypto gdh(exp);
-success; (* Bound event cdh *)
-success simplify; (* Remove compromise, since after compromise, the adversary cannot execute Auth nor Encrypt *)
-
-crypto exp'_to_group(exp) *;
-SArename r_4;
+crypto cdh(exp) [variables: xp -> a_1, x_4 -> b, yp -> b, x_2 -> b, x_3 -> b, x -> a_1 .];
+SArename r_1;
+SArename r_5;
+SArename r_7;
+SArename r_3;
+success; (* Show authentication, and some cdh, cdh_corrupt. Remains to show Auth, Encrypt, cdh_2, cdh_7, secrecy *)
+focus "query event(cdh_2) ==> false", "query event(cdh_7) ==> false", "query event(Auth) ==> false", "query event(Encrypt) ==> false";
+success simplify; (* Removes corruption *)
+simplify; (* Finish removing corruption tests *)
+crypto cdh(exp);
+crypto exp_to_group(exp) *;
 show_game;
 move array X_5; (* variable chosen at the end of OC2 and not used immediately *)
 merge_arrays X_1 Y_1;
@@ -107,7 +113,7 @@ move array X_4; (* variable chosen in OS1 and not used immediately *)
 (*show_game;
 merge_arrays X_1 Y_1;*)
 show_game;
-insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_7[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_7[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
+insert before "find jh" "find jh' <= qH1, jd <= qD suchthat defined(x11[jh'], x12[jh'], x13[jh'], x14[jh'], r_27[jh'], m[jd], kd[jd], X_1[jd]) && (m[jd] = md_O_enc) && (U = x11[jh']) && (S = x12[jh']) && (X_s = x13[jh']) && (x14[jh'] = X_1[jd]) && (auth_s = r_27[jh'])  && (kd[jd] = pw0) then event_abort Auth2";
 simplify;
 merge_branches;
 allowed_collisions noninteractive^2/large, small/password;
@@ -117,7 +123,26 @@ allowed_collisions noninteractive^2/large, small/password;
    they need to be explicitly requested by simplify coll_elim(variables: pw0) below.
  *)
 simplify coll_elim(variables: pw0);
-success
+success;
+SArename r;
+(* remains to prove secrecy of sk_u_secret; only r_62 may leak in the hash oracle *)
+guess iU; (* guess iU = iU_tested tested session of sk_u_secret *)
+guess "u_74[iU_tested]"; (* guess u_74[iU_tested] = u_74_guessed *)
+insert after "OS1" "if iS = u_tested then"; (* test if iS = u_74_guessed at the beginning of the server *)
+SArename x; (* SArename x, y => distinguish name in tested sessions from others
+	       Name in tested sessions: x_11, y_2 *)
+SArename y;
+interactive 
+	       
+	       (* introduce event cdh_corrupt2 in the hash oracle for the CDH of x,y
+	       in the tested sessions
+	       success proves secrecy, we still need to exclude cdh_corrupt2
+	       replace the value of the test X_s^y = Z in the server for y of the
+	       tested server session with a random or guess the taken branch
+	       PB: that's not enough, I also need to simulate the key returned by the reveal query,
+	       and that is not a decisional value. Causes many DDH requests to find the right call
+	       to H0. Difficult for me!
+	       apply cdh. *)
 }
 
 (* Parameter and type declarations *)
@@ -136,9 +161,10 @@ type host [bounded].
 (* Computational Diffie-Hellman *)
 
 expand DH_good_group(G, Z, g, exp, exp', mult).
-proba pGDH.
+proba pCDH.
 letproba pZero = 0.
-expand GDH_RSR(G, Z, g, exp, exp', mult, pGDH, pZero).
+expand CDH_RSR(G, Z, g, exp, exp, mult, pCDH, pZero).
+   (* Using exp also after transformation, not exp', to be able to apply CDH several times *)
 
 (* Ideal cipher model *)
 

@@ -282,21 +282,29 @@ let rec ren_out_find_cond b0 t =
   | FindE(l0, p2, find_info) ->
       let rec ren_out_list = function
 	  [] -> []
-	| (bl,def_list, t, p1)::l1 ->
+	| ((bl,def_list, t, p1) as branch)::l1 ->
 	    let l1' = ren_out_list l1 in
-	    let p1' = ren_out_find_cond b0 p1 in
-            let t' = ren_out_find_cond b0 t in
 	    let to_rename = implies_def b0 def_list in
             (* renamings of b0 *)	
 	    if to_rename = [] then
-	      (bl, def_list, t', p1')::l1'
+	      branch::l1'
 	    else
 	      begin
 		add_proba_sarename bl l0 find_info;
-		rename_finds Terms.copy_term b0 (!image_name_list) to_rename l1' (bl, def_list, t', p1')
+		rename_finds Terms.copy_term b0 (!image_name_list) to_rename l1' branch
 	      end
       in
-      FindE(ren_out_list l0, ren_out_find_cond b0 p2, find_info)
+      (* In case we have nested finds with defined conditions on the same b0[args],
+         it is important to rename the outer find first, so that all references to b0[args]
+	 are transformed to the same b[args]. Then we rename the inner terms and processes,
+	 renaming references b0[args'] for args'<>args. *)
+      let l0' = ren_out_list l0 in
+      let l0'' =
+	List.map (fun (bl, def_list, t, p1) ->
+	  (bl, def_list, ren_out_find_cond b0 t, ren_out_find_cond b0 p1)
+	    ) l0'
+      in
+      FindE(l0'', ren_out_find_cond b0 p2, find_info)
   | LetE(pat,t,p1,topt) ->
       begin
       LetE(ren_out_pat b0 pat, ren_out_term b0 t, ren_out_find_cond b0 p1,
@@ -352,21 +360,29 @@ and ren_out_oprocess b0 p =
   | Find(l0, p2, find_info) ->
       let rec ren_out_list = function
 	  [] -> []
-	| (bl,def_list, t, p1)::l1 ->
+	| ((bl,def_list, t, p1) as branch)::l1 ->
 	    let l1' = ren_out_list l1 in
-	    let p1' = ren_out_oprocess b0 p1 in
-            let t' = ren_out_find_cond b0 t in
 	    let to_rename = implies_def b0 def_list in
             (* renamings of b0 *)	
 	    if to_rename = [] then
-	      (bl, def_list, t', p1')::l1'
+	      branch::l1'
 	    else
 	      begin
 		add_proba_sarename bl l0 find_info;
-		rename_finds Terms.copy_oprocess b0 (!image_name_list) to_rename l1' (bl, def_list, t', p1')
+		rename_finds Terms.copy_oprocess b0 (!image_name_list) to_rename l1' branch
 	      end
       in
-      Find(ren_out_list l0, ren_out_oprocess b0 p2, find_info)
+      (* In case we have nested finds with defined conditions on the same b0[args],
+         it is important to rename the outer find first, so that all references to b0[args]
+	 are transformed to the same b[args]. Then we rename the inner terms and processes,
+	 renaming references b0[args'] for args'<>args. *)
+      let l0' = ren_out_list l0 in
+      let l0'' =
+	List.map (fun (bl, def_list, t, p1) ->
+	  (bl, def_list, ren_out_find_cond b0 t, ren_out_oprocess b0 p1)
+	    ) l0'
+      in
+      Find(l0'', ren_out_oprocess b0 p2, find_info)
   | Output((c,tl),t2,p) ->
       Output((c, List.map (ren_out_term b0) tl),ren_out_term b0 t2,ren_out_process b0 p)
   | Let(pat,t,p1,p2) ->
