@@ -3041,6 +3041,30 @@ This transformation does not apply to $\texttt{equivalence}$
 and $\texttt{query\_equiv}$ proofs. The transformation fails
 if such a proof is still required.
 
+\item $\texttt{guess }\texttt{"}x[i_1, \dots, i_n]\texttt{" no\_test}$ guesses the value of $x[i_1, \dots, i_n]$, where
+  $x[i_1, \dots, i_n]$ is defined under $n$
+    replications, and $i_1, \dots, i_n$ are constant replication
+    indices (typically produced by a previous guess of the replication
+    indices).
+    CryptoVerif must be able to determine, at each definition of $x$, whether its indices
+    will be equal to $i_1, \dots, i_n$ or not. Otherwise, the transformation fails.
+    When $x$ is defined under no replication, one writes $x$ instead of $\texttt{"}x[i_1, \dots, i_n]\texttt{"}$.
+    The variable $x$ must be defined by $\texttt{let}\ x = \dots$
+
+    CryptoVerif replaces the definition of $x$ with a constant value $v_{\mathit{tested}}$.
+    When the definition of $x$ is not a simple term (a term built from replication indices, variables, and function applications), the old definition is still evaluated but ignored.
+
+    Assuming $x$ is a variable of type $T$, the probability of
+    breaking the initial query is $|T|$ times the probability of
+    breaking the query for $x[i_1, \dots, i_n] = v_{\mathit{tested}}$.
+    $|T|$ must be estimated less than \texttt{maxGuess} (see the
+    command \texttt{set maxGuess}).
+
+This transformation does not apply to secrecy queries, $\texttt{equivalence}$,
+and $\texttt{query\_equiv}$ proofs. The transformation fails
+if such a proof is still required.
+
+
 \item $\texttt{guess\_branch }occ$ guesses which branch is taken at
   program point $occ$. The instruction at program point $occ$ must be
   a test (\texttt{if}, \texttt{let}, or \texttt{find}) with at least two
@@ -3048,12 +3072,35 @@ if such a proof is still required.
   it is not under replication, and because it is under replication and the
   replication indices are fixed, for instance because they have previously
   been guessed by the \texttt{guess} instruction above).
-  If this instruction has $n$ branches, CryptoVerif generates $n$ games $G_i$ ($0 \leq i < n$) in which branch $i$ is kept and all other branches are replaced with an event \texttt{bad\_guess}. (Branch 0 is the \texttt{else} branch.) The desired queries must then be proved in all games $G_i$ and the probability of breaking the queries in the initial game is bounded by the sum of the probabililities of breaking them in all games $G_i$.
+  If this instruction has $n$ branches, CryptoVerif generates $n$ games $G_i$ ($0 \leq i < n$) in which branch $i$ is kept and all other branches are replaced with an event \texttt{bad\_guess}. (Branch 0 is the \texttt{else} branch.) The desired queries must then be proved in all games $G_i$ and the probability of breaking the queries in the initial game is bounded by the sum of the probabilities of breaking them in all games $G_i$.
   That allows the user to split cases depending on which branch is taken at program point $occ$.
 
   The user first needs to prove the queries in game $G_0$. Once all queries are proved in this game, CryptoVerif automatically goes back and asks the user to prove the queries in next game, until they are proved in all games $G_i$.
 
   In case the user is unable to prove some queries in a game $G_i$, it is blocked: it cannot consider the following games. In that case, the best is probably to remove the queries that cannot be proved and restart the proof. One can also undo the transformations until before \texttt{guess\_branch}, use \texttt{focus} to limit oneself to the queries that can be proved and redo the proof from \texttt{guess\_branch}.
+
+This transformation does not apply to $\texttt{equivalence}$
+and $\texttt{query\_equiv}$ proofs. The transformation fails
+if such a proof is still required.
+
+\item $\texttt{guess\_branch }occ\texttt{ no\_test}$ guesses which branch is taken at
+  program point $occ$. The instruction at program point $occ$ must be
+  a test \texttt{if}. This instruction must be executed at most once (either because
+  it is not under replication, and because it is under replication and the
+  replication indices are fixed, for instance because they have previously
+  been guessed by the \texttt{guess} instruction above).
+  CryptoVerif generates 2 games $G_0$ and $G_1$, keeping respectively only the $\texttt{else}$ branch and the $\texttt{then}$ branch.
+  The test is removed. If the condition of the test is not a simple term (a term built from replication indices, variables, and function applications), it is still evaluated but ignored.
+  The desired queries must then be proved in both games $G_i$ and the probability of breaking the queries in the initial game is bounded by the sum of the probabilities of breaking them in both games $G_i$.
+  That allows the user to split cases depending on which branch is taken at program point $occ$.
+
+  The user first needs to prove the queries in game $G_0$. Once all queries are proved in this game, CryptoVerif automatically goes back and asks the user to prove the queries in game $G_1$.
+
+  In case the user is unable to prove some queries in a game $G_i$, it is blocked: it cannot consider the following games. In that case, the best is probably to remove the queries that cannot be proved and restart the proof. One can also undo the transformations until before \texttt{guess\_branch}, use \texttt{focus} to limit oneself to the queries that can be proved and redo the proof from \texttt{guess\_branch}.
+
+This transformation does not apply to secrecy queries, $\texttt{equivalence}$,
+and $\texttt{query\_equiv}$ proofs. The transformation fails
+if such a proof is still required.
 
 \item \texttt{start\_from\_other\_end}: for proofs of indistinguishability
   only (\texttt{equivalence}), instruct CryptoVerif to start transforming

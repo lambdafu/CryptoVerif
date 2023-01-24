@@ -73,7 +73,7 @@ let selected_guess = ref (GuessOcc(-1, false, dummy_ext))
 
 let ext_command() =
   match !selected_guess with
-  | GuessOcc(_,_,ext) | GuessRepl(_,_,ext) | GuessVar(_,ext) -> ext
+  | GuessOcc(_,_,ext) | GuessRepl(_,_,ext) | GuessVar(_,_,ext) -> ext
 
 
 let check_size ty =
@@ -97,8 +97,10 @@ let get_cst s ty =
   b_tested
 	
 let found_guess = ref false
-
+let no_test = ref false
+    
 let guess_card = ref Zero
+let guess_cst = ref (Terms.make_true ())
 let var_eq_test = ref (Terms.make_true ())
 let has_secrecy = ref false
 let guess_b_defined = ref None
@@ -124,7 +126,9 @@ let reset() =
 	       all_non_unique_events = ref [] };
   selected_guess := GuessOcc(-1, false, dummy_ext);
   found_guess := false;
+  no_test := false;
   guess_card := Zero;
+  guess_cst := (Terms.make_true ());
   var_eq_test := (Terms.make_true ());
   has_secrecy := false;
   guess_b_defined := None;
@@ -213,12 +217,12 @@ let update_queries state g' new_queries current_queries =
        
 let is_selected_var b =
   match !selected_guess with
-  | GuessVar((b',_),_) -> b' == b
+  | GuessVar((b',_),_,_) -> b' == b
   | _ -> false
 	
 let is_guess_var cur_array pp b =
   match !selected_guess with
-  | GuessVar((b',l),_) when b' == b ->
+  | GuessVar((b',l),_,_) when b' == b ->
       if l = [] then
 	begin
 	  assert (cur_array == []);
@@ -282,7 +286,11 @@ let rec full_transfo_t cur_array t =
       let l0' = List.map (fun (bl, def_list, t1, p2) ->
 	let p2' = 
 	  if List.exists (fun (b,_) -> is_guess_var cur_array (DTerm p2) b) bl then
-	    make_test_t p2 
+	    begin
+	      if (!no_test) then
+		raise (Error("guess ... no_test is allowed only for variables defined by let", ext_command()));
+	      make_test_t p2
+	    end
 	  else
 	    full_transfo_t cur_array p2
 	in
@@ -293,25 +301,46 @@ let rec full_transfo_t cur_array t =
   | ResE(b,t1) ->
       let t1' =
 	if is_guess_var cur_array (DTerm t1) b then
-	  make_test_t t1
+	  begin
+	    if (!no_test) then
+	      raise (Error("guess ... no_test is allowed only for variables defined by let", ext_command()));
+	    make_test_t t1
+	  end
 	else
 	  full_transfo_t cur_array t1
       in
       Terms.build_term t (ResE(b,t1'))
   | LetE(pat, t1, t2, topt) ->
       let vars_pat = Terms.vars_from_pat [] pat in
-      let t2' =
-	if List.exists (is_guess_var cur_array (DTerm t2)) vars_pat then
-	  make_test_t t2 
-	else
-	  full_transfo_t cur_array t2
-      in
-      let topt' =
-	match topt with
-	| None -> None
-	| Some t3 -> Some (full_transfo_t cur_array t3)
-      in
-      Terms.build_term t (LetE(full_transfo_pat cur_array pat, full_transfo_t cur_array t1, t2', topt'))
+      let has_guessed = List.exists (is_guess_var cur_array (DTerm t2)) vars_pat in
+      if (!no_test) && has_guessed then
+      	begin
+	  match pat with
+	  | PatVar b ->
+	      let branch = Terms.build_term t (LetE(pat, !guess_cst, t2, None)) in
+	      if Terms.check_simple_term t1 then
+		branch
+	      else
+		let b_ignore = Terms.create_binder Settings.underscore_var_name t1.t_type cur_array in
+		Terms.build_term t (LetE(PatVar b_ignore, t1, branch, None))
+	  | _ -> 
+	      raise (Error("guess ... no_test is allowed only for variables defined by let x = ...", ext_command()));
+	end
+      else
+	begin
+	  let t2' =
+	    if has_guessed then
+	      make_test_t t2
+	    else
+	      full_transfo_t cur_array t2
+	  in
+	  let topt' =
+	    match topt with
+	    | None -> None
+	    | Some t3 -> Some (full_transfo_t cur_array t3)
+	  in
+	  Terms.build_term t (LetE(full_transfo_pat cur_array pat, full_transfo_t cur_array t1, t2', topt'))
+	end
   | GetE _|InsertE _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   | _ -> Terms.build_term t (Terms.map_subterm (full_transfo_t cur_array) (fun def_list -> def_list) (full_transfo_pat cur_array) t)
 
@@ -343,7 +372,11 @@ and full_transfo_p cur_array p =
 	List.map (fun (bl, def_list, t1, p2) ->
 	  let p2' = 
 	    if List.exists (fun (b,_) -> is_guess_var cur_array (DProcess p2) b) bl then
-	      make_test_p p2 
+	      begin
+		if (!no_test) then
+		  raise (Error("guess ... no_test is allowed only for variables defined by let", ext_command()));
+		make_test_p p2
+	      end
 	    else
 	      full_transfo_p cur_array p2
 	  in
@@ -354,20 +387,41 @@ and full_transfo_p cur_array p =
   | Restr(b,p1) ->
       let p1' =
 	if is_guess_var cur_array (DProcess p1) b then
-	  make_test_p p1
+	    begin
+	      if (!no_test) then
+		raise (Error("guess ... no_test is allowed only for variables defined by let", ext_command()));
+	      make_test_p p1
+	    end
 	else
 	  full_transfo_p cur_array p1
       in
       Terms.oproc_from_desc_loc p (Restr(b,p1'))
   | Let(pat, t, p1, p2) ->
       let vars_pat = Terms.vars_from_pat [] pat in
-      let p1' = 
-	if List.exists (is_guess_var cur_array (DProcess p1)) vars_pat then
-	   make_test_p p1 
-	else
-	  full_transfo_p cur_array p1
-      in
-      Terms.oproc_from_desc_loc p (Let(full_transfo_pat cur_array pat, full_transfo_t cur_array t, p1', full_transfo_p cur_array p2))
+      let has_guessed = List.exists (is_guess_var cur_array (DProcess p1)) vars_pat in
+      if (!no_test) && has_guessed then
+      	begin
+	  match pat with
+	  | PatVar b ->
+	      let branch = Terms.oproc_from_desc_loc p (Let(pat, !guess_cst, p1, Terms.oproc_from_desc Yield)) in
+	      if Terms.check_simple_term t then
+		branch
+	      else
+		let b_ignore = Terms.create_binder Settings.underscore_var_name t.t_type cur_array in
+		Terms.oproc_from_desc_loc p (Let(PatVar b_ignore, t, branch, Terms.oproc_from_desc Yield))
+	  | _ -> 
+	      raise (Error("guess ... no_test is allowed only for variables defined by let x = ...", ext_command()));
+	end
+      else
+	begin
+	  let p1' = 
+	    if has_guessed then
+	      make_test_p p1 
+	    else
+	      full_transfo_p cur_array p1
+	  in
+	  Terms.oproc_from_desc_loc p (Let(full_transfo_pat cur_array pat, full_transfo_t cur_array t, p1', full_transfo_p cur_array p2))
+	end
   | Get _|Insert _ -> Parsing_helper.internal_error "Get/Insert should not appear here"
   | _ ->
       Terms.oproc_from_desc_loc p
@@ -375,17 +429,19 @@ and full_transfo_p cur_array p =
 	   (fun def_list -> def_list) (full_transfo_pat cur_array)
 	   (full_transfo_i cur_array) p)
 
-let guess_var ((b,l),ext) state g =
+let guess_var ((b,l),ext) no_test_arg state g =
   let p = Terms.get_process g in
   check_size b.btype;
   guess_card := Proba.card b.btype;
+  no_test := no_test_arg;
   fistate := { initial_queries = g.current_queries;
 	       all_non_unique_events = ref [] };
   let b_tested = get_cst b.sname b.btype in
+  guess_cst := Terms.app b_tested [];
   var_eq_test :=
      Terms.make_equal
        (Terms.term_from_binder b)
-       (Terms.app b_tested []);
+       (!guess_cst);
   let old_proba_zero = !Settings.proba_zero in
   if l != [] then
     begin
@@ -415,6 +471,8 @@ let guess_var ((b,l),ext) state g =
       | _ ->
 	  raise (Error("Cannot guess a value when there is an equivalence query to prove, or no query", ext_command()))
 	    ) g.current_queries;
+    if (!no_test) && (!has_secrecy) then
+      raise (Error("guess ... no_test is not allowed in the presence of secrecy queries", ext_command()));
     (* Locate the definitions of guessed variable.
        In particular, raise an error if that variable is defined in a term.
        Also computes the query variables/events found under the guessed value/elsewhere, even though
@@ -1147,8 +1205,8 @@ let guess arg state g =
   try
     let g' =
       match arg with
-      | GuessVar((b,l),ext) ->
-	  guess_var ((b,l),ext) state g
+      | GuessVar((b,l),no_test,ext) ->
+	  guess_var ((b,l),ext) no_test state g
       | _ ->
 	  guess_session state g
     in
@@ -1164,6 +1222,7 @@ let guess arg state g =
 type state_ty =
     { whole_game : game;
       occ : int;
+      no_test : bool;
       ext_o : Parsing_helper.extent;
       mutable to_do : bool;
       branch_num : int;
@@ -1236,11 +1295,28 @@ let rec guess_t state cur_array t =
 	match t.t_desc with
 	| TestE(t0,p1,p2) ->
 	    begin
-	      match state.branch_num with
-	      | 0 -> Terms.build_term t (TestE(t0,bad_guess_t(),p2))
-	      | 1 -> Terms.build_term t (TestE(t0,p1,bad_guess_t()))
-	      | _ -> raise Finished
+	      if state.no_test then
+		begin
+		  let branch = 
+		    match state.branch_num with
+		    | 0 -> p2
+		    | 1 -> p1
+		    | _ -> raise Finished
+		  in
+		  if Terms.check_simple_term t0 then
+		    branch
+		  else
+		    let b = Terms.create_binder Settings.underscore_var_name t0.t_type cur_array in
+		    Terms.build_term t (LetE(PatVar b, t0, branch, None))
+		end
+	      else
+		match state.branch_num with
+		| 0 -> Terms.build_term t (TestE(t0,bad_guess_t(),p2))
+		| 1 -> Terms.build_term t (TestE(t0,p1,bad_guess_t()))
+		| _ -> raise Finished
 	    end
+	| _ when state.no_test ->
+	    raise (Error("At occurrence "^(string_of_int state.occ)^", guess_branch ... no_test can be applied only to \"if\" instructions", state.ext_o))
 	| LetE(pat,t0,p1,popt) ->
 	    begin
 	      match pat with
@@ -1328,11 +1404,28 @@ and guess_o state cur_array p =
 	match p.p_desc with
 	| Test(t,p1,p2) ->
 	    begin
-	      match state.branch_num with
-	      | 0 -> Terms.oproc_from_desc (Test(t,bad_guess_p(),p2))
-	      | 1 -> Terms.oproc_from_desc (Test(t,p1,bad_guess_p()))
-	      | _ -> raise Finished
+	      if state.no_test then
+		begin
+		  let branch = 
+		    match state.branch_num with
+		    | 0 -> p2
+		    | 1 -> p1
+		    | _ -> raise Finished
+		  in
+		  if Terms.check_simple_term t then
+		    branch
+		  else
+		    let b = Terms.create_binder Settings.underscore_var_name t.t_type cur_array in
+		    Terms.oproc_from_desc (Let(PatVar b, t, branch, Terms.oproc_from_desc Yield))
+		end
+	      else
+		match state.branch_num with
+		| 0 -> Terms.oproc_from_desc (Test(t,bad_guess_p(),p2))
+		| 1 -> Terms.oproc_from_desc (Test(t,p1,bad_guess_p()))
+		| _ -> raise Finished
 	    end
+	| _ when state.no_test ->
+	    raise (Error("At occurrence "^(string_of_int state.occ)^", guess_branch ... no_test can be applied only to \"if\" instructions", state.ext_o))
 	| Let(pat,t,p1,p2) ->
 	    begin
 	      match pat with
@@ -1407,7 +1500,7 @@ let update_query v q =
       Parsing_helper.internal_error "equivalence queries/absent query should have been eliminated earlier"
 
 
-let guess_branch occ ext_o state g =
+let guess_branch occ no_test ext_o state g =
   let p = Terms.get_process g in
   let has_secrecy = ref false in
   List.iter (function ((q,_),_) as q_proof ->
@@ -1419,6 +1512,8 @@ let guess_branch occ ext_o state g =
     | _ ->
 	raise (Error("Cannot guess a branch when there is an equivalence query to prove, or no query", ext_o))
 	  ) g.current_queries;
+  if no_test && (!has_secrecy) then
+    raise (Error("guess_branch ... no_test is not allowed in the presence of secrecy queries", ext_o));
   let all_non_unique_events = ref [] in
   let p =
     if !has_secrecy then
@@ -1433,6 +1528,7 @@ let guess_branch occ ext_o state g =
     let loc_state =
       { whole_game = g;
         occ = occ;
+	no_test = no_test;
 	ext_o = ext_o;
 	to_do = true;
 	branch_num = br_num;

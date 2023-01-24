@@ -175,6 +175,7 @@ let return_channel = (dummy_channel, None)
 %token ASSUME
 %token GUESS
 %token GUESS_BRANCH
+%token NO_TEST
 %token ABOVE
       
 /* Precedence (from low to high) and associativities */
@@ -595,11 +596,15 @@ proofcommand:
 |   UNDO FOCUS
     { CUndoFocus(parse_extent()) }
 |   GUESS idst optabove
-    { CGuess(CGuessId($2, $3)) }
+    { CGuess(CGuessId($2, false, $3)) }
+|   GUESS idst NO_TEST
+    { CGuess(CGuessId($2, true, false)) }
 |   GUESS occ optabove
     { CGuess(CGuessOcc($2, $3, parse_extent())) }
 |   GUESS_BRANCH occ
-    { CGuess_branch($2, parse_extent()) }
+    { CGuess_branch($2, false, parse_extent()) }
+|   GUESS_BRANCH occ NO_TEST
+    { CGuess_branch($2, true, parse_extent()) }
 
 guess_binderref:
     IDENT LBRACKET identlist RBRACKET

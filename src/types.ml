@@ -599,7 +599,7 @@ and crypto_transf_user_info =
   | Detailed of var_mapping option * term_mapping option
 
 and guess_arg_t =
-  | GuessVar of binderref * Parsing_helper.extent
+  | GuessVar of binderref * bool(*true when "no_test"*) * Parsing_helper.extent
   | GuessRepl of repl_index * bool(*true when "and above"*) * Parsing_helper.extent
   | GuessOcc of int * bool(*true when "and above"*) * Parsing_helper.extent
 	
@@ -622,7 +622,7 @@ and instruct =
   | Proof of ((query * game) * probaf) list
   | IFocus of query list
   | Guess of guess_arg_t
-  | GuessBranch of int(*occurrence of branching instruction to guess*) * Parsing_helper.extent
+  | GuessBranch of int(*occurrence of branching instruction to guess*) * bool(*true when "no_test"*) * Parsing_helper.extent
 	
 and ins_updater = (instruct -> instruct list) option
 

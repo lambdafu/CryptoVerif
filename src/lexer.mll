@@ -145,6 +145,7 @@ let keyword_table_proof =
       "assume", ASSUME;
       "guess", GUESS;
       "guess_branch", GUESS_BRANCH;
+      "no_test", NO_TEST;
       "above", ABOVE
     ]
     

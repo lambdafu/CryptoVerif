@@ -14,6 +14,9 @@ Version
 - As a consequence, removed setting allowUnprovedUnique.
 - Removed command "remove_assign all", useless in practice.
 - New command "SArename random", previously included in "remove_assign".
+- Added option "no_test" to the commands "guess" and "guess_branch"
+  to assert that we use the guessed value resp. are in the guessed
+  branch, instead of testing it.
 - Use program points more often in the collection of true facts,
   in addition or instead of defined variables.
 - Display a warning when correspondence queries do not satisfy a

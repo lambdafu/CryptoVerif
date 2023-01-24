@@ -235,7 +235,7 @@ type allowed_coll_t =
   | Allowed_Coll_Exact of ident
 
 type guess_arg_t =
-  | CGuessId of ident * bool(*true when "and above"*)
+  | CGuessId of ident * bool(*true when "no_test"*) * bool(*true when "and above"*)
   | CGuessOcc of pocc * bool(*true when "and above"*) * Parsing_helper.extent
 	
 type command =
@@ -281,7 +281,7 @@ type command =
   | CTag of ident
   | CUndoTag of ident
   | CGuess of guess_arg_t
-  | CGuess_branch of pocc * Parsing_helper.extent
+  | CGuess_branch of pocc * bool(* true when "no_test"*) * Parsing_helper.extent
 	
 (* Declarations *)
 

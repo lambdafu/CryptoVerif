@@ -125,28 +125,49 @@ allowed_collisions noninteractive^2/large, small/password;
  *)
 simplify coll_elim(variables: pw0);
 success;
+insert after_nth 1 "K_s:" "find uH = ri_38 <= qH1 suchthat defined(r_7[ri_38], x11[ri_38], x12[ri_38], x13[ri_38], x14[ri_38], x15[ri_38]) && (auth_s = r_7[ri_38]) && (Y = x14[ri_38]) && (X_s = x13[ri_38]) && (S = x12[ri_38]) && (U = x11[ri_38]) then if K_s = x15[uH] then";
+simplify;
+merge_branches;
+SArename r_1;
+out_game "g1occ.cv" occ;
+replace 2161 "x15[uH[ri_8]]";
+replace 1210 "x15[uH]";
 (*SArename r;*)
+SArename r_5;
+SArename r_7;
+SArename r_3;
 (* remains to prove secrecy of sk_u_secret; only r_62 may leak in the hash oracle *)
 set guessRemoveUnique = true;
 guess iU; (* guess iU = iU_tested tested session of sk_u_secret *)
+remove_assign binder sk_u_secret; (* make sure that sk_u_secret_1 is defined directly from a random, so that success simplify works *)
+success simplify;
 guess "u_74[iU_tested]"; (* guess u_74[iU_tested] = u_74_guessed *)
 insert after "OS1" "if iS = u_tested then"; (* test if iS = u_74_guessed at the beginning of the server *)
 SArename x; (* SArename x, y => distinguish name in tested sessions from others
 	       Name in tested sessions: x_11, y_2 *)
 SArename y;
-insert after "K_s_5:" "find uH = ri_38 <= qH1 suchthat defined(r_7[ri_38], x11[ri_38], x12[ri_38], x13[ri_38], x14[ri_38], x15[ri_38]) && (auth_s = r_7[ri_38]) && (Y_6 = x14[ri_38]) && (X_s = x13[ri_38]) && (S = x12[ri_38]) && (U = x11[ri_38]) then if K_s_5 = x15[uH] then";
+insert before_nth 1 "find u_9" "if defined(X[iU_tested], Y_6[u_tested], x_11[iU_tested], y_2[u_tested]) && (x04 = Y_6[u_tested]) && (x03 = X[iU_tested]) && (x02 = S) && (x01 = U) && (x05 = exp(g, mult(x_11[iU_tested], y_2[u_tested]))) then event_abort cdh_corrupt2";
+simplify; (* introduce event cdh_corrupt2 in the hash oracle for the CDH of x,y
+	       in the tested sessions*)
+success;  (* success proves secrecy, we still need to exclude cdh_corrupt2 *)
+remove_assign binder K_s_5;
 simplify;
-interactive 
-	       
-	       (* introduce event cdh_corrupt2 in the hash oracle for the CDH of x,y
-	       in the tested sessions
-	       success proves secrecy, we still need to exclude cdh_corrupt2
-	       replace the value of the test X_s^y = Z in the server for y of the
-	       tested server session with a random or guess the taken branch
-	       PB: that's not enough, I also need to simulate the key returned by the reveal query,
-	       and that is not a decisional value. Causes many DDH requests to find the right call
-	       to H0. Difficult for me!
-	       apply cdh. *)
+          (* guess the taken branch in the test X_s^y = Z in the server for y of the
+	     tested server session 
+	     apply cdh. *)
+out_game "g2occ.cv" occ;
+guess_branch 1835 no_test;
+guess_branch 1639 no_test;
+crypto cdh(exp) [variables: x_11 -> a_1, y_2 -> b . ];
+success;
+crypto cdh(exp) [variables: x_11 -> a_1, y_2 -> b . ];
+success;
+out_game "g3occ.cv" occ;
+guess_branch 1639 no_test;
+crypto cdh(exp) [variables: x_11 -> a_1, y_2 -> b . ];
+success;
+crypto cdh(exp) [variables: x_11 -> a_1, y_2 -> b . ];
+success
 }
 
 (* Parameter and type declarations *)

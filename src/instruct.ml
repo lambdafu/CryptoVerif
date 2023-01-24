@@ -292,8 +292,8 @@ let execute state ins =
 	Transf_merge.merge_branches g
     | Guess(arg) ->
 	Transf_guess.guess arg state g
-    | GuessBranch(occ,ext_o) ->
-	Transf_guess.guess_branch occ ext_o state g 
+    | GuessBranch(occ,no_test,ext_o) ->
+	Transf_guess.guess_branch occ no_test ext_o state g 
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
@@ -1200,7 +1200,7 @@ let find_repl_index_or_binder repl_indices binders (id,ext) =
       if l_b != 0 then
 	raise (Error("Variable "^(Display.binder_to_string b')^" expects "^(string_of_int l_b)^
 		     " indices, but is here given no index", ext));
-      GuessVar((b',[]), ext)
+      GuessVar((b',[]), false, ext)
     with Not_found ->
       raise (Error("Replication index or variable "^id^" not found", ext))
     
@@ -1527,8 +1527,10 @@ let help() =
   "guess <i> && above           : guess replication indices above replication index <i>\n" ^
   "guess <occ>                  : guess replication index at occurrence <occ>\n" ^
   "guess <occ> && above         : guess replication indices above replication at occurrence <occ>\n" ^
-  "guess \"x[i1...in]\"           : guess value of x[i1...in]\n" ^
-  "guess_branch <occ>           : guess which branch is taken at occurrence <occ>\n" ^
+  "guess \"x[i1...in]\"           : test equality of x[i1...in] with a guessed value\n" ^
+  "guess \"x[i1...in]\" no_test   : replace x[i1...in] with a guessed value\n" ^  
+  "guess_branch <occ>           : guess which branch is taken at occurrence <occ>; abort in case of wrong guess\n" ^
+  "guess_branch <occ> no_test   : guess which branch is taken at occurrence <occ>; always run that branch\n" ^
   "start_from_other_end         : in equivalence proofs, transform the other game\n" ^
   "success                      : check the desired properties\n" ^
   "success simplify             : remove code that cannot make properties to prove false\n" ^
@@ -2019,7 +2021,7 @@ let rec interpret_command interactive state = function
   | CGuess(arg) ->
       let interpreted_arg =
 	match arg with
-	| CGuessId(id,false) ->
+	| CGuessId(id,no_test,false) ->
 	    begin
 	      match Syntax.parse_from_string Parser.guess_binderref id with
 	      | (b,l) ->
@@ -2041,23 +2043,29 @@ let rec interpret_command interactive state = function
 		    Terms.app f []
 		  in
 		  let l' = List.map2 get_cst b'.args_at_creation l in
-		  GuessVar((b',l'),snd id)
+		  GuessVar((b',l'),no_test,snd id)
 	      | exception (Error _) ->
 		  let repl_indices = find_repl_indices state.game in
 		  let binders = find_binders state.game in
-		  find_repl_index_or_binder repl_indices binders id
+		  if no_test then
+		    let b' = find_guess_binder binders id in
+		    GuessVar((b',[]),no_test,snd id)
+		  else
+		    find_repl_index_or_binder repl_indices binders id 
 	    end
-	| CGuessId(id,true) ->
+	| CGuessId(id,false,true) ->
 	    let repl_indices = find_repl_indices state.game in
 	    find_repl_index repl_indices id
+	| CGuessId(id,true,true) ->
+	    Parsing_helper.internal_error "guess <..> no_test and above should not be allowed by the parser" 
 	| CGuessOcc(occ_cmd, and_above, ext_o) ->
 	    let occ = interpret_occ state occ_cmd in
 	    GuessOcc(occ, and_above, ext_o)
       in
       execute_display_advise (Guess interpreted_arg) state
-  | CGuess_branch(occ_br, ext_o) ->
+  | CGuess_branch(occ_br, no_test, ext_o) ->
       let occ = interpret_occ state occ_br in
-      execute_display_advise (GuessBranch(occ, ext_o)) state
+      execute_display_advise (GuessBranch(occ, no_test, ext_o)) state
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

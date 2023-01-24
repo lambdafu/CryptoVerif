@@ -1667,9 +1667,11 @@ let display_instruct = function
       begin
       print_string "guess ";
       match arg with
-      | GuessVar((b,l),_) ->
+      | GuessVar((b,l),no_test,_) ->
 	  print_string "the value of the variable ";
-	  display_var b l
+	  display_var b l;
+	  if no_test then
+	    print_string " no_test"
       | GuessRepl(repl_index,and_above,_) ->
 	  print_string "the tested session for replication index ";
 	  display_repl_index repl_index;
@@ -1679,9 +1681,11 @@ let display_instruct = function
 	  print_int occ;
 	  if and_above then print_string " and above"
       end
-  | GuessBranch(occ,_) ->
+  | GuessBranch(occ,no_test,_) ->
       print_string "guess branch at ";
-      print_int occ
+      print_int occ;
+      if no_test then
+	print_string " no_test"
 
 	
 (* Display transformation steps *)
