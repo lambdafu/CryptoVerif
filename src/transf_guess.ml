@@ -358,7 +358,11 @@ let rec full_transfo_i cur_array p =
 	  let vars_pat = Terms.vars_from_pat [] pat in
 	  let p1' =
 	    if List.exists (is_guess_var cur_array (DProcess p1)) vars_pat then
-	      make_test_p p1
+	      begin
+		if (!no_test) then
+		  raise (Error("guess ... no_test is allowed only for variables defined by let", ext_command()));
+		make_test_p p1
+	      end
 	    else
 	      full_transfo_p cur_array p1
 	  in
