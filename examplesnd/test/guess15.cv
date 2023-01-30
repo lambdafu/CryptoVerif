@@ -1,0 +1,28 @@
+(* CV forgets to duplicate the definition of x in the input in the
+guess transformation, and thus erroneously proves the secrecy of x
+FIXED 30/1/2023*)
+
+type nonce [fixed].
+
+query secret x [cv_onesession].
+
+param N.
+
+channel c, c1.
+
+proof {
+      guess i;
+      success
+}
+
+process
+  ! i <= N
+  in(c1, ());
+  out(c1, ());
+  in(c, x: nonce);
+  out(c, x)
+
+(* EXPECTED
+RESULT Could not prove one-session secrecy of x.
+0.072s (user 0.064s + system 0.008s), max rss 15716K
+END *)

@@ -851,8 +851,11 @@ let transfo dup_vars dup_events cur_array assigned p =
     | Repl(i,p1) ->
 	Terms.iproc_from_desc_loc p (Repl(i, tr_guess_i (i :: cur_array) p1))
     | Input((c,tl),pat,p1) ->
+	let vars = Terms.vars_from_pat [] pat in
+	let p1' = tr_guess_p cur_array p1 in
+	let p1'' = List.fold_left (fun p b -> add_assign_p b p) p1' vars in
 	Terms.iproc_from_desc_loc p
-	  (Input((c, List.map (tr_guess_t cur_array) tl), tr_guess_pat cur_array pat, tr_guess_p cur_array p1))
+	  (Input((c, List.map (tr_guess_t cur_array) tl), tr_guess_pat cur_array pat, p1''))
 
   and tr_guess_p cur_array p =
     match p.p_desc with
