@@ -553,8 +553,13 @@ and qterm =
   | QAnd of qterm * qterm
   | QOr of qterm * qterm
 
+and q_secret_opt =
+  | Reachability of bool (*true when onesession*)
+  | RealOrRandom of bool (*true when onesession*)
+  | Bit
+	
 and query = 
-  | QSecret of binder * binder list(*public variables*) * bool(*true when onesession*) 
+  | QSecret of binder * binder list(*public variables*) * q_secret_opt
   | QEventQ of (bool(*true when injective*) * term) list * qterm * binder list(*public variables*)
   | QEquivalence of state(*sequence of games transformations from final game*) * binder list(*public variables*) * bool(*current game comes from LHS*)
   | QEquivalenceFinal of game * binder list(*public variables*)
@@ -1081,4 +1086,3 @@ type state_display_info =
     { states_to_display : state list;
       proved_queries : ((query * game) * proba_bound list * bool * probaf) list;
       unproved_queries : (query * game) list }
-      

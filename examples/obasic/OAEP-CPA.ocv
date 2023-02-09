@@ -63,7 +63,7 @@ equation forall x:Dm,y:Dm; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1.
+query secret b1 [cv_bit].
 
 let processT(hkh: hashkey, hkg: hashkey, pk: pkey) = 
 	OT(m1: Dm, m2: Dm) :=

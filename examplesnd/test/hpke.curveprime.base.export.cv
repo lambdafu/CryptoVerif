@@ -966,7 +966,7 @@ let Responder_PSK_adv(key_extr_psk: hash_key_t, key_extr_zz: hash_key_t, info_ha
 
 
 
-query secret b.
+query secret b [cv_bit].
 
 query secret export_1_secr public_vars export_2_secr.
 query secret export_2_secr public_vars export_1_secr.
@@ -1013,6 +1013,6 @@ process
   )
 
 (* EXPECTED
-RESULT Could not prove secrecy of export_2_secr with public variables export_1_secr; secrecy of export_1_secr with public variables export_2_secr; secrecy of b.
+RESULT Could not prove secrecy of export_2_secr with public variables export_1_secr; secrecy of export_1_secr with public variables export_2_secr; bit secrecy of b.
 0.440s (user 0.432s + system 0.008s), max rss 25612K
 END *)

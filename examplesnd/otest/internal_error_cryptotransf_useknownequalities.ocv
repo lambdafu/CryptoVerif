@@ -205,7 +205,7 @@ equation forall x:Dm,y:Dm; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1 [cv_onesession].
+query secret b1 [cv_bit].
 
 
 

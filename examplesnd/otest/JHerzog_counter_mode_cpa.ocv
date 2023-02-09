@@ -64,7 +64,7 @@ param N. (* the number of times the adversary gets to call the encryption oracle
 (* what do we want? That the adversary does not know which plaintext 
    was encrypted *)
 
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 letfun enc(k: key, b1 : block, b2: block, b3:block) =
        nonce <-R block;

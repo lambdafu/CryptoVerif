@@ -49,7 +49,7 @@ param C. (* the number of challenge ciphertexts available to the adversary *)
 (* what do we want? That the adversary does not know which plaintext 
    was encrypted *)
 
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 event bad.
 query event(bad) ==> false.
@@ -137,6 +137,6 @@ process
 	(foreach i <= C do run challenge_oracle(aesk, secret_bit))
 
 (* EXPECTED
-RESULT Could not prove event(bad) ==> false; secrecy of secret_bit.
+RESULT Could not prove event(bad) ==> false; bit secrecy of secret_bit.
 1.084s (user 1.076s + system 0.008s), max rss 22748K
 END *)

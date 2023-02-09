@@ -53,7 +53,7 @@ param N. (* the number of times the adversary gets to call the encryption oracle
 (* what do we want? That the adversary does not know which plaintext 
    was encrypted *)
 
-query secret b0.
+query secret b0 [cv_bit].
 
 
 let processT(k: key, b1: bool) = 
@@ -73,6 +73,6 @@ process
 	foreach i <= N do run processT(k, b0)
 
 (* EXPECTED
-RESULT Could not prove secrecy of b0.
+RESULT Could not prove bit secrecy of b0.
 0.056s (user 0.056s + system 0.000s), max rss 17228K
 END *)

@@ -149,7 +149,7 @@ query Bcorrupted:bool,a0:G,as:pkey,b0:G,bs:pkey,sb:G,sb2:G,a1:G,a12:G,a2:G,m:bit
    ephemeral sb. The Diffie-Hellman key exchange just guarantees that
    pow8(sb) = pow8(sb2). *)
 
-query secret secb.
+query secret secb [cv_bit].
 
 (* The secrecy of secb shows the secrecy of the message sent by Alice to Bob,
    provided Bob is not corrupted yet when Alice send the message (secb is used

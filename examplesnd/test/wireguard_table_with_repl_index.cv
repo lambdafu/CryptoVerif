@@ -1377,7 +1377,7 @@ free secret_bit : bool [private].
 ** pvinclude:end *)
 
 (* Queries *)
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 let corrupt_S_i(S_i_priv: Z_t) =
   in(c_corrupt_S_i, ());

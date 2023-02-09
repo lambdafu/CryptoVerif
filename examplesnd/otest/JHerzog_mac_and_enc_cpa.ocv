@@ -46,7 +46,7 @@ param N. (* the number of times the adversary gets to call the encryption oracle
 (* what do we want? That the adversary does not know which plaintext 
    was encrypted *)
 
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 letfun enc(mack: mac_key, aesk: aes_key, b1: block) = 
        mac_tag <- mac(b1, mack);
@@ -83,6 +83,6 @@ process
         (foreach i <= N do run enc_oracle(mack, aesk)) | run challenge_oracle(mack, aesk)
 
 (* EXPECTED
-RESULT Could not prove secrecy of secret_bit.
+RESULT Could not prove bit secrecy of secret_bit.
 0.044s (user 0.044s + system 0.000s), max rss 16992K
 END *)

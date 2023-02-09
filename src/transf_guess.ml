@@ -1095,8 +1095,7 @@ let guess_session state g =
   List.iter (function ((q,_),_) as q_proof ->
     match q with
     | _ when Settings.get_query_status q_proof != ToProve -> () (* I ignore already proved and inactive queries *)
-    | QSecret (b,_,_) ->
-	has_secrecy := true;
+    | QSecret (b,_,options) ->
 	Terms.addq_ref query_variables b
     | QEventQ _ -> ()
     | _ ->
@@ -1137,25 +1136,32 @@ let guess_session state g =
       match q with
       | _ when Settings.get_query_status q_proof != ToProve -> () 
           (* I ignore already proved and inactive queries *)
-      | QSecret(b,pub_vars,one_session) ->
+      | QSecret(b,pub_vars,options) ->
 	  begin
 	    try
 	      let b' = List.assq b (!duplicated_vars) in
+	      (* Has a modified secrecy query *)
+	      has_secrecy := true;
 	      let pub_vars' =
-		if one_session then
-		  pub_vars
-		else
-		  let new_pub_var =
-		    try
-		      List.assq b (!new_pub_vars)
-		    with Not_found ->
-		      let b'' = Terms.new_binder b in
-		      new_pub_vars := (b, b'') :: (!new_pub_vars);
-		      b''
-		  in
-		  new_pub_var :: pub_vars
+		match options with
+		| Bit -> assert false (* Cannot happen because the secret variable must be defined under no replication *)
+		| RealOrRandom one_session -> 
+		    if one_session then
+		      pub_vars
+		    else
+		      let new_pub_var =
+			try
+			  List.assq b (!new_pub_vars)
+			with Not_found ->
+			  let b'' = Terms.new_binder b in
+			  new_pub_vars := (b, b'') :: (!new_pub_vars);
+			  b''
+		      in
+		      new_pub_var :: pub_vars
+		| Reachability _ ->
+		    Parsing_helper.internal_error "reachability secrecy not implemented"
 	      in
-	      new_queries := (q, proof_opt, QSecret(b',pub_vars',one_session), []) :: (!new_queries)
+	      new_queries := (q, proof_opt, QSecret(b',pub_vars',options), []) :: (!new_queries)
 	    with Not_found ->
 	      ()
 	  end

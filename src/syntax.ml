@@ -4102,18 +4102,45 @@ let get_qpubvars l = List.map (get_global_binder "in public variables of a query
 
 let check_query = function
     (PQSecret (i, pub_vars, options), ext_full) ->
+      let v = get_global_binder "in a secrecy query" i in
+      let secr_type = ref None in
       let onesession = ref false in
       List.iter (fun (s,ext) ->
 	if StringPlus.starts_with s "pv_" then
 	  () (* Ignore ProVerif options *)
 	else if s = "real_or_random" || s = "cv_real_or_random" then
-	  () (* real-or-random secrecy is the default *)
-	else if s = "cv_onesession" then
+	  match !secr_type with
+	  | None -> secr_type := Some (RealOrRandom false)
+	  | Some _ -> raise_error "You should have a single option to set the type of a secrecy query (among real_or_random, cv_real_or_random, reachability, cv_reachability, cv_bit)" ext
+	else if s = "reachability" || s = "cv_reachability" then
+	  match !secr_type with
+	  | None ->
+	      if not (Proba.is_large v.btype) then
+		raise_error "Reachability secrecy is allowed only for large types (otherwise, the adversary may have a non-negligible probability of success just by guessing)" ext;
+	      secr_type := Some (Reachability false)
+	  | Some _ -> raise_error "You should have a single option to set the type of a secrecy query (among real_or_random, cv_real_or_random, reachability, cv_reachability, cv_bit)" ext	  
+	else if s = "cv_bit" then
+	  match !secr_type with
+	  | None ->
+	      if not (v.args_at_creation = [] && v.btype == Settings.t_bool) then
+		raise_error "The option cv_bit is allowed only for booleans defined under no replication" ext;
+	      secr_type := Some (Bit)
+	  | Some _ -> raise_error "You should have a single option to set the type of a secrecy query (among real_or_random, cv_real_or_random, reachability, cv_reachability, cv_bit)" ext
+	else if s = "onesession" || s = "cv_onesession" then
 	  onesession := true
 	else
 	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
-      QSecret (get_global_binder "in a secrecy query" i,
-	       get_qpubvars pub_vars, !onesession)
+      let combined_option =
+	match !secr_type with
+	| None | Some (RealOrRandom _) ->
+	    if v.args_at_creation = [] && v.btype == Settings.t_bool then
+	      input_warning "For booleans defined under no replication, the option cv_bit may be more appropriate than real_or_random (the default)" ext_full;
+	    RealOrRandom(!onesession)
+	| Some (Reachability _) ->
+	    Reachability(!onesession)
+	| Some (Bit) -> Bit
+      in
+      QSecret (v, get_qpubvars pub_vars, combined_option)
   | (PQEventQ (syntax,vl,t, pub_vars),ext_full) ->
       let var_num_state = Terms.get_reset_var_num_state() in
       let (env',l') = check_binder_list_typaram (!env) vl in
@@ -4150,7 +4177,7 @@ let rec check_all (l,p) =
   let result = 
     match p with
     | PSingleProcess p1 ->
-	let final_p = SingleProcess(check_process_full p1) in
+	let p = check_process_full p1 in
 	let ql = List.map check_query (!queries_parse) in
       (* Remove duplicate queries. They are useless, take time,
 	 and might cause an internal error with the current
@@ -4164,8 +4191,10 @@ let rec check_all (l,p) =
 		q::ql'
 	  | [] -> []
 	in
+	let queries = queries_for_unique (remove_dup ql) in
+	let (queries, p) = Encode_queries.encode_queries queries p in
 	(!statements, !collisions, !equivalences,
-	 queries_for_unique (remove_dup ql), !proof, (get_impl ()), final_p)
+	 queries, !proof, (get_impl ()), SingleProcess p)
     | PEquivalence(p1,p2,pub_vars) ->
 	if (!queries_parse) != [] then
 	  raise_user_error "Queries are incompatible with equivalence";

@@ -63,7 +63,7 @@ equation forall x:hasht,y:hasht; test(false,x,y) = y.
 
 (* Queries *)
 
-query secret b1.
+query secret b1 [cv_bit].
 
 
 let processT(hk: hashkey, hk2: hashkey, pk: pkey) = 

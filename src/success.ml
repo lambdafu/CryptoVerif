@@ -18,7 +18,7 @@ let proved_one_session_secrets = ref []
    and list [l]. *)
 
 let has_full_secrecy_query b pub_vars =
-  let q = QSecret (b,pub_vars,false) in
+  let q = QSecret (b,pub_vars,RealOrRandom false) in
   List.exists (fun ((q',_),popt_ref) -> (!popt_ref = ToProve) && (Terms.equal_query q q'))
     (!whole_game).current_queries
       
@@ -86,17 +86,22 @@ let check_equivalence collector state game =
    It returns [(false, _)] when the proof of [q] failed.*)
 
 let check_query collector event_accu = function
-  | (QSecret (b,pub_vars,one_session),_) ->
+  | (QSecret (b,pub_vars,options),_) ->
       (* Deal with one-session and multi-session queries in one step *) 
       let (one_session_res, multi_session_opt) = check_secrecy_memo collector b pub_vars in
-      if one_session then
-	one_session_res
-      else
-	begin
-	  match multi_session_opt with
-	  | None -> assert false
-	  | Some multi_session_res -> multi_session_res
-	end
+      begin
+	match options with
+	| Bit | RealOrRandom true -> 
+	    one_session_res
+	| RealOrRandom false -> 
+	    begin
+	      match multi_session_opt with
+	      | None -> assert false
+	      | Some multi_session_res -> multi_session_res
+	    end
+	| Reachability _ ->
+	    Parsing_helper.internal_error "reachability secrecy not implemented"
+      end
   | (AbsentQuery,_) ->
       (* The adversary may always win *)
       Terms.collector_set_no_info collector;

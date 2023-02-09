@@ -974,7 +974,7 @@ ifdef(`m4_replay_prot',`
 (* For correctness, use WG.25519.correctness.m4.cv *)
 
 (* Secrecy *)
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 ifdef(`m4_only_psk',`
 (* The model in version m4_only_psk is not sufficient to

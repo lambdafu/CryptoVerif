@@ -103,7 +103,7 @@ equiv(move_array_XX(Dow))
 
 (* Queries *)
 
-query secret b1 [cv_onesession].
+query secret b1 [cv_bit].
 
 process 
 Ogen() :=
@@ -138,6 +138,6 @@ return(pk);
 ))
 
 (* EXPECTED
-RESULT Could not prove one-session secrecy of b1.
+RESULT Could not prove bit secrecy of b1.
 0.160s (user 0.152s + system 0.008s), max rss 19232K
 END *)

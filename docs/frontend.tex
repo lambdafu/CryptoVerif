@@ -163,7 +163,7 @@ $\nonterm{term}$ instead of $\nonterm{simpleterm}$)}\\
 &\phqt \nonterm{basicpat} \texttt{ <- } \nonterm{letterm}\texttt{;}\nonterm{queryterm}\\
 &\phqt \texttt{let } \nonterm{basicpat} \texttt{ = }\nonterm{letterm}\texttt{ in }\nonterm{queryterm}\\
 &\phqt \nonterm{letterm}\\
-&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\ [\texttt{[onesession]}]\\
+&\nonterm{query} ::= \texttt{secret }\nonterm{ident}\ [\texttt{public\_vars}\ \seq{ident}]\ [\texttt{[}\neseq{ident}\texttt{]}]\\
 &\phq [\texttt{forall }\neseq{vartypeb}\texttt{;}]\nonterm{queryterm}\ [\texttt{public\_vars}\ \seq{ident}]
 \end{align*}
 \caption{Grammar for queries}
@@ -2575,22 +2575,61 @@ just after \texttt{==>}.
 The available queries $Q_i$ are as follows:
 \begin{itemize}
 
-\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]$: show that the array $x$ is indistinguishable
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]$ or\\
+${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[real\_or\_random]}$: show that the array $x$ is indistinguishable
 from an array of independent random numbers (by several test queries),
 even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is secrecy.
 
-\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[cv\_onesession]}$: 
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[onesession]}$ or\\
+${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[real\_or\_random,onesession]}$: 
 show that any element of the array $x$ 
 cannot be distinguished from a random number (by a single test query),
 even when the variables in $l$ are public. The list $l$ is considered empty when it is omitted.
 In the vocabulary of~\cite{BlanchetEPrint05}, this is one-session
 secrecy.
 
-In addition to the option \texttt{cv\_onesession}, the options \texttt{real\_or\_random},
-\texttt{cv\_real\_or\_random} and all options starting with \texttt{pv\_} are also allowed,
-but ignored. Real-or-random secrecy is the default for CryptoVerif and
-the options starting with \texttt{pv\_} are for ProVerif.
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[reachability]}$:
+shows that the adversary cannot compute any element of the array $x$,
+even when it has access to the other elements of $x$ and to the variables
+in $l$.
+This query is allowed only when $x$ is of a \texttt{large} type
+(or type declared with $\texttt{pcoll}n$ for $n \geq n'$ with $\texttt{set minAutoCollElim = pest}n'$),
+that is, collisions can be eliminated between random values of that type.
+Otherwise, the adversary would have a non-negligible probability
+of finding the value of $x$ just by guessing.
+
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[reachability,onesession]}$:
+shows that the adversary cannot compute any element of the array $x$,
+even when it has access to the variables in $l$.
+This query is allowed only when $x$ is of a \texttt{large} type
+(or type declared with $\texttt{pcoll}n$ for $n \geq n'$ with $\texttt{set minAutoCollElim = pest}n'$),
+that is, collisions can be eliminated between random values of that type.
+Otherwise, the adversary would have a non-negligible probability
+of finding the value of $x$ just by guessing.
+
+This notion of secrecy as ``the adversary cannot compute'' is less common
+in the computational model than ``the adversary cannot distinguish from
+random'', but it is still used (e.g. in the property of one-wayness
+or in the computational Diffie-Hellman assumption).
+
+\item ${\tt secret}\ x\ [\texttt{public\_vars}\ l]\ \texttt{[cv\_bit]}$:
+shows that the adversary cannot guess the value of the boolean variable $x$
+significantly better than at random.
+It applies only when $x$ is a boolean variable defined under no replication.
+When the process chooses $x$ randomly and executes different code
+depending on whether $x$ is true or false, this property also
+shows that the process with $x$ true is indistinguishable from the
+process with $x$ false.
+
+The options \texttt{cv\_onesession}, \texttt{cv\_real\_or\_random},
+\texttt{cv\_reachability} are also allowed, and synonym of the similar
+options without \texttt{cv\_} prefix. The only difference is that
+options that start with \texttt{cv\_} apply to CryptoVerif only,
+while options that start neither with \texttt{cv\_} nor with \texttt{pv\_}
+apply to both CryptoVerif and ProVerif.
+All options starting with \texttt{pv\_} are also allowed,
+but ignored: they are for ProVerif.
 
 \item $[\texttt{forall }x_1\texttt{:}T_1\texttt{,} \dots\texttt{,} x_j\texttt{:}T_j\texttt{;}]\ M_0\ [\texttt{public\_vars}\ l]$, where in $M_0$, \texttt{==>} is not allowed under \texttt{\&\&}, \texttt{||}, or \texttt{exists}, and \texttt{||} and \texttt{exists} are allowed only after \texttt{==>}, so that after replacing variables bound by assignments by their value and moving existential quantifiers just after \texttt{==>}, $M_0$ is of form $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$ or $M$, where $M$ and $M'$ do not contain \texttt{==>}. The query $M$ is an abbreviation for $M \texttt{ ==> false}$, so we only need to consider $M \texttt{ ==> } [\texttt{exists }y_1\texttt{:}T'_1\texttt{,} \dots\texttt{,} y_k\texttt{:}T'_k\texttt{;}]\ M'$. (We use $x_i \texttt{<=} N_i$ instead of
   $x_i\texttt{:} T_i$ when $x_i$ is of type $[1,N_i]$, where $N_i$ is

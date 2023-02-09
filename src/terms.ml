@@ -931,9 +931,9 @@ let rec equal_qterms_ren t1 t2 =
 
 let equal_query_any_pubvars q1 q2 =
   match q1, q2 with
-  | QSecret(b1,pub_vars1,one_session1), QSecret(b2,pub_vars2,one_session2) ->
+  | QSecret(b1,pub_vars1,options1), QSecret(b2,pub_vars2,options2) ->
       (b1 == b2) && 
-      (one_session1 = one_session2)
+      (options1 = options2)
   | QEventQ(hyp1, concl1, pub_vars1), QEventQ(hyp2, concl2, pub_vars2) ->
       (List.length hyp1 == List.length hyp2) &&
       (auto_cleanup (fun () ->

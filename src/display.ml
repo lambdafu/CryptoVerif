@@ -601,8 +601,17 @@ let rec get_initial_game s =
   | Some(_,_,_,s') -> get_initial_game s'
       
 let display_query3 = function
-  | QSecret (b,pub_vars,onesession) ->
-      if onesession then print_string "one-session ";
+  | QSecret (b,pub_vars,options) ->
+      begin
+	match options with
+	| RealOrRandom onesession ->
+	    if onesession then print_string "one-session "
+	| Reachability onesession ->
+	    if onesession then print_string "one-session ";
+	    print_string "reachability "
+	| Bit ->
+	    print_string "bit "
+      end;
       print_string "secrecy of "; display_binder b;
       display_pub_vars pub_vars
   | AbsentQuery ->

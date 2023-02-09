@@ -3,6 +3,8 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Added notions of secrecy as reachability and secrecy for a bit.
+- Allow [onesession] as synonym of [cv_onesession].
 - Added universal one-way hash functions to the library of primitives.
 - Allow explicit quantifiers in correspondence queries:
   forall xi:Ti; ... ==> exists yj:T'j; ...

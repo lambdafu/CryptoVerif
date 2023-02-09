@@ -143,7 +143,7 @@ query a0:G,as:pkey,b0:G,bs:pkey,sb:G,a1:G,a12:G,a2:G,m:bitstring;
       public_vars secb.
 
 
-query secret secb.
+query secret secb [cv_bit].
 
 (* Bob generating prekeys and running the protocol, with Alice
    or with any other participant *)

@@ -567,7 +567,7 @@ expand boolean_choice_for_encryption(
 
 (* Secrecy of secret_bit => indistinguishability of the two configurations *)
 
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 (* Type definitions for return values of functions that
    prepare or process messages 

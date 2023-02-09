@@ -68,7 +68,7 @@ table table_count_recv(seqn).
 
 (* Secrecy of plaintexts *)
 
-query secret b0 public_vars traffic_secret_Nplus1.
+query secret b0 public_vars traffic_secret_Nplus1 [cv_bit].
 
 (* Message authenticity *)
 

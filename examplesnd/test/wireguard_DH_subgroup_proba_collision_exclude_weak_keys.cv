@@ -1164,7 +1164,7 @@ event rcvd_msg_initiator(G_t, G_t, bitstring, G_t, bitstring, timestamp_t,
 (* For correctness, use WG.25519.correctness.m4.cv *)
 
 (* Secrecy *)
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 
 

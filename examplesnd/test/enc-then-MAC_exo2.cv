@@ -6,7 +6,7 @@ channel ch,start.
 letfun LR(m0:bitstring,m1: bitstring, b0:bool) =
     if b0 then m1 else m0.
 
-query secret b.
+query secret b [cv_bit].
 
 process
 	in(start, (m0:bitstring,m1:bitstring));
@@ -15,6 +15,6 @@ process
 
 
 (* EXPECTED
-RESULT Could not prove secrecy of b.
+RESULT Could not prove bit secrecy of b.
 0.084s (user 0.076s + system 0.008s), max rss 15672K
 END *)

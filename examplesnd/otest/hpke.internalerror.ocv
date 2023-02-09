@@ -842,7 +842,7 @@ param Qc.  (* number of calls to the Ochall() oracle per keypair *)
 (* This is the proof goal: prove that the adversary cannot guess
    the boolean b with probability better than 1/2.
    b is defined as a fresh random boolean inside the Ostart() oracle. *)
-query secret b.
+query secret b [cv_bit].
 
 process
   Ostart() := b <-R bool; return();

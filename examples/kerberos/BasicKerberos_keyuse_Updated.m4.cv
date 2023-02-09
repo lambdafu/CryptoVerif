@@ -189,7 +189,7 @@ query z:bitstring, x:bitstring, y:bitstring, y2:bitstring, w:bitstring;
 
 (* Theorems 9 (usability of AK) and 10 (usability of SK).
    Secrecy of the coin b1 *)
-query secret b1.	 
+query secret b1 [cv_bit].	 
 
 (* Process to handle a key for key usability *)
 

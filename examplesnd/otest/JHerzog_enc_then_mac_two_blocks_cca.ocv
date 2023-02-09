@@ -51,7 +51,7 @@ param C. (* the number of challenge ciphertexts available to the adversary *)
 (* what do we want? That the adversary does not know which plaintext 
    was encrypted *)
 
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 letfun enc(mack: mac_key, aesk: aes_key, b1 : block, b2 : block) =
 

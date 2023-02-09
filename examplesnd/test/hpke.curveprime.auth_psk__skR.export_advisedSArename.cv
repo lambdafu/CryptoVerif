@@ -1269,7 +1269,7 @@ let Responder_Auth_PSK_adv(key_hash: hash_key_t, key_extract: hash_key_t, info_h
 
 
 
-query secret b.
+query secret b [cv_bit].
 
 query secret export_1_secr public_vars export_2_secr.
 query secret export_2_secr public_vars export_1_secr.

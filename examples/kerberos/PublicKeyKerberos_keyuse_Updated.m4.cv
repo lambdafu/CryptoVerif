@@ -301,7 +301,7 @@ query z:maxmac, x:maxmac, y: maxmac, y2:maxmac, w:maxmac;
 
 (* Theorem 9, client completes sesssion
    Secrecy of the coin b1 *)
-query secret b1.
+query secret b1 [cv_bit].
 
 (* Process to handle a key for key usability *)
 

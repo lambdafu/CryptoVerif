@@ -4,7 +4,7 @@
 
 (defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "exists" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst") "Cryptoverif keywords")
 
-(defvar cryptoverif-builtin '("random_choices_may_be_equal" "noninteractive" "passive" "default" "small" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "cv_onesession" "real_or_random" "cv_real_or_random" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
+(defvar cryptoverif-builtin '("random_choices_may_be_equal" "noninteractive" "passive" "default" "small" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "onesession" "cv_onesession" "real_or_random" "cv_real_or_random" "reachability" "cv_reachability" "bit" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
 ;; build optimal regular expression from list of keywords
 ;; 'words if for taking full words only, not subwords
@@ -77,7 +77,7 @@
 (defvar pcv-builtin '("noninteractive" "passive" "default" "small" ;; param options (ignored in PV)
 		      "bounded" "fixed" "large" "password" "nonuniform" ;;type options (ignored in PV)
 		      "data" "projection" "uniform" "typeConverter" ;; function options
-		      "cv_onesession" "real_or_random" "cv_real_or_random" "pv_real_or_random" "pv_reachability" ;; query options
+		      "onesession" "cv_onesession" "real_or_random" "cv_real_or_random" "pv_real_or_random" "reachability" "cv_reachability" "pv_reachability" ;; query options
 		      "pred" "serial" "inverse" "random" ;; implementation options (ignored in PV)
 		      ) "Cryptoverif and ProVerif common builtins")
 

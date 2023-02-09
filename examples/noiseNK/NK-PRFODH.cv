@@ -362,7 +362,7 @@ query
   inj-event(sent_msg_responder(E_i_pub, payload1, payload1_enc, E_r_pub, payload2, payload2_enc, T_r_recv, T_r_send, counter, ciphertext, plaintext)).
 
 (* Secrecy *)
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 
 (* Type definitions for return values of functions that

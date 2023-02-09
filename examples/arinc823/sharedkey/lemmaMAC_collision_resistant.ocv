@@ -108,7 +108,7 @@ equiv
 	
 (* Security property to prove: secrecy of bit b *)
 
-query secret b0.
+query secret b0 [cv_bit].
 
 (**** Initial game ****)
 

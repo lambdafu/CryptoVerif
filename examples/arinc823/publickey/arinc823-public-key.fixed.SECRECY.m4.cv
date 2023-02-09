@@ -380,7 +380,7 @@ equation forall comp_algo: t_comp_algo, encode_algo: t_encode_algo, b:bool,x:bit
        test(b, Zero(compress(comp_algo, encode(encode_algo, x))),
        	       Zero(compress(comp_algo, encode(encode_algo, y)))).
 
-query secret b0.
+query secret b0 [cv_bit].
 
 (**** The protocol ****)
 
