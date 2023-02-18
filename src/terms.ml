@@ -3749,6 +3749,25 @@ as well as equalities between products *)
 				       apply_eq_reds simp_facts reduced t2 ]))
       end
 
+  | FunApp(f,[t1;t2;t3]) when f.f_cat == If ->
+      let t1' = apply_eq_reds simp_facts reduced t1 in
+      let t2' = apply_eq_reds simp_facts reduced t2 in
+      let t3' = apply_eq_reds simp_facts reduced t3 in
+      if is_true t1' then
+	begin
+	  reduced := true; t2'
+	end
+      else if is_false t1' then
+	begin
+	  reduced := true; t3'
+	end
+      else if simp_equal_terms simp_facts true t2' t3' then
+	begin
+	  reduced := true; t2'
+	end
+      else
+	build_term2 t (FunApp(f, [t1';t2';t3']))
+	
 (* ?x <> t is always false when ?x is a general variable (universally quantified) *)
   | FunApp(f,[{t_desc = Var(b,[])};t2]) when f.f_cat == ForAllDiff && 
     b.sname == gvar_name && not (refers_to b t2) -> 
@@ -3778,6 +3797,32 @@ as well as equalities between products *)
       | _ -> t
       end
 
+  (* transform f(...,if t1 then t2 else t3,...) into
+     if t1 then f(...,t2,...) else f(...,t3,...) *)
+  | FunApp(f,l) when f.f_options land Settings.fopt_AUTO_SWAP_IF != 0 ->
+      let l' = List.map (apply_eq_reds simp_facts reduced) l in
+      let rec find_if before = function
+	| [] -> None
+	| a::l ->
+	    match (try_no_var simp_facts a).t_desc with
+	    | FunApp(if_f, [t1;t2;t3]) when if_f.f_cat == If ->
+		Some (before, (t1,t2,t3), l)
+	    | _ -> find_if (a::before) l
+      in
+      begin
+	match find_if [] l' with
+	| Some (before, (t1,t2,t3), after) ->
+	    let l2 = List.rev_append before (t2::after) in
+	    let t2' = app f l2 in
+	    let l3 = List.rev_append before (t3::after) in
+	    let t3' = app f l3 in
+	    let if_fun = Settings.get_if_fun (snd f.f_type) in
+	    reduced := true;
+	    build_term2 t (FunApp(if_fun, [t1; t2'; t3']))
+	| None -> 
+	    build_term2 t (FunApp(f, l'))
+      end
+	
 (* Simplify subterms *)
   | FunApp(f,l) ->
       build_term2 t (FunApp(f, List.map (apply_eq_reds simp_facts reduced) l))

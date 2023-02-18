@@ -157,13 +157,6 @@ equation forall x: Dow, y: Dow;
 
 param NX, Neq.
 
-(* Implementing a test as a function.
-   Useful to avoid expanding if, which is necessary for this proof. *)
-
-fun test(bool, Dm, Dm):Dm.
-equation forall x:Dm,y:Dm; test(true,x,y) = x.
-equation forall x:Dm,y:Dm; test(false,x,y) = y.
-
 (* Queries *)
 
 query secret b1 [cv_bit].
@@ -181,7 +174,7 @@ return(pk);
 | (
   OT(m1: Dm, m2: Dm) :=
   b1 <-R bool;
-  menc <- test(b1, m1, m2);
+  menc <- if_fun(b1, m1, m2);
   r <-R Dr;
   s <- xorDow(concatm(menc, zeroDz), G(hkg, r));
   t <- xorDr(r, H(hkh, s));

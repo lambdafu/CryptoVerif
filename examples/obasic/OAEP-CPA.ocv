@@ -54,13 +54,6 @@ const zero: Dz.
 expand Xor(Dow, xorDow, zeroDow).
 expand Xor(Dr, xorDr, zeroDr).
 
-(* Implementing a test as a function.
-   Useful to avoid expanding if, which is necessary for this proof. *)
-
-fun test(bool, Dm, Dm):Dm.
-equation forall x:Dm,y:Dm; test(true,x,y) = x.
-equation forall x:Dm,y:Dm; test(false,x,y) = y.
-
 (* Queries *)
 
 query secret b1 [cv_bit].
@@ -71,7 +64,7 @@ let processT(hkh: hashkey, hkg: hashkey, pk: pkey) =
 	(* The next line is equivalent to an "if" that will not be
 	expanded. This is necessary for the system to succeed in
 	proving the protocol. *)
-	menc <- test(b1, m1, m2);
+	menc <- if_fun(b1, m1, m2);
 	r <-R Dr;
 	s <- xorDow(concatm(menc, zero), G(hkg,r));
 	t <- xorDr(r, H(hkh,s));

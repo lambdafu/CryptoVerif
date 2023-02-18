@@ -1,0 +1,34 @@
+(* There is a problem in the modeling of encryption in cryptoverif.pvl
+   The function Z should not be a constructor, because when it is
+   Z(m1) = Z(m2) implies m1 = m2!! *)
+
+param nEnc, nDec.
+
+type key [fixed].
+
+(* Shared-key encryption (CPA Stream cipher) *)
+
+proba Penc.
+
+expand IND_CPA_sym_enc(key, bitstring, bitstring, enc, dec, injbot, Z, Penc).
+
+channel cEnc, cDec, start, c.
+
+let Qdec(k: key) =
+        ! iDec <= nDec
+        in(cDec, ac: bitstring);
+	out(cDec, dec(ac, k)).
+
+let QencLR(k: key) = 
+        ! iEnc <= nEnc
+	in(cEnc, (m1: bitstring, m2: bitstring));
+	if Z(m1) = Z(m2) then (* m1 and m2 have the same length *)
+	let m0 = diff[m1, m2] in
+	let m: bitstring = enc(m0, k) in
+	out(cEnc, m).
+
+process 
+	in(start, ());
+	new k: key;
+	out(c, ());
+	(QencLR(k) | Qdec(k))

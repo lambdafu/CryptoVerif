@@ -1,0 +1,8 @@
+equation builtin commut(if_fun).
+
+process 0
+
+(* EXPECTED
+Error: Function if_fun is not allowed in built-in equation statements
+xtime: error in child process (status : 2)
+END *)

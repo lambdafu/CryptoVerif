@@ -1,0 +1,8 @@
+fun if_fun(bitstring):bitstring.
+
+process 0
+
+(* EXPECTED
+Error: if_fun already defined.
+xtime: error in child process (status : 2)
+END *)

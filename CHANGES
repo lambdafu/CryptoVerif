@@ -4,6 +4,14 @@ of the cryptographic protocol verifier.
 Version
 
 - Added notions of secrecy as reachability and secrecy for a bit.
+- Added predefined function if_fun, such that if_fun(true,x,y) = x
+  and if_fun(false,x,y) = y.
+- Added transformation move_if_fun.
+- Added function option autoSwapIf, which moves an if_fun as argument
+  of the function to outside the function.
+- Added diff[.,.] construct, to show indistinguishability between
+  the process that uses the first argument of diff and the one that
+  uses the second argument, as in ProVerif.
 - Allow [onesession] as synonym of [cv_onesession].
 - Added universal one-way hash functions to the library of primitives.
 - Allow explicit quantifiers in correspondence queries:

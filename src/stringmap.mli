@@ -1,5 +1,17 @@
 open Types
 
+val check_type : Parsing_helper.extent -> term -> typet -> unit
+val check_bit_string_type : Parsing_helper.extent -> typet -> unit
+val check_type_list :
+  Parsing_helper.extent -> ('a * Parsing_helper.extent) list ->
+  term list -> typet list -> unit
+val check_array_type_list :
+  Parsing_helper.extent -> ('a * Parsing_helper.extent) list ->
+  term list -> repl_index list -> repl_index list -> term list
+
+val dummy_if_fun : funsymb
+val get_if_fun_tl : Parsing_helper.extent -> term list -> funsymb
+    
 module StringMap : Map.S with type key = string
 
 (* Environment.
@@ -35,8 +47,13 @@ val get_ty : env_type -> Ptree.ty(*type*) -> typet * Parsing_helper.extent
 val get_process : env_type -> string -> Parsing_helper.extent ->
   env_type * (Ptree.ident * Ptree.ty(*type*)) list * Ptree.process_e
 val get_table : env_type -> string -> Parsing_helper.extent -> table
-val get_function_no_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
-val get_function_or_letfun : env_type -> string -> Parsing_helper.extent -> funsymb
+val get_function_no_letfun_if_allowed : env_type -> string * Parsing_helper.extent ->
+  ('a * Parsing_helper.extent) list -> term list -> Parsing_helper.extent -> funsymb
+
+(* The special polymorphic "if_fun" function is not treated by the next two functions.
+   It must be rejected by the caller *)
+val get_function_no_letfun_no_if : env_type -> string -> Parsing_helper.extent -> funsymb
+val get_function_or_letfun_no_if : env_type -> string -> Parsing_helper.extent -> funsymb
 
 (* Functions for dimensions *)
 

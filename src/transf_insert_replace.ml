@@ -199,7 +199,8 @@ let rec check_pattern1 find_cond cur_array env tyoptres = function
       let tl = List.map (fun _ -> None) l in
       List.iter2 (check_pattern1 find_cond cur_array env) tl l
   | PPatFunApp((s,ext),l), ext2 ->
-      let f = get_function_no_letfun env s ext in
+      let f = get_function_no_letfun_no_if env s ext in
+      (* "if_fun" rejected because it is not [data] *)
       if (f.f_options land Settings.fopt_COMPOS) == 0 then
 	raise (Error("Only [data] functions are allowed in patterns", ext));
       begin
@@ -418,45 +419,6 @@ let get_event ev_id =
     new_queries := f :: (!new_queries);
   f
 	
-let check_type ext e t =
-  if e.t_type != t then
-    raise (Error("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname, ext))
-
-let check_bit_string_type ext t =
-  match t.tcat with
-    BitString -> ()
-  | _ -> raise (Error("Some bitstring type expected", ext))
-
-let rec check_type_list ext pel el tl =
-  match (pel, el, tl) with
-    [],[],[] -> ()
-  | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t;
-      check_type_list ext pel el tl
-  | _ ->
-      raise (Error("Unexpected number of arguments", ext))
-
-let rec check_array_type_list ext pel el cur_array creation_array =
-  match (pel, el, creation_array) with
-    [],[],[] -> []
-  | [],[],_ -> 
-      (* Allow incomplete array arguments. They are automatically
-         completed with cur_array *)
-      let n = (List.length cur_array) - (List.length creation_array) in
-      if n < 0 then 
-	raise (Error("Unexpected number of array specifiers", ext));
-      let cur_array_rest = Terms.skip n cur_array in
-      if List.for_all2 (==) cur_array_rest creation_array then
-	List.map Terms.term_from_repl_index creation_array
-      else
-	raise (Error("Unexpected number of array specifiers", ext))
-  | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t.ri_type;
-      e::(check_array_type_list ext pel el cur_array tl)
-  | _ ->
-      raise (Error("Unexpected number of array specifiers", ext))
-
-
 let rec check_term defined_refs cur_array env = function
     PIdent (s, ext), ext2 ->
       begin
@@ -493,10 +455,9 @@ let rec check_term defined_refs cur_array env = function
   | PArray((s, ext), tl), ext2 ->
       let (b, tl'') = check_br defined_refs cur_array env ((s,ext),tl) in
       Terms.new_term b.btype ext2 (Var(b,tl''))
-  | PFunApp((s,ext), tl),ext2 ->
+  | PFunApp(id, tl),ext2 ->
       let tl' = List.map (check_term defined_refs cur_array env) tl in
-      let f = get_function_no_letfun env s ext in
-      check_type_list ext2 tl tl' (fst f.f_type);
+      let f = get_function_no_letfun_if_allowed env id tl tl' ext2 in
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term defined_refs cur_array env) tl in
@@ -543,7 +504,9 @@ let rec check_term defined_refs cur_array env = function
       raise_error "exists allowed only in queries" ext
   | PIndepOf _, ext ->
       raise (Error("independent-of allowed only in side-conditions of collisions", ext))
-
+  | PDiffIndist _, ext -> 
+      raise_error "diff allowed only in the initial game" ext
+	
 and check_br defined_refs cur_array env ((s,ext), tl) =
   let tl' = List.map (check_term defined_refs cur_array env) tl in
   try
@@ -619,7 +582,8 @@ let rec check_pattern find_cond defined_refs cur_array env tyoptres = function
       let tl' = List.map Terms.get_type_for_pattern l' in
       (env', PatTuple(Settings.get_tuple_fun tl', l'))
   | PPatFunApp((s,ext),l), ext2 ->
-      let f = get_function_no_letfun env s ext in
+      let f = get_function_no_letfun_no_if env s ext in
+      (* "if_fun" rejected because it is not [data] *)
       if (f.f_options land Settings.fopt_COMPOS) == 0 then
 	raise (Error("Only [data] functions are allowed in patterns", ext));
       begin

@@ -76,7 +76,7 @@ fun enc_r'(cleartext, key, enc_seed): ciphertext.
 fun injbot(cleartext):bitstringbot [data].
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The encryption function is probabilistic *)
 letfun enc(m: cleartext, k: key) =
@@ -145,7 +145,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, k:key, n: nonce; 
 	dec(enc(m, k, n), k, n) = injbot(m).
@@ -220,7 +220,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The encryption function is probabilistic *)
 letfun enc(m: cleartext, k: key) =
@@ -317,7 +317,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, k:key, n: nonce; 
 	dec(enc(m, k, n), k, n) = injbot(m).
@@ -443,7 +443,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The encryption function is probabilistic *)
 letfun enc(m: cleartext, d: add_data, k: key) =
@@ -544,7 +544,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, d: add_data, k:key, n: nonce; 
 	dec(enc(m, d, k, n), d, k, n) = injbot(m).
@@ -659,7 +659,7 @@ fun dec(ciphertext, key): bitstringbot.
 fun injbot(cleartext):bitstringbot [data].
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -736,7 +736,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -813,7 +813,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -919,7 +919,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -1047,7 +1047,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -1157,7 +1157,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The function enc_len returns, for each bitstring x,
    a bitstring of the same length as the encryption of x, consisting only of zeroes. *)
@@ -1278,7 +1278,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The encryption function is probabilistic *)
 letfun enc(m: cleartext, k: key) =
@@ -1467,7 +1467,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 (* The encryption function is probabilistic *)
 letfun enc(m: cleartext, k: key) =
@@ -2008,7 +2008,7 @@ fun injbot(cleartext):bitstringbot [data].
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, r:keyseed, r2:enc_seed; 
 	dec(enc_r(m, pkgen(r), r2), skgen(r)) = injbot(m).

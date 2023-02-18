@@ -89,6 +89,7 @@ type funcats =
   | ForAllDiff (* Special symbol meaning "for all variables named ?x_..., t1 <> t2" *)
   | Or
   | And
+  | If (* fct symbol if_fun(t,t1,t2) that performs a test *)
   | Event (* Function symbols for events *)
   | NonUniqueEvent (* Function symbols for non-unique events *)
   | SepLetFun (* Function symbols defined by letfun, and that can 
@@ -607,6 +608,15 @@ and guess_arg_t =
   | GuessVar of binderref * bool(*true when "no_test"*) * Parsing_helper.extent
   | GuessRepl of repl_index * bool(*true when "and above"*) * Parsing_helper.extent
   | GuessOcc of int * bool(*true when "and above"*) * Parsing_helper.extent
+
+and move_if_pos_t =
+  | MoveOcc of int * Parsing_helper.extent
+  | MoveFun of funsymb * Parsing_helper.extent
+	
+and move_if_arg_t =
+  | MovePos of move_if_pos_t list
+  | MoveLevel of int
+  | MoveToTerm of (int * Parsing_helper.extent) list option
 	
 and instruct =
   | ExpandGetInsert_ProveUnique
@@ -628,6 +638,7 @@ and instruct =
   | IFocus of query list
   | Guess of guess_arg_t
   | GuessBranch of int(*occurrence of branching instruction to guess*) * bool(*true when "no_test"*) * Parsing_helper.extent
+  | MoveIf of move_if_arg_t
 	
 and ins_updater = (instruct -> instruct list) option
 
@@ -700,6 +711,8 @@ and detailed_instruct =
   | DMergeBranchesE of term * term list
   | DGuess of guess_arg_t
   | DGuessBranch of int(*occurrence of guessed branches*)
+  | DMoveIf of (int(*original occ*) * int(*final occ*)) list
+  | DMoveIfToTerm of int(*occ*) list
 	
 (* The type of game transformations: they take as input a game
 and return a triple (transformed game, probability difference,

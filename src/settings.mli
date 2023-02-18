@@ -150,7 +150,8 @@ val tyopt_CHOOSABLE : int
 val fopt_COMPOS : int
 val fopt_DECOMPOS : int
 val fopt_UNIFORM : int
-
+val fopt_AUTO_SWAP_IF : int
+    
 val tex_output : string ref
 
 val t_bitstring : typet
@@ -175,6 +176,8 @@ val f_not : funsymb
 
 val get_tuple_fun : typet list -> funsymb
 val empty_tuple : funsymb
+
+val get_if_fun : typet -> funsymb
     
 (*For precise computation of the runtime only*)
 val t_interv : typet

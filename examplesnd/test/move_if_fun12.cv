@@ -1,0 +1,13 @@
+channel c.
+
+fun Z(bitstring):bitstring [autoSwapIf].
+fun f(bitstring):bitstring.
+
+process
+   in(c, (b:bool, b':bool, x:bitstring, y:bitstring));
+   out(c, Z(if_fun(b, x, f(if_fun(b',y,x)))))
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.044s + system 0.000s), max rss 18148K
+END *)

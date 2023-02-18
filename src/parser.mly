@@ -66,6 +66,7 @@ let return_channel = (dummy_channel, None)
 %token EQUIV
 %token EQUIVLEFT
 %token EQUIVRIGHT
+%token DIFF_INDIST
 %token MAPSTO
 %token DEF
 %token LEFTARROW
@@ -177,6 +178,9 @@ let return_channel = (dummy_channel, None)
 %token GUESS_BRANCH
 %token NO_TEST
 %token ABOVE
+%token MOVE_IF
+%token TO_TERM
+%token LEVEL
       
 /* Precedence (from low to high) and associativities */
 %nonassoc OPTIMIF
@@ -605,7 +609,15 @@ proofcommand:
     { CGuess_branch($2, false, parse_extent()) }
 |   GUESS_BRANCH occ NO_TEST
     { CGuess_branch($2, true, parse_extent()) }
-
+|   MOVE_IF LEVEL INT
+    { CMove_if(CMoveLevel ($3,parse_extent())) }
+|   MOVE_IF TO_TERM 
+    { CMove_if(CMoveToTerm None) }
+|   MOVE_IF TO_TERM neoccextlist
+    { CMove_if(CMoveToTerm (Some $3)) }
+|   MOVE_IF neoccfunlist
+    { CMove_if(CMovePos $2) }
+    
 guess_binderref:
     IDENT LBRACKET identlist RBRACKET
     { ($1,$3) }
@@ -814,6 +826,8 @@ term:
         { PGetE($3,$5,Some $8,$10,$12,$2), parse_extent() }
 |       GET options IDENT LPAREN patternseq RPAREN IN term ELSE term
         { PGetE($3,$5,None,$8,$10,$2), parse_extent() }
+|       DIFF_INDIST LBRACKET term COMMA term RBRACKET
+        { PDiffIndist($3,$5), parse_extent() }
 |       term EQUAL term
         { PEqual($1, $3), parse_extent() }
 |       term DIFF term
@@ -821,11 +835,11 @@ term:
 |       term OR term
         { POr($1, $3), parse_extent() }
 |       term AND term
-    { PAnd($1, $3), parse_extent() }
+        { PAnd($1, $3), parse_extent() }
 | term IMPLIES term
-    { PBefore($1, $3), parse_extent() }
+        { PBefore($1, $3), parse_extent() }
 | EXISTS nevartypeilist SEMI term
-    { PExists($2, $4), parse_extent() }
+        { PExists($2, $4), parse_extent() }
 |       IDENT INDEPOF IDENT
         { PIndepOf($1, $3), parse_extent() }
     
@@ -926,7 +940,9 @@ process:
         progbegin process
         { PBeginModule ($1,$2), parse_extent() }
 |	LPAREN process RPAREN
-	{ $2 }
+    { $2 }
+|       DIFF_INDIST LBRACKET process COMMA process RBRACKET
+        { PDiffIndistProc($3,$5), parse_extent() }
 |	IDENT
 	{ PLetDef($1,[]), parse_extent() }
 |	IDENT LPAREN termseq RPAREN
@@ -1459,7 +1475,25 @@ occ:
 occext:
     occ
     { ($1, parse_extent()) }
-    
+
+neoccextlist:
+    occext
+    { [$1] }
+|   occext COMMA neoccextlist
+    { $1 :: $3 }
+
+occfun:
+    occext
+    { CMoveOcc $1 }
+|   IDENT
+    { CMoveFun $1 }
+
+neoccfunlist:
+    occfun
+    { [$1] }
+|   occfun COMMA neoccfunlist
+    { $1 :: $3 }
+
 occidentmapping:
     occ MAPSTO idst
     { [$1,$3] }
@@ -1542,6 +1576,8 @@ oprocess:
         { PBeginModule ($1,$2), parse_extent() }
 |	LPAREN oprocess RPAREN
 	{ $2 }
+|       DIFF_INDIST LBRACKET oprocess COMMA oprocess RBRACKET
+        { PDiffIndistProc($3,$5), parse_extent() }
 |	RUN IDENT
         { PLetDef($2,[]), parse_extent() }
 |	RUN IDENT LPAREN termseq RPAREN
@@ -1567,10 +1603,8 @@ oprocess:
         { PGet($3,$5,Some $8,$10,$11,$2), parse_extent() }
 |       GET options IDENT LPAREN patternseq RPAREN IN oprocess optoelse
         { PGet($3,$5,None,$8,$9,$2), parse_extent() }
-|       EVENT IDENT optoprocess
-        { PEvent((PFunApp($2, []), parse_extent()), $3), parse_extent() }
-|       EVENT IDENT LPAREN termseq RPAREN optoprocess
-        { PEvent((PFunApp($2, $4), parse_extent()), $6), parse_extent() }
+|       EVENT funapp optoprocess
+        { PEvent($2,$3), parse_extent() }
 |       basicpattern LEFTARROW term optoprocess
         { PLet($1,$3,$4,(PYield, parse_extent())), parse_extent() }
 | 	LET pattern EQUAL term

@@ -110,13 +110,14 @@ let init_env () =
   Terms.record_id "bitstring" dummy_ext;
   Terms.record_id "bitstringbot" dummy_ext;
   Terms.record_id "bool" dummy_ext;
-   let m = StringMap.empty in
-   let m1 = StringMap.add "true" (EFunc Settings.c_true)
-       (StringMap.add "false" (EFunc Settings.c_false)
-	  (StringMap.add "not" (EFunc Settings.f_not) m)) in
-   StringMap.add "bitstring" (EType Settings.t_bitstring)
-     (StringMap.add "bitstringbot" (EType Settings.t_bitstringbot)
-	(StringMap.add "bool" (EType Settings.t_bool) m1))
+  let m = StringMap.empty in
+  let m1 = StringMap.add "true" (EFunc Settings.c_true)
+      (StringMap.add "false" (EFunc Settings.c_false)
+	 (StringMap.add "not" (EFunc Settings.f_not) m)) in
+  let m2 = StringMap.add "bitstring" (EType Settings.t_bitstring)
+      (StringMap.add "bitstringbot" (EType Settings.t_bitstringbot)
+	 (StringMap.add "bool" (EType Settings.t_bool) m1)) in
+  StringMap.add "if_fun" (EFunc dummy_if_fun) m2
 
 type location_type =
     InProcess
@@ -143,7 +144,8 @@ let equivalences = ref ([]: equiv_gen list)
 let queries_parse = ref ([]: Ptree.query_e list)
 let proof = ref (None : Ptree.command list option)
 let non_unique_events = ref ([] : funsymb list)
-
+let diff_bit = ref (None : binder option)
+    
 let implementation = ref ([]: Ptree.impl list)
 let impl_roles = ref StringMap.empty
 let impl_letfuns = ref []
@@ -159,46 +161,6 @@ let unused_type = { tname = "error: this type should not be used";
                     tserial = None;
                     trandom = None }
     
-(* Check types *)
-
-let check_type ext e t =
-  if (e.t_type != t) && (e.t_type != Settings.t_any) && (t != Settings.t_any) then
-    raise_error ("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname) ext
-
-let check_bit_string_type ext t =
-  match t.tcat with
-    BitString -> ()
-  | _ -> raise_error "Some bitstring type expected" ext
-
-let rec check_type_list ext pel el tl =
-  match (pel, el, tl) with
-    [],[],[] -> ()
-  | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t;
-      check_type_list ext pel el tl
-  | _ ->
-      raise_error "Unexpected number of arguments" ext
-
-let rec check_array_type_list ext pel el cur_array creation_array =
-  match (pel, el, creation_array) with
-    [],[],[] -> []
-  | [],[],_ -> 
-      (* Allow incomplete array arguments. They are automatically
-         completed with cur_array *)
-      let n = (List.length cur_array) - (List.length creation_array) in
-      if n < 0 then 
-	raise_error "Unexpected number of array specifiers" ext;
-      let cur_array_rest = skip n cur_array in
-      if List.for_all2 (==) cur_array_rest creation_array then
-	List.map Terms.term_from_repl_index cur_array_rest
-      else
-	raise_error "Unexpected number of array specifiers" ext
-  | (pe::pel, e::el, t::tl) ->
-      check_type (snd pe) e t.ri_type;
-      e::(check_array_type_list ext pel el cur_array tl)
-  | _ ->
-      raise_error ("Unexpected number of array specifiers") ext
-
 let merge_types t1 t2 ext =
   if t1 == Settings.t_any then
     t2
@@ -232,6 +194,7 @@ let pinstruct_name = function
   | PIndepOf _ -> "independent of"
   | PBefore _ -> "==>"
   | PExists _ -> "exists"
+  | PDiffIndist _ -> "diff"
     
 let add_var_list env in_find_cond cur_array bindl =
   List.fold_left (fun env (s, tyopt) ->
@@ -414,6 +377,11 @@ let rec check_term1 binder_env in_find_cond cur_array env = function
   | (PEqual(t1,t2) | PDiff(t1,t2) | PAnd(t1,t2) | POr(t1,t2)), ext ->
       let env_t1 = check_term1 binder_env in_find_cond cur_array env t1 in
       check_term1 env_t1 in_find_cond cur_array env t2
+  | PDiffIndist(t1,t2), _ ->
+      union_both binder_env
+	(union_exclude
+	   (check_term1 empty_binder_env in_find_cond cur_array env t1)
+	   (check_term1 empty_binder_env in_find_cond cur_array env t2))
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
@@ -760,6 +728,11 @@ and check_oprocess1 binder_env cur_array env = function
   | PInsert(tbl,tlist,p),_ ->
       let env_tlist = check_term_list1 binder_env false cur_array env tlist in
       check_oprocess1 env_tlist cur_array env p
+  | PDiffIndistProc(p1,p2),_ ->
+      union_both binder_env
+	(union_exclude
+	   (check_oprocess1 empty_binder_env cur_array env p1)
+	   (check_oprocess1 empty_binder_env cur_array env p2))
   | _, ext -> 
       raise_error "non-input process expected" ext
 
@@ -774,7 +747,7 @@ and check_oprocess1 binder_env cur_array env = function
 let rec build_return_list_aux h name = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2, _), _ ->
+  | PGet(_, _, _, p1, p2, _), _ | PDiffIndistProc(p1,p2), _ ->
     build_return_list_aux h name p1;
     build_return_list_aux h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -813,7 +786,7 @@ let build_return_list p =
 let rec check_role_aux error h name = function
   | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
   | PPar (p1, p2), _ | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2, _), _ ->
+  | PGet(_, _, _, p1, p2, _), _ | PDiffIndistProc(p1,p2), _ ->
     check_role_aux error h name p1;
     check_role_aux error h name p2
   | PRepl (_, _, _, p), _ | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -867,7 +840,7 @@ let rec check_role_continuity_aux error role_possible = function
     check_role_continuity_aux error role_possible p1;
     check_role_continuity_aux error role_possible p2;
   | PTest (_, p1, p2), _ | PLet (_, _, p1, p2), _
-  | PGet(_, _, _, p1, p2, _), _ ->
+  | PGet(_, _, _, p1, p2, _), _ | PDiffIndistProc(p1,p2), _ ->
     check_role_continuity_aux error false p1;
     check_role_continuity_aux error false p2
   | PRepl (_, _, _, p), _ ->
@@ -998,7 +971,7 @@ let warn_process_form i =
 
     | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
     | PTest(_, p1, p2), _ | PLet (_, _, p1, p2), _
-    | PGet(_, _, _, p1, p2, _), _ ->
+    | PGet(_, _, _, p1, p2, _), _ | PDiffIndistProc(p1,p2), _ ->
       aux after_repl p1;
       aux after_repl p2
     | PRestr (_, _, p), _ | PEvent(_, p), _
@@ -1194,7 +1167,15 @@ let queries_for_unique queries =
     List.map (fun e -> Terms.build_event_query e pub_vars) (!non_unique_events)
   in
   u_queries @ queries
-    
+
+let get_diff_bit() =
+  match !diff_bit with
+  | Some b -> b
+  | None ->
+      let b = Terms.create_binder "diff_bit" Settings.t_bool [] in
+      diff_bit := Some b;
+      b
+		
 let rec check_term defined_refs_opt cur_array env prog = function
     PIdent (s, ext), ext2 ->
       begin
@@ -1270,8 +1251,14 @@ let rec check_term defined_refs_opt cur_array env prog = function
       try 
 	match StringMap.find s env with
 	  EFunc(f) ->
-	    check_type_list ext2 tl tl' (fst f.f_type);
-	    Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl')) 
+	    if f == dummy_if_fun then
+	      let f = get_if_fun_tl ext tl' in
+	      Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
+	    else
+	      begin
+		check_type_list ext2 tl tl' (fst f.f_type);
+		Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
+	      end
 	| ELetFun(f, env', vardecl, t) ->
 	    check_type_list ext2 tl tl' (fst f.f_type);
             (*expand letfun functions*)
@@ -1450,6 +1437,23 @@ let rec check_term defined_refs_opt cur_array env prog = function
       check_type (snd t1) t1' Settings.t_bool;
       check_type (snd t2) t2' Settings.t_bool;
       Terms.make_or_ext ext t1' t2'
+  | PDiffIndist(t1,t2), ext ->
+      if in_impl_process() && prog <> None then
+	(* TODO *)
+	raise_error "Implementation does not support diff for now" ext;
+      if !current_location = InEquivalence then
+	raise_error "diff not allowed in equivalence statements" ext;
+      let t1' = check_term defined_refs_opt cur_array env prog t1 in
+      let t2' = check_term defined_refs_opt cur_array env prog t2 in
+      let t_common = merge_types t1'.t_type t2'.t_type ext in
+      let b = get_diff_bit() in
+      let cond = Terms.new_term b.btype ext (Var(b,[])) in
+      if Terms.check_simple_term t1' && Terms.check_simple_term t2' then
+	let if_fun = Settings.get_if_fun t_common in
+	Terms.new_term t_common ext (FunApp(if_fun, [cond; t1'; t2']))	
+      else
+	Terms.new_term t_common ext (TestE(cond, t1', t2'))
+      
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
@@ -1534,7 +1538,8 @@ and check_pattern defined_refs_opt cur_array env prog tyoptres = function
       let tl' = List.map get_type_for_pattern l' in
       (env', PatTuple(Settings.get_tuple_fun tl', l'))
   | PPatFunApp((s,ext),l), ext2 ->
-      let f = get_function_no_letfun env s ext in
+      let f = get_function_no_letfun_no_if env s ext in
+      (* "if_fun" is rejected because it is not [data] *)
       if (f.f_options land Settings.fopt_COMPOS) == 0 then
 	raise_error "Only [data] functions are allowed in patterns" ext;
       begin
@@ -1665,10 +1670,9 @@ let rec check_term_nobe env = function
 	| d -> raise_error (s ^ " was previously declared as a "^(decl_name d)^". Expected a variable or a function (letfun forbidden).") ext
       with Not_found -> raise_error (s ^ " not defined. Expected a variable or a function (letfun forbidden).") ext
       end
-  | PFunApp((s,ext), tl),ext2 ->
+  | PFunApp(id, tl),ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
-      let f = get_function_no_letfun env s ext in
-      check_type_list ext2 tl tl' (fst f.f_type);
+      let f = get_function_no_letfun_if_allowed env id tl tl' ext2 in
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term_nobe env) tl in
@@ -1719,8 +1723,8 @@ let rec check_term_nobe env = function
       check_term_nobe env' t2
   | PLetE _, ext ->
       raise_error "let pat = t in is forbidden in queries, equation, and collision statements when pat is not a variable or there is an else branch" ext
-  | (PArray _ | PTestE _ | PFindE _ | PResE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
-      raise_error "If, find, new, event, insert, get, and array references forbidden in queries, equation, and collision statements" ext
+  | (PArray _ | PTestE _ | PFindE _ | PResE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _ | PDiffIndist _), ext ->
+      raise_error "If, find, new, event, insert, get, diff, and array references forbidden in queries, equation, and collision statements" ext
   | PQEvent _,ext -> 
       raise_error "event(...) and inj-event(...) allowed only in queries" ext
   | PBefore _,ext ->
@@ -1753,9 +1757,13 @@ let check_statement env (l,t,side_cond) =
 
 (* Check builtin equation statements *)
 
-let get_fun env (s,ext) = get_function_no_letfun env s ext
-
 let check_builtin_eq env (eq_categ, ext) l_fun_symb =
+  let get_fun env (s,ext) =
+    let f = get_function_no_letfun_no_if env s ext in
+    if f == dummy_if_fun then
+      raise_error "Function if_fun is not allowed in built-in equation statements" ext;
+    f
+  in
   let l_fun = List.map (get_fun env) l_fun_symb in
   match eq_categ with
     "commut" -> 
@@ -1866,17 +1874,16 @@ let rec check_term_proba env = function
 	let tl'' = check_array_type_list ext2 [] [] b.args_at_creation b.args_at_creation in
 	Terms.new_term b.btype ext2 (Var(b,tl''))
       end
-  | PFunApp((s,ext), tl),ext2 ->
+  | PFunApp(id, tl),ext2 ->
       let tl' = List.map (check_term_proba env) tl in
-      let f = get_function_no_letfun env s ext in
-      check_type_list ext2 tl tl' (fst f.f_type);
+      let f = get_function_no_letfun_if_allowed env id tl tl' ext2 in
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
   | PTuple(tl), ext2 ->
       let tl' = List.map (check_term_proba env) tl in
       let f = Settings.get_tuple_fun (List.map (fun t -> t.t_type) tl') in
       check_type_list ext2 tl tl' (fst f.f_type);
       Terms.new_term (snd f.f_type) ext2 (FunApp(f, tl'))
-  | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _), ext ->
+  | (PArray _ | PTestE _ | PLetE _ | PResE _ | PFindE _ | PEventAbortE _ | PEventE _ | PGetE _ | PInsertE _ | PDiffIndist _), ext ->
       raise_error "Array accesses/if/let/find/new/event/get/insert not allowed in terms in probability formulas" ext
   | PEqual(t1,t2), ext ->
       let t1' = check_term_proba env t1 in
@@ -2131,11 +2138,14 @@ let rec check_probability_formula seen_vals env = function
 	let pl' = List.map (fun p -> fst (check_probability_formula seen_vals env p)) pl in
 	match action with
 	  PAFunApp(s,ext') ->
-	    let f = get_function_no_letfun env s ext' in
+	    let f = get_function_no_letfun_no_if env s ext' in
+	    if f == dummy_if_fun then
+	      raise_error "Use time(if) rather than time(if_fun, ...)" ext'; 
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
 	    (ActTime(AFunApp f, pl'), time_dim)
 	| PAPatFunApp(s,ext') ->
-	    let f = get_function_no_letfun env s ext' in
+	    let f = get_function_no_letfun_no_if env s ext' in
+	    (* Function "if_fun" is rejected because it is not [data] *)
 	    if (f.f_options land Settings.fopt_COMPOS) == 0 then
 	      raise_error "Only [data] functions are allowed in patterns" ext';
 	    let pl' = check_types ext pl pl' (fst f.f_type) in
@@ -2217,7 +2227,9 @@ let rec check_probability_formula seen_vals env = function
 	let pl' = List.map (fun p -> fst (check_probability_formula seen_vals env p)) pl in
 	try 
 	  match StringMap.find s env with
-	  | EFunc f -> 
+	  | EFunc f ->
+	      if f == dummy_if_fun then
+		raise_error "avoid using if functions when computing lengths in probability formulas; rather use the length of the then and else parts" ext'; 
 	      let pl' = check_types ext pl pl' (fst f.f_type) in
 	      if (snd f.f_type).toptions land Settings.tyopt_BOUNDED != 0 then
 		(TypeMaxlength (snd f.f_type), length_dim)
@@ -3254,7 +3266,19 @@ and check_oprocess defined_refs cur_array env prog = function
         let (p',tres,oracle,ip') = check_oprocess defined_refs cur_array env prog p in
           (new_oproc (Insert(tbl, t', p')) ext2, tres, oracle,
            new_oproc (Insert(tbl, t', ip')) ext2)
-            
+
+  | PDiffIndistProc(p1,p2), ext ->
+      if in_impl_process() && prog <> None then
+	(* TODO *)
+	raise_error "Implementation does not support diff for now" ext;
+      let (p1',tres1,oracle1,ip1') = check_oprocess defined_refs cur_array env prog p1 in
+      let (p2',tres2,oracle2,ip2') = check_oprocess defined_refs cur_array env prog p2 in
+      let b = get_diff_bit() in
+      let cond = Terms.new_term b.btype ext (Var(b,[])) in
+      (new_oproc (Test(cond, p1', p2')) ext,
+       mergeres ext tres1 tres2, check_compatible ext oracle1 oracle2,
+       new_oproc (Test(cond, ip1', ip2')) ext)
+	  
   | _, ext -> 
       raise_error "non-input process expected" ext
         
@@ -3326,6 +3350,7 @@ let rec rename_term (t,ext) =
   | PExists(exists,t) -> PExists(List.map (fun (x,ty) -> (rename_ie x, rename_ty ty)) exists,
 				 rename_term t)
   | PIndepOf(i1,i2) -> PIndepOf(rename_ie i1, rename_ie i2)
+  | PDiffIndist(t1,t2) -> PDiffIndist(rename_term t1, rename_term t2)
   in
   (t',ext)
 
@@ -3368,6 +3393,7 @@ let rec rename_proc (p, ext) =
   | PGet(id, patlist, sto, p1,p2, opt) -> PGet(rename_ie id, List.map rename_pat patlist, (match sto with None -> None|Some t -> Some (rename_term t)), rename_proc p1, rename_proc p2, opt)
   | PInsert(id, tlist, p) -> PInsert(rename_ie id, List.map rename_term tlist, rename_proc p)
   | PBeginModule ((id,opt),p) -> PBeginModule ((rename_ie id,List.map rename_beginmodule_opt opt),rename_proc p)
+  | PDiffIndistProc(p1,p2) -> PDiffIndistProc(rename_proc p1,rename_proc p2)
   in
     (p', ext)
 
@@ -3796,7 +3822,9 @@ let rec check_one = function
 	      if List.length l' != 1 then
 	        raise_error "only unary functions can be declared \"typeConverter\"" extopt;
 	      opt := (!opt) lor Settings.fopt_COMPOS
-            end 
+            end
+	  else if sopt = "autoSwapIf" then
+	    opt := (!opt) lor Settings.fopt_AUTO_SWAP_IF
           else
 	    raise_error ("Unknown function option " ^ sopt) extopt
 	      ) f_options;
@@ -3924,13 +3952,15 @@ let rec check_one = function
                (* Parse options *)
                write_type_options typ opts
            | Function((f,ext),(i,ext1),fopts) ->
-               let fu=get_function_or_letfun !env f ext in
+               let fu=get_function_or_letfun_no_if !env f ext in
+	       (* "if_fun" is rejected because it already has implementation informations *)
 	       if fu.f_impl != No_impl then
 		 raise_error ("Function " ^ f ^ " already has implementation informations") ext;
                 fu.f_impl <- Func i;
                write_fun_options fu fopts
            | Constant((f,ext),(i,ext')) ->
-               let fu=get_function_or_letfun !env f ext in
+               let fu=get_function_or_letfun_no_if !env f ext in
+	       (* "if_fun" is rejected because it already has implementation informations *)
  	       if fu.f_impl != No_impl then
 		 raise_error ("Function " ^ f ^ " already has implementation informations") ext;
                if (fst fu.f_type <> []) then
@@ -3955,8 +3985,14 @@ let check_process_full p =
   check_process2 p; (* Checks oracles that finish roles contain only
                        one return *)
   warn_process_form p; (* Warns user if form of process is not optimal *)
-  result
- 
+  match !diff_bit with
+  | None -> 
+      result
+  | Some b ->
+      let ch = { cname = Terms.fresh_id "diff_ch" } in
+      let out_proc = Terms.oproc_from_desc (Output((ch,[]), Terms.app Settings.empty_tuple [], result)) in
+      let new_proc = Terms.oproc_from_desc (Restr(b,out_proc)) in
+      Terms.iproc_from_desc (Input((ch,[]), PatTuple(Settings.empty_tuple,[]), new_proc))
 	
 let new_bitstring_binder() = 
   let b = Terms.create_binder "!l" Settings.t_bitstring []
@@ -4129,7 +4165,7 @@ let check_query = function
 	else if s = "onesession" || s = "cv_onesession" then
 	  onesession := true
 	else
-	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, cv_onesession, and options starting with pv_ which are ignored" ext) options;
+	  raise_error "The allowed options for secret are real_or_random, cv_real_or_random, reachability, cv_reachability, cv_bit, onesession, cv_onesession, and options starting with pv_ which are ignored" ext) options;
       let combined_option =
 	match !secr_type with
 	| None | Some (RealOrRandom _) ->
@@ -4193,6 +4229,13 @@ let rec check_all (l,p) =
 	in
 	let queries = queries_for_unique (remove_dup ql) in
 	let (queries, p) = Encode_queries.encode_queries queries p in
+	let queries =
+	  match !diff_bit with
+	  | None -> queries
+	  | Some b ->
+	      let pub_vars = Settings.get_public_vars0 queries in
+	      (QSecret(b, pub_vars, Bit)) :: queries
+	in
 	(!statements, !collisions, !equivalences,
 	 queries, !proof, (get_impl ()), SingleProcess p)
     | PEquivalence(p1,p2,pub_vars) ->
@@ -4205,6 +4248,8 @@ let rec check_all (l,p) =
 	non_unique_events := [];
 	let p2' = check_process_full p2 in
 	let nu2 = !non_unique_events in
+	if !diff_bit <> None then
+	  raise_user_error "diff is incompatible with equivalence";
 	let pub_vars' =  get_qpubvars pub_vars in
 	let q1 = List.map (fun e -> Terms.build_event_query e pub_vars') nu1 in
 	let q2 = List.map (fun e -> Terms.build_event_query e pub_vars') nu2 in
@@ -4404,7 +4449,8 @@ let rec collect_id_term accu (t,ext) =
       add_id accu tbl;
       List.iter (collect_id_term accu) tl;
       collect_id_term accu t
-  | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) | PBefore(t1,t2) ->
+  | PEqual(t1,t2) | PDiff(t1,t2) | POr(t1,t2) | PAnd(t1,t2) | PBefore(t1,t2)
+  | PDiffIndist(t1,t2) ->
       collect_id_term accu t1;
       collect_id_term accu t2
   | PExists(exists,t) ->
@@ -4451,7 +4497,7 @@ let rec collect_id_proc accu (proc,ext) =
     PNil | PYield -> ()
   | PEventAbort e ->
       add_id accu e
-  | PPar(p1,p2) ->
+  | PPar(p1,p2) | PDiffIndistProc(p1,p2) ->
       collect_id_proc accu p1;
       collect_id_proc accu p2
   | PRepl(_,iopt,n,p) ->

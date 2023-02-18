@@ -1,0 +1,14 @@
+channel c.
+
+proof {
+    move_if_fun to_term 5
+ }
+
+process
+   in(c, (b:bool, b':bool, x:bitstring, y:bitstring));
+   out(c, if_fun(b,x,if_fun(b', y, x)))
+
+(* EXPECTED
+Error: if_fun function expected at occurrence 5
+xtime: error in child process (status : 2)
+END *)

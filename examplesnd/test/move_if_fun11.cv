@@ -1,0 +1,17 @@
+channel c.
+
+proof {
+    move_if_fun Z
+ }
+
+fun Z(bitstring):bitstring.
+fun f(bitstring):bitstring.
+
+process
+   in(c, (b:bool, b':bool, x:bitstring, y:bitstring));
+   out(c, Z(if_fun(b, x, f(if_fun(b',y,x)))))
+
+(* EXPECTED
+All queries proved.
+0.042s (user 0.038s + system 0.004s), max rss 18112K
+END *)

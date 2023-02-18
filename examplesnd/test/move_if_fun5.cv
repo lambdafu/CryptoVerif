@@ -1,0 +1,14 @@
+channel c.
+
+proof {
+    move_if_fun to_term (* No change *)
+ }
+
+process
+   in(c, x:bitstring);
+   out(c, x)
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.036s + system 0.008s), max rss 18160K
+END *)

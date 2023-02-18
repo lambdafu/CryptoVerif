@@ -535,19 +535,6 @@ letfun enc_timestamp(timestamp: timestamp_t, current_hash: hashoutput_t, k: key_
 letfun enc_bitstring(plaintext: bitstring, current_hash: hashoutput_t, k: key_t, n: nonce_t) =
   enc(plaintext, hashoutput_to_bitstring(current_hash), k, n).
 
-(* Define a function for choosing from two attacker-provided plaintexts based
-   on a bit. Also, defines some equations on it so CryptoVerif is able
-   to reason about it. *)
-expand boolean_choice_for_encryption(
-  (* types *)
-  bitstring,  (* type of the values *)
-  (* functions *)
-  Zero,       (* the Zero function provided by the encryption scheme. *)
-              (* Needed for some equations about the function. *)
-  test	      (* Name of the choice function: *)
-              (* test(bool, bitstring, bitstring): bitstring *)
-).
-
 event sent1(
   G_t, (* S_r_pub *)
   (* values sent in the first protocol message *)
@@ -722,7 +709,7 @@ event rcvd_msg_initiator(G_t, G_t, bitstring, G_t, bitstring, timestamp_t,
 (* For correctness, use WG.25519.correctness.m4.cv *)
 
 (* Secrecy *)
-query secret secret_bit.
+query secret secret_bit [cv_bit].
 
 (* Resistance against Unknown Key-Share attacks. *)
 
@@ -1038,7 +1025,7 @@ letfun prepare_msg(
     get sent_counters(=side_index, =counter) in preparemsgfail else
     insert sent_counters(side_index, counter);
 
-    let plaintext = test(secret_bit_I, plaintext_0, plaintext_1) in
+    let plaintext = if_fun(secret_bit_I, plaintext_0, plaintext_1) in
     let ciphertext = enc(plaintext, empty_bitstring, T_i_send, counter_to_nonce(counter)) in
     preparemsgsucc(ciphertext, plaintext)
   ) else (

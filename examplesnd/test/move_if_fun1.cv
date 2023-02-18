@@ -1,0 +1,12 @@
+channel c.
+
+proof {
+    move_if_fun to_term
+ }
+
+process in(c, (b:bool, x:bitstring, y:bitstring)); out(c, if_fun(b,x,y))
+
+(* EXPECTED
+All queries proved.
+0.045s (user 0.030s + system 0.015s), max rss 18012K
+END *)

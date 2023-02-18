@@ -31,6 +31,7 @@ let common_keywords =
   "proba", PROBA;
   "type", TYPE;
   "equiv", EQUIV;
+  "diff", DIFF_INDIST;
   "process", PROCESS;
   "let", LET;
   "query", QUERY;
@@ -146,7 +147,10 @@ let keyword_table_proof =
       "guess", GUESS;
       "guess_branch", GUESS_BRANCH;
       "no_test", NO_TEST;
-      "above", ABOVE
+      "above", ABOVE;
+      "move_if_fun", MOVE_IF;
+      "level", LEVEL;
+      "to_term", TO_TERM
     ]
     
 }

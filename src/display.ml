@@ -256,7 +256,7 @@ and display_term t =
   | FunApp(f,l) ->
       begin
 	match f.f_cat with
-	  Std | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent -> 
+	  Std | If | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent -> 
 	    print_string f.f_name;
 	    (* Event functions have replication indexes added at first argument
                Do not display it *)
@@ -389,7 +389,7 @@ and display_term_paren infix_paren process_paren t =
   let put_paren =
     match t.t_desc with
       Var _ | ReplIndex _ 
-    | FunApp({ f_cat = Std | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent },_) -> false
+    | FunApp({ f_cat = Std | If | GuessCst | SepLetFun | Tuple | Event | NonUniqueEvent },_) -> false
     | FunApp({ f_cat = LetEqual | Equal | Diff | ForAllDiff | Or | And } as f,_) ->
 	begin
 	  match infix_paren' with
@@ -1695,7 +1695,32 @@ let display_instruct = function
       print_int occ;
       if no_test then
 	print_string " no_test"
-
+  | MoveIf arg ->
+      begin
+	match arg with
+	| MovePos l ->
+	    let (locc,lfun) = List.partition (function MoveOcc _ -> true | MoveFun _ -> false) l in
+	    print_string "move if_fun function ";
+	    if locc != [] then
+	      begin
+		print_string "to occurrence(s) ";
+		display_list (function MoveOcc(n,_) -> print_int n | MoveFun _ -> assert false) l
+	      end;
+	    if locc != [] && lfun != [] then
+	      print_string " and ";
+	    if lfun != [] then
+	      begin
+		print_string "to above function(s) ";
+		display_list (function MoveFun(f,_) -> print_string f.f_name | MoveOcc _ -> assert false) l
+	      end
+	| MoveLevel n -> print_string ("move if_fun function "^(string_of_int n)^" level(s) up")
+	| MoveToTerm lopt ->
+	    match lopt with
+	    | None -> print_string "transform if_fun function to if term everywhere"
+	    | Some l ->
+		print_string "transform if_fun function to if term at occurrence(s) ";
+		display_list (fun (n,_) -> print_int n) l
+      end
 	
 (* Display transformation steps *)
 	
@@ -2005,7 +2030,19 @@ let display_detailed_ins = function
 	| _ -> Parsing_helper.internal_error "unexpected merge"
       end;
       print_newline()
-
+  | DMoveIf l ->
+      List.iter (fun (orig_occ,final_occ) ->
+	print_string "  - Move if_fun function from ";
+	print_occ orig_occ;
+	print_string " to ";
+	print_occ final_occ;
+	print_newline()
+	  ) l
+  | DMoveIfToTerm l ->
+      print_string "  - Transformed if_fun function into if term at ";
+      display_list print_occ l;
+      print_newline()
+    
 let mark_useful_occ_p p = 
   useful_occs := p.p_occ :: (!useful_occs)
 let mark_useful_occ_t t = 
@@ -2065,6 +2102,10 @@ let mark_occs1 f_p f_t = function
       end
   | DGuessBranch occ ->
       useful_occs := occ :: (!useful_occs)
+  | DMoveIf l ->
+      List.iter (fun (orig,final) -> useful_occs := orig :: final :: (!useful_occs)) l
+  | DMoveIfToTerm l ->
+      useful_occs := l @ (!useful_occs)
 			      
 let mark_occs ins = 
   useful_occs := [];

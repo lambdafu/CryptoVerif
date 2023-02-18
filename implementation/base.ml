@@ -15,6 +15,11 @@ let always_true _ = true
 
 let sizep n s = (String.length s = n)
 
+(* Function if_fun *)
+
+let if_fun b t e =
+  if b then t else e
+
 (* Reading from and writing to a file *)
 
 let input_string_from_file file =

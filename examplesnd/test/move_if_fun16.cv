@@ -1,0 +1,14 @@
+channel c.
+
+proof {
+    move_if_fun level 1
+ }
+
+process
+   in(c, (b:bool, b':bool, x:bitstring, y:bitstring));
+   out(c, if_fun(b,x,if_fun(b', y, x)))
+
+(* EXPECTED
+All queries proved.
+0.041s (user 0.032s + system 0.009s), max rss 18196K
+END *)

@@ -251,7 +251,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, d: add_data, k:key, n: nonce; 
 	dec(enc(m, d, k, n), d, k, n) = injbot(m).
@@ -591,19 +591,6 @@ letfun enc_timestamp(timestamp: timestamp_t, current_hash: hashoutput_t, k: key_
 letfun enc_bitstring(plaintext: bitstring, current_hash: hashoutput_t, k: key_t, n: nonce_t) =
   enc(plaintext, hashoutput_to_bitstring(current_hash), k, n).
 
-(* Define a function for choosing from two attacker-provided plaintexts based
-   on a bit. Also, defines some equations on it so CryptoVerif is able
-   to reason about it. *)
-expand boolean_choice_for_encryption(
-  (* types *)
-  bitstring,  (* type of the values *)
-  (* functions *)
-  Zero,       (* the Zero function provided by the encryption scheme. *)
-              (* Needed for some equations about the function. *)
-  test	      (* Name of the choice function: *)
-              (* test(bool, bitstring, bitstring): bitstring *)
-).
-
 
 (* Secrecy of secret_bit => indistinguishability of the two configurations *)
 
@@ -830,7 +817,7 @@ letfun prepare_msg(
     get sent_counters(=side_index, =counter) in preparemsgfail else
     insert sent_counters(side_index, counter);
 
-    let plaintext = test(secret_bit_I, plaintext_0, plaintext_1) in
+    let plaintext = if_fun(secret_bit_I, plaintext_0, plaintext_1) in
     let ciphertext = enc(plaintext, empty_bitstring, T_i_send, counter_to_nonce(counter)) in
     preparemsgsucc(ciphertext, plaintext)
   ) else (

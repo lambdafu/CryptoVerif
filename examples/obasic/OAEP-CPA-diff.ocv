@@ -1,0 +1,81 @@
+(* OAEP scheme, proof of CPA security.
+   See OAEP.ocv for the proof of CCA2 security. *)
+
+proof {
+      crypto rom(H);
+      crypto rom(G);
+      show_game occ;
+      insert_event bad1 36;
+      show_game occ;
+      insert_event bad2 64;
+      auto
+      (* The rest of the proof works automatically with priority 2 
+      for pkgen(r) in ow(f).
+      crypto remove_xor(xorDr) r_5;
+      crypto remove_xor(xorDow) r_7;      
+      remove_assign binder pk; 
+      show_game;
+      crypto pd_ow(f) r_2 r_8 r_9;
+      success *)
+}
+
+param qS.
+
+type pkey [bounded].
+type skey [bounded].
+type seed [large,fixed].
+type D [fixed,large].
+type Dow [fixed,large].
+type Dr [fixed,large].
+
+(* Set partial-domain one-way trapdoor permutation *)
+
+proba P_PD_OW.
+
+expand set_PD_OW_trapdoor_perm(seed, pkey, skey, D, Dow, Dr, pkgen, skgen, f, invf, concat, P_PD_OW).
+
+(* Hash functions, random oracle model *)
+
+type hashkey [fixed].
+
+expand ROM_hash_large(hashkey, Dr, Dow, G, hashoracleG, qG).
+
+expand ROM_hash_large(hashkey, Dow, Dr, H, hashoracleH, qH).
+
+(* concatenation *)
+type Dm.
+type Dz [large].
+
+fun concatm(Dm,Dz):Dow [data].
+const zero: Dz.
+
+(* Xor *)
+
+expand Xor(Dow, xorDow, zeroDow).
+expand Xor(Dr, xorDr, zeroDr).
+
+(* Queries *)
+
+let processT(hkh: hashkey, hkg: hashkey, pk: pkey) = 
+	OT(m1: Dm, m2: Dm) :=
+	menc <- diff[m1, m2];
+	r <-R Dr;
+	s <- xorDow(concatm(menc, zero), G(hkg,r));
+	t <- xorDr(r, H(hkh,s));
+	return(f(pk, concat(s,t))).
+
+process 
+	Ogen() :=
+	hkh <-R hashkey;
+	hkg <-R hashkey;
+	r <-R seed; 
+	pk <- pkgen(r);
+	sk <- skgen(r);
+	return(pk);
+	(run hashoracleG(hkg) | run hashoracleH(hkh) | run processT(hkh, hkg, pk))
+
+
+(* EXPECTED
+All queries proved.
+0.116s (user 0.108s + system 0.008s), max rss 17492K
+END *)

@@ -45,19 +45,6 @@ expand Insider_CCA_Secure_Authenticated_KEM(keypairseed_t, pkey_t, skey_t, kemse
 
 include(`common.hpke.ocvl')
 
-(* Define a function for choosing from two attacker-provided plaintexts based
-   on a bit. Also, defines some equations on it so CryptoVerif is able
-   to reason about it. *)
-expand boolean_choice_for_encryption(
-  (* types *)
-  bitstring,  (* type of the values *)
-  (* functions *)
-  Length,       (* the Length function provided by the encryption scheme. *)
-              (* Needed for some equations about the function. *)
-  test	      (* Name of the choice function: *)
-              (* test(bool, bitstring, bitstring): bitstring *)
-).
-
 (* a set E used within the proof,
    containing 6-tuples of the following type: *)
 table E(
@@ -115,7 +102,7 @@ process
           (* only accept challenge queries for m0 and m1 of same length *)
           if Length(m0) = Length(m1) then (
             let SealAuth_Some(enc_star: kemciph_t, c_star: bitstring) =
-                SealAuth(the_pk, info, aad, test(b, m0, m1), skgen(s')) in (
+                SealAuth(the_pk, info, aad, if_fun(b, m0, m1), skgen(s')) in (
               insert E(pkgen(s'), the_pk, enc_star, c_star, aad, info);
               return((enc_star, c_star))
             (* SealAuth does not fail, but CryptoVerif's language

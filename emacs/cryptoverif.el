@@ -2,9 +2,9 @@
 ;; mode for .cv files 
 ;;
 
-(defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "exists" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst") "Cryptoverif keywords")
+(defvar cryptoverif-kw '("independent-of" "new" "out" "channel" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "exists" "equation" "builtin" "proba" "type" "diff" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newChannel" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst") "Cryptoverif keywords")
 
-(defvar cryptoverif-builtin '("random_choices_may_be_equal" "noninteractive" "passive" "default" "small" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "onesession" "cv_onesession" "real_or_random" "cv_real_or_random" "reachability" "cv_reachability" "bit" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
+(defvar cryptoverif-builtin '("random_choices_may_be_equal" "noninteractive" "passive" "default" "small" "bounded" "fixed" "large" "password" "nonuniform" "data" "projection" "uniform" "typeConverter" "autoSwapIf" "commut" "assoc" "AC" "assocU" "ACU" "ACUN" "group" "commut_group" "manual" "computational" "unchanged" "exist" "all" "useful_change" "unique" "onesession" "cv_onesession" "real_or_random" "cv_real_or_random" "reachability" "cv_reachability" "cv_bit" "pred" "serial" "inverse" "random") "Cryptoverif builtins")
 
 ;; build optimal regular expression from list of keywords
 ;; 'words if for taking full words only, not subwords
@@ -38,7 +38,7 @@
 ;; mode for .ocv files (oracles mode)
 ;;
 
-(defvar cryptoverifo-kw '("independent-of" "new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "exists" "equation" "builtin" "proba" "type" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst" "run") "Cryptoverif keywords")
+(defvar cryptoverifo-kw '("independent-of" "new" "if" "then" "else" "find" "orfind" "suchthat" "fun" "param" "forall" "exists" "equation" "builtin" "proba" "type" "diff" "equiv" "process" "let" "in" "query" "secret" "public_vars" "const" "set" "defined" "collision" "event" "time" "yield" "event_abort" "maxlength" "length" "max" "min" "newOracle" "inj-event" "foreach" "do" "return" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "equivalence" "query_equiv" "special" "number" "optim-if" "is-cst" "run") "Cryptoverif keywords")
 
 (defvar cryptoverifo-kw-regexp (regexp-opt cryptoverifo-kw 'words))
 ;; the builtins are the same as in the .cv mode
@@ -70,9 +70,9 @@
 ;; mode for .pcv files (compatibility CryptoVerif and ProVerif)
 ;;
 
-(defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "exists" "equation" "proba" "type" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "suchthat" "not" "equivalence" "number" "time" "length" "optim-if" "is-cst") "Cryptoverif and ProVerif common keywords")
+(defvar pcv-kw '("new" "out" "channel" "if" "then" "else" "fun" "param" "forall" "exists" "equation" "proba" "type" "diff" "process" "let" "in" "query" "secret" "public_vars" "const" "set"  "event" "yield" "event_abort" "inj-event" "foreach" "do" "def" "expand" "proof" "implementation" "get" "insert" "table" "letfun" "letproba" "suchthat" "not" "equivalence" "number" "time" "length" "optim-if" "is-cst") "Cryptoverif and ProVerif common keywords")
 
-(defvar pcv-bad-kw '("independent-of" "restriction" "lemma" "axiom" "for" "among" "choice" "clauses" "diff" "elimtrue" "find" "orfind" "fail" "free" "noninterf" "noselect" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "maxlength" "max" "min" "newChannel" "return" "query_equiv" "select" "special") "CryptoVerif- or ProVerif-only keywords")
+(defvar pcv-bad-kw '("independent-of" "restriction" "lemma" "axiom" "for" "among" "choice" "clauses" "elimtrue" "find" "orfind" "fail" "free" "noninterf" "noselect" "nounif" "or" "otherwise" "phase" "putbegin" "reduc" "sync" "weaksecret" "builtin" "equiv" "defined" "collision" "maxlength" "max" "min" "newChannel" "return" "query_equiv" "select" "special") "CryptoVerif- or ProVerif-only keywords")
 
 (defvar pcv-builtin '("noninteractive" "passive" "default" "small" ;; param options (ignored in PV)
 		      "bounded" "fixed" "large" "password" "nonuniform" ;;type options (ignored in PV)
@@ -83,7 +83,7 @@
 
 (defvar pcv-bad-builtin '(;; equation builtin/equiv/find/collision options in CV need not be marked in red since the keywords builtin, equiv, find, and collision are already marked in red
 			  "private" ;; in PV
-			  "reachability" ;; query option not supported in CV
+			  "autoSwapIf" ;; in CV
 			  "memberOptim" "decompData" "decompDataSelect" "block" ;; predicate options
 			  "attacker" "mess" ;; predicates
 			  ;; lemma/axiom/nounif options need not be marked in red since the keywords lemma, axiom, and nounif are already marked in red

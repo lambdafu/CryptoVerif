@@ -197,7 +197,7 @@ let sa_rename_ins_updater b bl = function
      MoveNewLet(MAll | MNoArrayRef | MLet | MNew | MNewNoArrayRef) | 
      Proof _ | InsertEvent _ | InsertInstruct _ | ReplaceTerm _ | MergeBranches |
      MergeArrays _ (* MergeArrays does contain variable names, but it is advised only when these variables have a single definition, so they are not modified by SArename *) |
-     IFocus _ | Guess _ | GuessBranch _) as x -> [x]
+     IFocus _ | Guess _ | GuessBranch _ | MoveIf _) as x -> [x]
   | RemoveAssign (sarename_new, Binders l) ->
       [RemoveAssign (sarename_new, Binders (replace_list b bl l))]
   | UseVariable l ->
@@ -293,7 +293,9 @@ let execute state ins =
     | Guess(arg) ->
 	Transf_guess.guess arg state g
     | GuessBranch(occ,no_test,ext_o) ->
-	Transf_guess.guess_branch occ no_test ext_o state g 
+	Transf_guess.guess_branch occ no_test ext_o state g
+    | MoveIf(arg) ->
+	Transf_move_if.move_if arg g
     | CryptoTransf _ | Proof _ | IFocus _ -> 
 	Parsing_helper.internal_error "CryptoTransf/Proof/IFocus unexpected in execute"
   in
@@ -581,6 +583,11 @@ let initial_expand_simplify_success state =
   state
   |> initial_expand_simplify
   |> basic_success_state
+
+let move_if arg state =
+  state
+  |> execute_display_advise (MoveIf arg)
+  |> expand
 
 let display_failure_reasons failure_reasons =
   if failure_reasons == [] then
@@ -1531,6 +1538,11 @@ let help() =
   "guess \"x[i1...in]\" no_test   : replace x[i1...in] with a guessed value\n" ^  
   "guess_branch <occ>           : guess which branch is taken at occurrence <occ>; abort in case of wrong guess\n" ^
   "guess_branch <occ> no_test   : guess which branch is taken at occurrence <occ>; always run that branch\n" ^
+  "move_if_fun <occ> ...        : move the predefined function if_fun from inside terms at the given occurrences to their root\n" ^
+  "move_if_fun <f> ...          : move if_fun from under the given function symbols to just above\n" ^
+  "move_if_fun level <n>        : move if_fun <n> function symbols up\n" ^
+  "move_if_fun to_term          : transform if_fun into if ... then ... else ... everywhere\n" ^
+  "move_if_fun to_term <occ> ...: transform if_fun into if ... then ... else ... at the given occurrences\n" ^
   "start_from_other_end         : in equivalence proofs, transform the other game\n" ^
   "success                      : check the desired properties\n" ^
   "success simplify             : remove code that cannot make properties to prove false\n" ^
@@ -2033,7 +2045,8 @@ let rec interpret_command interactive state = function
 		    raise (Error("Variable "^(Display.binder_to_string b')^" expects "^(string_of_int l_b)^
 		       " indices, but is here given "^(string_of_int l_l)^" indices", snd id));
 		  let get_cst ri (s,ext) =
-		    let f = Stringmap.get_function_no_letfun (!Stringmap.env) s ext in
+		    let f = Stringmap.get_function_no_letfun_no_if (!Stringmap.env) s ext in
+		    (* "if_fun" rejected because it takes 3 arguments *)
 		    if fst f.f_type <> [] then
 		      raise (Error("Indices of variable should be constants in the guess command", ext));
 		    if snd f.f_type != ri.ri_type then
@@ -2066,6 +2079,32 @@ let rec interpret_command interactive state = function
   | CGuess_branch(occ_br, no_test, ext_o) ->
       let occ = interpret_occ state occ_br in
       execute_display_advise (GuessBranch(occ, no_test, ext_o)) state
+  | CMove_if arg ->
+      begin
+	match arg with
+	| CMovePos l ->
+	    let l' = List.map (function
+	      | CMoveOcc(occ,ext) -> MoveOcc(interpret_occ state occ, ext)
+	      | CMoveFun(id,ext) ->
+		  let f = Stringmap.get_function_no_letfun_no_if (!Stringmap.env) id ext in
+		  if f == Stringmap.dummy_if_fun then
+		    raise (Error("Cannot move_if_fun to if_fun itself", ext));
+		  MoveFun(f, ext)
+			      ) l
+	    in
+	    move_if (MovePos l') state
+	| CMoveLevel (n,ext) ->
+	    if n <= 0 then
+	      raise (Error("In command move_if_fun, the number of levels to move must be strictly positive", ext));
+	    move_if (MoveLevel n) state
+	| CMoveToTerm lopt ->
+	    let lopt' =
+	      match lopt with
+	      | None -> None
+	      | Some l -> Some (List.map (fun (occ,ext) -> (interpret_occ state occ, ext)) l)
+	    in
+	    move_if (MoveToTerm lopt') state
+      end
   | CRestart(ext) ->
       let rec restart state =
 	match state.prev_state with

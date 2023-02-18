@@ -1,0 +1,16 @@
+channel c.
+
+fun Z(bitstring):bitstring [autoSwapIf].
+
+query secret b [cv_bit].
+
+process
+   in(c, (x:bitstring, y:bitstring));
+   new b: bool;
+   if Z(x) = Z(y) then
+   out(c, Z(if_fun(b, x, y)))
+
+(* EXPECTED
+All queries proved.
+0.040s (user 0.036s + system 0.004s), max rss 18132K
+END *)

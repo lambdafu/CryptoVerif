@@ -37,7 +37,7 @@ character set. Case is significant.
 Keywords cannot be used as ordinary identifiers. The keywords are:
 {\tt builtin}, {\tt channel}, 
 {\tt collision}, {\tt const}, {\tt def}, 
-{\tt defined}, {\tt do}, {\tt else}, {\tt eps\_find}, 
+{\tt defined}, {\tt diff}, {\tt do}, {\tt else}, {\tt eps\_find}, 
 {\tt eps\_rand}, {\tt equation}, {\tt equiv}, {\tt equivalence}, 
 {\tt event}, {\tt event\string_abort}, {\tt expand}, {\tt find}, 
 {\tt forall}, {\tt foreach}, {\tt fun}, 
@@ -410,7 +410,7 @@ are otherwise considered as ordinary function symbols.
 
 \end{itemize}
 Terms contain further constructs \texttt{<-R}, \texttt{<-}, \texttt{event}, \texttt{event\string_abort}, \texttt{if}, \texttt{find},
-\texttt{let}, \texttt{new}, \texttt{insert}, and \texttt{get} which are similar to the corresponding
+\texttt{let}, \texttt{new}, \texttt{insert}, \texttt{get}, and \texttt{diff} which are similar to the corresponding
 constructs of output processes but return a bitstring instead of
 executing a process. 
 They are not allowed to occur in \texttt{defined} conditions of \texttt{find}.
@@ -513,15 +513,18 @@ A variant of {\tt get} is {\tt get[unique]}, which guarantees that at most one e
 
 Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
 
+\item $\texttt{diff[}M_1,M_2\texttt{]}$ allows the user to define two processes: in the first process, the first argument of
+\texttt{diff} is always used, while in the second process, the second argument of \texttt{diff} is always used. CryptoVerif shows indistinguishability between the obtained two processes.
+
 \end{itemize}
 
 \ifchannels
 The calculus distinguishes two kinds of processes: input processes
-$\iprocess$ are ready to receive a message on a channel; 
-output processes $\oprocess$ 
-output a message on a channel after executing some internal computations.
-When an input or output process is an identifier, it is substituted with 
-its value defined by a \texttt{let} declaration.
+$\iprocess$ are ready to receive a message on a channel; output
+processes $\oprocess$ output a message on a channel after executing
+some internal computations.  When an input or output process is an
+identifier, it is substituted with its value defined by a \texttt{let}
+declaration.
 \else
 The calculus distinguishes two kinds of processes: oracle definitions
 $\iprocess$ define new oracles; oracle bodies $\oprocess$ return a
@@ -798,8 +801,7 @@ A variant of {\tt get} is {\tt get[unique]}, which guarantees that at most one e
 Internally, \texttt{get} is converted into \texttt{find} by CryptoVerif.
 
 \ifchannels
-\item
-Finally, let us explain the output $\texttt{out(}c\texttt{[}M_1,
+\item Let us now explain the output $\texttt{out(}c\texttt{[}M_1,
 \ldots, M_l\texttt{],}N\texttt{);}Q$.  A channel $c\texttt{[}M_1,
 \ldots, M_l\texttt{]}$ consists of both a channel name $c$ (declared
 by $\texttt{channel }c$) and a tuple of terms $M_1, \ldots, M_l$.  Terms
@@ -851,6 +853,9 @@ returning the result of the terms $N_1, \ldots, N_l$. Then, it makes
 available the oracles defined in $Q$.
 
 \fi
+
+\item $\texttt{diff[}P_1,P_2\texttt{]}$ allows the user to define two processes: in the first process, the first argument of
+\texttt{diff} is always used, while in the second process, the second argument of \texttt{diff} is always used. CryptoVerif shows indistinguishability between the obtained two processes. Internally, this is encoded by choosing a random bit \texttt{diff\_bit}, running the first argument of \texttt{diff} when \texttt{diff\_bit} is true and the second one when when \texttt{diff\_bit} is false, and showing the secrecy of \texttt{diff\_bit}. The variables that are public due to other queries (variables included in \texttt{public\_vars} in queries as well as variables on which there is a \texttt{query secret}) are considered public when proving the secrecy of \texttt{diff\_bit}.
 
 \end{itemize}
 
@@ -1706,6 +1711,8 @@ by just declaring the corresponding poly-injective function \texttt{data}.)
 of its argument into the default distribution of its result. $f$ must be unary;
 the argument and the result of $f$ must be of types marked 
 {\tt fixed}, {\tt bounded}, or {\tt nonuniform}.
+
+\item \texttt{[autoSwapIf]} tells CryptoVerif to rewrite terms of the form $f(\dots,\texttt{if\_fun}(M_1,M_2,M_3),\dots)$ into $\texttt{if\_fun}(M_1,f(\dots,M_2,\dots),f(\dots,M_3,\dots))$, where \texttt{if\_fun} is a predefined test function that satisfies $\texttt{if\_fun(true,$x$,$y$)} = x$ and $\texttt{if\_fun(false,$x$,$y$)} = y$.
 
 \end{itemize}
 
@@ -2738,6 +2745,8 @@ It is declared {\tt fixed}.
 
 \item The constant {\tt bottom} represents $\bot$. (The special
 element of {\tt bitstringbot} that is not a bitstring.)
+
+\item The function {\tt if\_fun} takes three arguments, one of type {\tt bool} and two arguments of the same type. It satisfies $\texttt{if\_fun(true,$x$,$y$)} = x$ and $\texttt{if\_fun(false,$x$,$y$)} = y$.
 
 \end{itemize}
 

@@ -18,8 +18,7 @@ then
     file_exists_or_abort preamble.cvl
     file_exists_or_abort ../../default.cvl
     file_exists_or_abort separator.cvl
-    file_exists_or_abort boolean_choice.cvl
-    cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl boolean_choice.cvl > mylib.cvl
+    cat preamble.cvl ../../default.cvl separator.cvl hashoracles.cvl > mylib.cvl
 fi
 
 file_exists_or_abort mylib.cvl

@@ -31,6 +31,7 @@ type term =
   | PIndepOf of ident * ident
   | PBefore of term_e * term_e
   | PExists of (ident * ty(*type*)) list * term_e
+  | PDiffIndist of term_e * term_e
 		
 and term_e = term * Parsing_helper.extent
 
@@ -67,6 +68,7 @@ and process =
   | PGet of ident * (pattern_e list) * term_e option * process_e * process_e * ident list(*options [unique]*)
   | PInsert of ident * term_e list * process_e
   | PBeginModule of ((ident * progopt list) * process_e)
+  | PDiffIndistProc of process_e * process_e
 (*
   | PPhase of int * process_e
 *)
@@ -237,6 +239,15 @@ type allowed_coll_t =
 type guess_arg_t =
   | CGuessId of ident * bool(*true when "no_test"*) * bool(*true when "and above"*)
   | CGuessOcc of pocc * bool(*true when "and above"*) * Parsing_helper.extent
+
+type move_if_pos_t =
+  | CMoveOcc of poccext
+  | CMoveFun of ident
+	
+type move_if_arg_t =
+  | CMovePos of move_if_pos_t list
+  | CMoveLevel of int * Parsing_helper.extent
+  | CMoveToTerm of poccext list option
 	
 type command =
   | CInteractive of Parsing_helper.extent
@@ -282,6 +293,7 @@ type command =
   | CUndoTag of ident
   | CGuess of guess_arg_t
   | CGuess_branch of pocc * bool(* true when "no_test"*) * Parsing_helper.extent
+  | CMove_if of move_if_arg_t
 	
 (* Declarations *)
 

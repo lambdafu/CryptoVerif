@@ -1,0 +1,22 @@
+channel c.
+
+proof {
+    move_if_fun Z;
+    simplify;
+    success
+ }
+
+fun Z(bitstring):bitstring.
+
+query secret b [cv_bit].
+
+process
+   in(c, (x:bitstring, y:bitstring));
+   new b:bool;
+   if Z(x) = Z(y) then
+   out(c, Z(if_fun(b, x, y)))
+
+(* EXPECTED
+All queries proved.
+0.044s (user 0.044s + system 0.000s), max rss 18132K
+END *)

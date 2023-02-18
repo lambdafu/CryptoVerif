@@ -93,6 +93,10 @@ val insert_in_table : string -> string list -> unit
 val always_true : 'a -> bool
 val sizep : int -> string -> bool
 
+(* Function if_fun *)
+
+val if_fun : bool -> 'a -> 'a -> 'a
+    
 (* Serialization and deserialization functions for the default types:
    bitstring, bool, bitstrings having a fixed size, bitstringbot
    When deserialization fails, raises Match_fail *)

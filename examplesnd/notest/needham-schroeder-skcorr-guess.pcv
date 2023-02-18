@@ -5,11 +5,17 @@
 
 proof {
 crypto int_ctxt(enc) Kas_1; (* applying that first allows to prove event(fullA(B,k,x)) && event(fullB(A,k',x)) ==> k = k' *)
-auto;
+success;
+crypto int_ctxt(enc);
+success;
+focus "query secret keyA", "query secret keyA [cv_onesession]";
+crypto ind_cpa(enc) *;
+success; (* proved secrecy, going back to before the focus command *)
+
 guess iB;
 simplify;
 out_game "g1.cv";
-insert before_nth 1 "new r_25" "if h_2 = A then"; 
+insert before_nth 1 "new r_4" "if h_2 = A then"; 
 simplify;
 insert before_nth 1 "fullB_1" "find ja <= NA suchthat defined(keyA[ja],u_33[ja]) && u_33[ja] = u_57 then else event_abort bad_auth";
 success;
@@ -38,11 +44,19 @@ B:
                 event_abort bad_auth
 
 Server:
+              new k_19: key;
+              let m_5: bitstring = concat3(k_19, h1, J[iB_tested]) in
               new r_34: enc_seed;
+              let z_15: bitstring = enc_r(m_5, Kbs_1, r_34) in
+If z_15[i] does not leak, then one cannot have z_15[i] = m4 (global dependency analysis on k_19; extension probably required for that. We have injectivity of k_19 -> z_15 by decryption).
+z_15[u_57] = m4 => code in A executed with u_61[iA] = u_57 => find ja succeeds
+
+	Version in which we apply ind-cpa before:
+	      new r_34: enc_seed;
               let z_15: bitstring = enc_r2(Zconcat3, Kbs_2, r_34) in
 
-If z_15[i] does not leak, then one cannot have z_15[i] = m4 (global dependency analysis on r_34; extension probably required for that; needs a form of injectivity of enc_r2 wrt the random r_34). Or apply a partial IND-CPA transformation on Kbs, to leave z_15 = enc(concat3(k,h1,j), Kbs, r) and apply global dependency analysis on k. We have injectivity of k -> z_15 by decryption.
-z_15[u_57] = m4 => code in A executed with u_61[iA] = u_57 => find ja succeeds
+        If z_15[i] does not leak, then one cannot have z_15[i] = m4 (global dependency analysis on r_34; extension probably required for that; needs a form of injectivity of enc_r2 wrt the random r_34). 
+        z_15[u_57] = m4 => code in A executed with u_61[iA] = u_57 => find ja succeeds
 *)
 interactive
 }

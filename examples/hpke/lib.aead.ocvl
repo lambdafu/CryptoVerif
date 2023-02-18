@@ -59,7 +59,7 @@ equation forall x:cleartext; injbot(x) <> bottom.
 
 (* The function Z returns for each bitstring, a bitstring
    of the same length, consisting only of zeroes. *)
-fun Z(cleartext):cleartext.
+fun Z(cleartext):cleartext [autoSwapIf].
 
 equation forall m:cleartext, d: add_data, k:key, n: nonce; 
 	dec(enc(m, d, k, n), d, k, n) = injbot(m).

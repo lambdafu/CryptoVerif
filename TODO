@@ -24,6 +24,21 @@ HIGH PRIORITY
 
 0.1) For the next release:
 
+Fix bug in the modeling of encryption in cryptoverif.pvl.
+See examplesnd/notest/enc-IND-CCA2-error.pv
+It may not really be a bug: the given symbolic
+equations are satisfied in the computational model.
+The problem may rather be that we do not have computational
+soundness: we prove security in the symbolic model,
+but that does not imply security in the computational model.
+It is still counter-intuitive that Z(m1) = Z(m2) implies
+m1 = m2 in the given symbolic model... It is as if encryption
+made a hash of the message leak.
+Another comment is that the property:
+   symbolic attack -> computational attack
+when the symbolic equations are true computationally
+is valid only for *trace properties*, not for equivalence.
+
 When collecting future facts, I could be more precise: event_abort X
 means *any* fact is true, because the game will not reach the point that
 uses the future facts. (be careful with proof of correspondences,
@@ -35,24 +50,6 @@ see OPTIONAL in 20)
 
 Have a notion of intermediate result: you prove an equivalence, and then
 reuse it with the associated probability to prove some other result.
-
-Plan of paper:
-Treatment of key compromise in CryptoVerif and related ideas
-- Basic treatment of compromise: key oracle in computational assumptions
-  Limitations
-  - Does not work for decisional assumptions
-  - Cannot be proved in CV from assumptions without that oracle
-  - Does not work in complex cases (e.g. compromise of PSK in TLS and WG)
-- How to lift these limitations
-  Transformations success simplify, guess; instruction focus
-- Applications
-  - proof of assumption with key oracle from assumption without key oracle
-  - compromise of PSK in TLS and WG
-  - example with PRF-ODH and compromise of some DH keys. I am not sure
-    which one. WireGuard? it is complex. HPKE? does not really make sense.
-    another noise protocol, with fewer DH pairs? Perhaps Noise NK.
-  - other application of PRF-ODH: TLS
-  - examples/basic/pkauth-guess.cv
 
 Next papers:
 Simplification (after having extended it to non-expanded games)
@@ -150,6 +147,14 @@ been tested).
    It would be nice to search cryptoverif.pvl in
 the directories in which ProVerif and/or CryptoVerif have been
 found (especially when they are found in the PATH).
+
+To split a result file:
+csplit -f split WG... /PROTOCOL/ '{*}'
+mkdir WG..._split
+mv split* WG..._split
+
+Have an option in analyze to output the result of each test in a different
+file instead of concatenating them?
 
 0.5) Track all remaining [occ not set] to avoid them +
 other minor display problems.
@@ -423,57 +428,12 @@ Beware of quantum random oracles https://eprint.iacr.org/2010/428.pdf
    to the session identifiers of ProVerif)
 
    - Encode more ProVerif queries in CryptoVerif
-diff/choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
-choosing new b:bool at the beginning and 
-replacing choice[M1,M2] with "if b then M1 else M2"
-      We prove the secrecy of b.
-
-      Right-now, a common encoding can be obtained using a macro:
-
-      let b = choose_bit() in
-   -> letfun choose_bit() = choice[true,false] in ProVerif
-   -> query secret b.
-      letfun choose_bit() = new b: bool in CryptoVerif
-      
-      test(b, M1, M2) defined as a destructor in ProVerif.
-      either as function with a few properties (test(b,x,x) = x,
-      f(test(b,M1,M2)) = test(b,f(M1),f(M2)),...)
-      or as if b then M1 else M2 in CryptoVerif (leads to expansion).
-
-      But needs a test function for each type, while diff/choice is
-      polymorphic in ProVerif. Better results would be obtained
-      by using diff/choice as input, encoded in CryptoVerif by a special
-      test (written diff) function with homomorphic properties and that can be
-      expanded to "if b then M1 else M2" when desired.
-      For the expansion of "diff(b,M1,M2)" into
-      "if b then M1 else M2", use the "replace" command.
-      Extend it to accept "if" in the new term,
-      transform "if" into "diff" before checking equality
-      with the old term.
-      When the new term contains "if", the resulting game
-      is not expanded.
-      Call "expand" after "replace" to expand it when
-      auto_expand is set.
-      Perhaps a specific command would be better: "diff_to_if"
-      taking as argument occurrences, or nothing -> do it everywhere.
-
-      Transformation "move_diff_up" which can take an occurrence
-      (or occurrences) as argument: the term at that occurrence
-      should contain diff somewhere, replace it with diff at the top.
-      "move_diff_up" with a function symbol as argument applies
-      that to all terms with this function symbol at the root.
-      "auto_move_diff_up <fct symbols>" applies that to the function
-      symbols in the list as part of simplify.
-
-      May need a different notion of secrecy for the bit b:
-      notion specific to a bit b assigned once inside the game.
-      The adversary outputs b',
-        if defined(b) then
-          if b' = b then event S else event Sbar
-      Advt = Pr[S] - Pr[Sbar]
-      Compare this notion with the one-session secrecy of b
-      and with the probability to distinguish the game with b = true
-      from the game with b = false.
+TODO document the equations for if_fun (in section 3.1),
+the transformation move_if_fun in cryptoverif.tex
+generate 2 OCaml/F* implementations for processes with diff
+and for equivalence
+Should choice be allowed as a synonym for diff?
+(If yes, update list of keywords, documentation of diff, ...)
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
 receiving m1,m2 at the beginning 
@@ -483,13 +443,14 @@ We prove the secrecy of b.
 
 We could probably push this idea for noninterf x among S.
 
+But noninterf applies to private free names in ProVerif,
+there is no notion of free name in CryptoVerif.
+
    Also have the query "equivalence P1 P2" (transform P1 and P2
    into the same game).
    -> DONE 24/08/2018 
       TO DO in ProVerif, allow "equivalence P1 P2 public_vars x1,...,xn".
             
-   Also query secret x [reachability] (the adversary cannot compute x).
-
    Add get[unique] to ProVerif?
 
 4) Guess the tested session; event adversary loses/adversary wins; ...
@@ -6891,3 +6852,82 @@ DONE 6/11/2022
     in get_fact_of_elsefind_fact, Contradiction does not happen often
     in collect_eff. So its current approximate treatment should be ok.
 DONE 3/1/2023
+
+Plan of paper:
+Treatment of key compromise in CryptoVerif and related ideas
+- Basic treatment of compromise: key oracle in computational assumptions
+  Limitations
+  - Does not work for decisional assumptions
+  - Cannot be proved in CV from assumptions without that oracle
+  - Does not work in complex cases (e.g. compromise of PSK in TLS and WG)
+- How to lift these limitations
+  Transformations success simplify, guess; instruction focus
+- Applications
+  - proof of assumption with key oracle from assumption without key oracle
+  - compromise of PSK in TLS and WG
+  - example with PRF-ODH and compromise of some DH keys. I am not sure
+    which one. WireGuard? it is complex. HPKE? does not really make sense.
+    another noise protocol, with fewer DH pairs? Perhaps Noise NK.
+  - other application of PRF-ODH: TLS
+  - examples/basic/pkauth-guess.cv
+Submitted.
+
+      diff[.,.] may need a different notion of secrecy for the bit b:
+      notion specific to a bit b assigned once inside the game.
+      The adversary outputs b',
+        if defined(b) then
+          if b' = b then event S else event Sbar
+      Advt = Pr[S] - Pr[Sbar]
+      Compare this notion with the one-session secrecy of b
+      and with the probability to distinguish the game with b = true
+      from the game with b = false.
+      DONE
+
+query secret x [reachability] (the adversary cannot compute x).
+DONE
+
+diff/choice[M1,M2] in ProVerif can be coded in CryptoVerif by 
+choosing new b:bool at the beginning and 
+replacing choice[M1,M2] with "if b then M1 else M2"
+      We prove the secrecy of b.
+
+      Right-now, a common encoding can be obtained using a macro:
+
+      let b = choose_bit() in
+   -> letfun choose_bit() = choice[true,false] in ProVerif
+   -> query secret b.
+      letfun choose_bit() = new b: bool in CryptoVerif
+      
+      test(b, M1, M2) defined as a destructor in ProVerif.
+      either as function with a few properties (test(b,x,x) = x,
+      f(test(b,M1,M2)) = test(b,f(M1),f(M2)),...)
+      or as if b then M1 else M2 in CryptoVerif (leads to expansion).
+
+      But needs a test function for each type, while diff/choice is
+      polymorphic in ProVerif. Better results would be obtained
+      by using diff/choice as input, encoded in CryptoVerif by a special
+      test (written if_fun(...)) function with homomorphic properties and that can be
+      expanded to "if b then M1 else M2" when desired.
+
+      if_fun(M0,M1,M2) differs from "if M0 then M1 else M2" because it
+      evaluates all its arguments. (That does not matter when M1 and M2
+      are simple terms.)
+
+      Transformation "move_if_fun" which can take an occurrence
+      (or occurrences) as argument: the term at that occurrence
+      should contain a function "if_fun" somewhere, replace it
+      with "if_fun" at the top.
+      "move_if_fun" with a function symbol as argument applies
+      that to all terms with this function symbol at the root.
+      "move_if_fun level <n>" moves all "if_fun" functions n levels up
+      (keeping them as terms)
+      "move_if_fun to_term <occ list>" transforms "if_fun" functions
+      into "if .. then .. else .." terms, at the mentioned occurrences
+      or everywhere if no occurrence is mentioned.
+      The resulting game is not expanded.
+      Call "expand" after "move_if_fun" to expand it when auto_expand is set.
+
+      "auto_move_diff_up <fct symbols>" applies that to the function
+      symbols in the list as part of simplify.
+      -> done as option autoSwapIf at function declaration
+DONE 17/2/2023

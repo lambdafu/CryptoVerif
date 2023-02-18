@@ -1,6 +1,65 @@
 open Types
 open Parsing_helper
 
+(* Check types *)
+
+let check_type ext e t =
+  if (e.t_type != t) && (e.t_type != Settings.t_any) && (t != Settings.t_any) then
+    raise_error ("This expression has type " ^ e.t_type.tname ^ " but expects type " ^ t.tname) ext
+
+let check_bit_string_type ext t =
+  match t.tcat with
+    BitString -> ()
+  | _ -> raise_error "Some bitstring type expected" ext
+
+let rec check_type_list ext pel el tl =
+  match (pel, el, tl) with
+    [],[],[] -> ()
+  | (pe::pel, e::el, t::tl) ->
+      check_type (snd pe) e t;
+      check_type_list ext pel el tl
+  | _ ->
+      raise_error "Unexpected number of arguments" ext
+
+let rec check_array_type_list ext pel el cur_array creation_array =
+  match (pel, el, creation_array) with
+    [],[],[] -> []
+  | [],[],_ -> 
+      (* Allow incomplete array arguments. They are automatically
+         completed with cur_array *)
+      let n = (List.length cur_array) - (List.length creation_array) in
+      if n < 0 then 
+	raise_error "Unexpected number of array specifiers" ext;
+      let cur_array_rest = Terms.skip n cur_array in
+      if List.for_all2 (==) cur_array_rest creation_array then
+	List.map Terms.term_from_repl_index cur_array_rest
+      else
+	raise_error "Unexpected number of array specifiers" ext
+  | (pe::pel, e::el, t::tl) ->
+      check_type (snd pe) e t.ri_type;
+      e::(check_array_type_list ext pel el cur_array tl)
+  | _ ->
+      raise_error ("Unexpected number of array specifiers") ext
+
+let dummy_if_fun = Settings.get_if_fun Settings.t_any
+
+let get_if_fun_tl ext tl =
+  let tyl = List.map (fun t -> t.t_type) tl in
+  let t =
+    match tyl with
+    | [t_cond; t1; t2] ->
+	if t_cond != Settings.t_bool && t_cond != Settings.t_any then
+	  raise_error "if_fun function expects a bool as first argument" ext;
+	if t2 == Settings.t_any then t1 else
+	if t1 == Settings.t_any then t2 else
+	if t1 != t2 then
+	  raise_error "if_fun expects its last two arguments to have compatible types" ext
+	else
+	  t1
+    | _ -> raise_error ("if_fun function expects 3 arguments but is here given "^(string_of_int (List.length tyl))^" arguments") ext
+  in
+  Settings.get_if_fun t
+
 (* Environment.
    May contain function symbols, variables, ...
    Is a map from strings to the description of the ident *)
@@ -101,14 +160,28 @@ let get_process env s ext =
   | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a process.") ext
   with Not_found -> raise_error (s ^ " not defined. Expected a process.") ext
 
-let get_function_no_letfun env s ext =
+let get_function_no_letfun_if_allowed env (s, ext) tl tl' ext2 =
+  try
+  match StringMap.find s env with
+    EFunc f ->
+      if f == dummy_if_fun then
+	get_if_fun_tl ext tl' 
+      else
+	begin
+	  check_type_list ext2 tl tl' (fst f.f_type);
+	  f
+	end
+  | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a function (letfun forbidden).") ext
+  with Not_found -> raise_error (s ^ " not defined. Expected a function (letfun forbidden).") ext
+
+let get_function_no_letfun_no_if env s ext =
   try
   match StringMap.find s env with
     EFunc f -> f
   | d -> raise_error (s ^ " was previously declared as a " ^ (decl_name d) ^". Expected a function (letfun forbidden).") ext
   with Not_found -> raise_error (s ^ " not defined. Expected a function (letfun forbidden).") ext
 
-let get_function_or_letfun env s ext =
+let get_function_or_letfun_no_if env s ext =
   try
   match StringMap.find s env with
     EFunc f -> f

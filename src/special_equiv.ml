@@ -844,7 +844,10 @@ The arguments (k, r, x, "^ (if f_type == PRP then "" else "y, z, ")^"u) and coll
 	begin
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
-	    | EFunc f -> f, ext, rest
+	    | EFunc f ->
+		if f == Stringmap.dummy_if_fun then
+		  raise (Error("Special equivalence not allowed for function if_fun", ext));
+		f, ext, rest
 	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
 	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))
@@ -1565,7 +1568,10 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 	begin
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
-	    | EFunc f -> f, ext, rest
+	    | EFunc f ->
+		if f == Stringmap.dummy_if_fun then
+		  raise (Error("Special equivalence not allowed for function if_fun", ext));
+		f, ext, rest
 	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
 	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))
@@ -1581,7 +1587,10 @@ The arguments (k, "^(if bij_type == ICM then "lk, " else "") ^"m, c, u) and coll
 	begin
 	  try
 	    match Stringmap.StringMap.find f_id (!Stringmap.env) with
-	    | EFunc f -> f, ext, rest
+	    | EFunc f ->
+		if f == Stringmap.dummy_if_fun then
+		  raise (Error("Special equivalence not allowed for function if_fun", ext));
+		f, ext, rest
 	    | d -> raise (Error("Special equivalence "^equiv_name^": "^f_id^" was previously declared as a " ^ (decl_name d) ^". Expected a function", ext))
 	  with Not_found ->
 	    raise (Error("Special equivalence "^equiv_name^": "^f_id^" not declared; expected a function", ext))

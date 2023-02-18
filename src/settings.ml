@@ -317,7 +317,8 @@ let tyopt_CHOOSABLE = tyopt_FIXED + tyopt_BOUNDED + tyopt_NONUNIFORM
 let fopt_COMPOS = 1
 let fopt_DECOMPOS = 2
 let fopt_UNIFORM = 8
-
+let fopt_AUTO_SWAP_IF = 16
+    
 let tex_output = ref ""
 
 (* Types and constants should be added to the initial environment,
@@ -499,6 +500,29 @@ let get_tuple_fun tl =
 
 let empty_tuple = get_tuple_fun []
 
+(* if functions *)
+
+module HashedType =
+  struct
+    type t = Types.typet
+    let equal = (==)
+    (* The hash function must use only parts that are not modified,
+       otherwise, we may have the same element with several different hashes *)
+    let hash x = Hashtbl.hash x.tname
+  end
+
+module TypeHashtbl = Hashtbl.Make(HashedType)
+
+let if_fun_table = TypeHashtbl.create 7
+
+let get_if_fun t =
+  try 
+    TypeHashtbl.find if_fun_table t
+  with Not_found ->
+    let f = create_fun "if_fun" ([t_bool; t; t], t) ~impl:(Func "if_fun") If in
+    TypeHashtbl.add if_fun_table t f;
+    f
+      
 (*For precise computation of the runtime only*)
 
 let t_interv = { tname ="[1,*]";

@@ -1,0 +1,21 @@
+channel c,d.
+
+set autoExpand = false.
+proof {
+    move_if_fun to_term;
+    expand;
+    simplify;
+    success
+ }
+
+type key [large,fixed].
+query secret z.
+
+process (in(c, (b:bool, x:bitstring, y:bitstring));
+	out(c, if_fun(b,let v: bitstring = x in x,y)))
+      | in(d, ()); new z: key; if defined(v,b) && b = false then out(d,z)
+
+(* EXPECTED
+RESULT Could not prove secrecy of z.
+0.042s (user 0.042s + system 0.000s), max rss 17944K
+END *)

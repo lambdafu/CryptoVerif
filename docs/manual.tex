@@ -3102,6 +3102,14 @@ This transformation does not apply to secrecy queries, $\texttt{equivalence}$,
 and $\texttt{query\_equiv}$ proofs. The transformation fails
 if such a proof is still required.
 
+\item \texttt{move\_if\_fun\ }$\mathit{arg}$: moves the predefined function
+  \texttt{if\_fun} or transforms it into a term \texttt{if} \dots \texttt{then} \dots \texttt{else} \dots\ It supports the following variants:
+  \begin{itemize}
+  \item \texttt{move\_if\_fun\ }$\mathit{loc}_1 \dots \mathit{loc}_n$, where each $\mathit{loc}_j$ is either a program point or a function symbol. When $\mathit{loc}_j$ is a program point, moves occurrences of \texttt{if\_fun} from inside the term at that program point to the root of that term. When $\mathit{loc}_j$ is a function symbol, moves occurrences of \texttt{if\_fun} from under that function symbol to just above it. 
+  \item \texttt{move\_if\_fun\ level\ }$n$, where $n$ is a positive integer. Moves occurrences of \texttt{if\_fun} $n$ function symbols up in the syntax tree (provided those \texttt{if\_fun} occur under at least $n$ function symbols).
+  \item \texttt{move\_if\_fun\ to\_term\ }$occ_1 \dots occ_n$ transforms the function symbols \texttt{if\_fun} that occur at program points $occ_1$, \dots, $occ_n$ into terms \texttt{if} \dots \texttt{then} \dots \texttt{else} \dots When no program point is given, performs that transformation everywhere in the game. When \texttt{autoExpand = true} (the default), a call to \texttt{expand} is automatically performed after \texttt{move\_if\_fun}, which transforms the terms \texttt{if} \dots \texttt{then} \dots \texttt{else} \dots into processes.
+  \end{itemize}
+
 \item \texttt{start\_from\_other\_end}: for proofs of indistinguishability
   only (\texttt{equivalence}), instruct CryptoVerif to start transforming
   from the other game. When your input file contains

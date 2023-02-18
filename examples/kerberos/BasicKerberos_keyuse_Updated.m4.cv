@@ -340,22 +340,12 @@ ifdef(`loc2',` (* key usability in server *)
 
 (* Key Usability : we want to check if the encryption scheme is still IND-CCA2 secure when using the key AK *)
 
-(* Implementing a test as a function.
-   Useful to avoid expanding if, which is necessary for this proof. *)
-
-fun test(bool, maxenc, maxenc):maxenc.
-equation forall x:maxenc,y:maxenc; test(true,x,y) = x.
-equation forall x:maxenc,y:maxenc; test(false,x,y) = y.
-
-equation forall b:bool, x:maxenc, y:maxenc; Z(test(b,x,y)) = test(b,Z(x),Z(y)).
-equation forall b:bool, x:maxenc; test(b,x,x) = x.
-
 (* Encryption Oracle *)
 
 let processOE(b1sec: bool, k1: key) =
 	in(c30,(m1:maxenc, m2:maxenc));
 	if Z(m1) = Z(m2) then
-    	let menc = test(b1sec,m1,m2) in
+    	let menc = if_fun(b1sec,m1,m2) in
     	let aT:bitstring = enc(menc,k1) in
 	insert table_aT(aT);
     	out(c31, aT).

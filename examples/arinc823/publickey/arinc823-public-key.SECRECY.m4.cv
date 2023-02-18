@@ -363,22 +363,12 @@ event recv_Init_IND(t_id, t_id, bitstring, signature, t_AMS_Time, t_AMS_Time).
 
 (* Secrecy *)
 
-fun test(bool, bitstring, bitstring): bitstring.
-equation forall x:bitstring,y:bitstring; test(true,x,y) = x.
-equation forall x:bitstring,y:bitstring; test(false,x,y) = y.
-equation forall b:bool,x:bitstring; test(b,x,x) = x.
-
-fun test_policy(bool, t_AMS_Policy, t_AMS_Policy): t_AMS_Policy.
-equation forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(true,x,y) = x.
-equation forall x:t_AMS_Policy,y:t_AMS_Policy; test_policy(false,x,y) = y.
-equation forall b:bool,x:t_AMS_Policy; test_policy(b,x,x) = x.
-
 equation forall policy_id:t_policy_id,b:bool,x:bitstring,y:bitstring; 
-       get_policy(policy_id, test(b, x, y)) = test_policy(b, get_policy(policy_id, x), get_policy(policy_id, y)).
+       get_policy(policy_id, if_fun(b, x, y)) = if_fun(b, get_policy(policy_id, x), get_policy(policy_id, y)).
 
 equation forall comp_algo: t_comp_algo, encode_algo: t_encode_algo, b:bool,x:bitstring,y:bitstring; 
-       Zero(compress(comp_algo, encode(encode_algo, test(b, x, y)))) =
-       test(b, Zero(compress(comp_algo, encode(encode_algo, x))),
+       Zero(compress(comp_algo, encode(encode_algo, if_fun(b, x, y)))) =
+       if_fun(b, Zero(compress(comp_algo, encode(encode_algo, x))),
        	       Zero(compress(comp_algo, encode(encode_algo, y)))).
 
 query secret b0 [cv_bit].
@@ -430,7 +420,7 @@ let tunnel_protocol(current_session_id: session_ids,
        with policy BOTH and of the same compressed payload length. *)
     if (((my_id = U && other_id = V) || (my_id = V && other_id = U)) &&
         policy_req = BOTH && Zero(compressed_payload1) = Zero(compressed_payload2)) || (AMS_payload1 = AMS_payload2) then
-    let AMS_payload = test(b, AMS_payload1, AMS_payload2) in
+    let AMS_payload = if_fun(b, AMS_payload1, AMS_payload2) in
     event send_msg(my_id, other_id, tU, sU, RandV, policy_id, policy_req, common_enc_algo, count, AMS_payload);
     (* D01 *)
     if policy_req = NONE then

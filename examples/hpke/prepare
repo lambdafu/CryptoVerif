@@ -13,12 +13,11 @@ file_exists_or_abort()
 file_exists_or_abort ../../default.ocvl
 file_exists_or_abort lib.truncate.ocvl
 file_exists_or_abort lib.option.ocvl
-file_exists_or_abort lib.choice.ocvl
 file_exists_or_abort lib.gdh.ocvl
 file_exists_or_abort lib.authkem.ocvl
 file_exists_or_abort lib.aead.ocvl
 file_exists_or_abort lib.prf.ocvl
-cat ../../default.ocvl lib.truncate.ocvl lib.option.ocvl lib.choice.ocvl lib.gdh.ocvl lib.authkem.ocvl lib.aead.ocvl lib.prf.ocvl > mylib.ocvl
+cat ../../default.ocvl lib.truncate.ocvl lib.option.ocvl lib.gdh.ocvl lib.authkem.ocvl lib.aead.ocvl lib.prf.ocvl > mylib.ocvl
 
 generate() {
   MODEL="$1"
