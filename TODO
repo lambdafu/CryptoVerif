@@ -689,6 +689,26 @@ c) Also extend ProVerif to support these new macros.
 
 Regarding depanal2:
 
+Group local and global dependency analyses into one single analysis.
+Do all variables together.
+That analysis would both transform the game by simplifying tests
+that are true/false due to dependency analysis, and store dependency
+information usable by the next simplification.
+
+For the global dependency information, store facts/program points
+that hold when the variable leaks to the adversary, so that the
+global dependency information (assuming that the variable does not leak
+to the adversary) can still be used at program points that contradict
+the leak to the adversary.
+Old way of saying that:
+  Strengthen the global dependency analysis like the proof of one-session
+  secrecy; one could even use a single dependency analysis for both.
+  (For instance, with the current code, in the case of forward secrecy,
+  CryptoVerif may be able to prove secrecy of x, but not to prove that
+  x cannot be computed by the adversary, because it would need to show
+  x = x' is impossible by global dependency analysis, but that analysis
+  does not use elsefind facts, does not use compability of program points, ...)
+
 The dependency information computed by DepAnal2 at the definition
 of a variable x and saying that a certain term M does not depend on a certain
 variable y could also be used when x[M1...Ml] is known to be defined
@@ -1151,23 +1171,13 @@ I still think that the new semantics is much cleaner.
 
 MIDDLE PRIORITY
 
-12bis) The design of CryptoVerif will make it difficult to implement
+13) The design of CryptoVerif will make it difficult to implement
 proof techniques such as rewinding, because the adversary is implicit
 in CryptoVerif, and schedules the execution of the honest processes.
 There is no way to call the adversary twice.
 (This is in sharp contrast with the BC logic and Squirrel in
 which rewinding is almost "the default": the adversary is called
 from the start everytime it sends a message.)
-
-13) Strengthen the global dependency analysis like the proof of one-session
-secrecy; one could even use a single dependency analysis for both.
-(For instance, with the current code, in the case of forward secrecy,
-CryptoVerif may be able to prove secrecy of x, but not to prove that
-x cannot be computed by the adversary, because it would need to show
-x = x' is impossible by global dependency analysis, but that analysis
-does not use elsefind facts, does not use compability of program points, ...)
-Group all dependency analyses into one stronger one?
-(That does not seem obvious to do.)
 
 14) We could add a transformation that removes part of the code,
 by giving to the adversary all data that it needs in order
