@@ -98,9 +98,9 @@ let convert_to_term curarray m_state t =
       m_state.m_non_expanded <- true;
       add_change_to_term m_state t.t_occ;
       if has_effect m_state t2 || has_effect m_state t3 then
-	let bcond = Terms.create_binder "bthen" Settings.t_bool curarray in
-	let bthen = Terms.create_binder "bthen" t2.t_type curarray in
-	let belse = Terms.create_binder "belse" t3.t_type curarray in
+	let bcond = Terms.create_binder "xcond" Settings.t_bool curarray in
+	let bthen = Terms.create_binder "xthen" t2.t_type curarray in
+	let belse = Terms.create_binder "xelse" t3.t_type curarray in
 	let tf = Terms.build_term t (TestE(Terms.term_from_binder bcond,Terms.term_from_binder bthen,Terms.term_from_binder belse)) in
 	let tf2 = Terms.build_term t (LetE(PatVar belse, t3, tf, None)) in
 	let tf3 = Terms.build_term t (LetE(PatVar bthen, t2, tf2, None)) in
