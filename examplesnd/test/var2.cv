@@ -17,3 +17,8 @@ process
    (in(c, a: bitstring);
    if defined(x) && x = a then
    out(c, true))
+
+(* EXPECTED
+Error: x is referenced in an array reference and is defined in a condition of find or get
+xtime: error in child process (status : 2)
+END *)

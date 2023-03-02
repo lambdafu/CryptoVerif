@@ -19,3 +19,8 @@ process
    (in(c, a: bitstring);
    if defined(y) && y = a then
    out(c, true))
+
+(* EXPECTED
+Error: y is referenced in an array reference and is defined several times in incompatible ways
+xtime: error in child process (status : 2)
+END *)

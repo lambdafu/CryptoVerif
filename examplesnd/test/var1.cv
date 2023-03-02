@@ -15,3 +15,8 @@ process
    (in(c, a: bitstring);
    if defined(x) && x = a then
    out(c, true))
+
+(* EXPECTED
+RESULT Could not prove secrecy of z.
+0.057s (user 0.049s + system 0.008s), max rss 18224K
+END *)
