@@ -1,0 +1,22 @@
+(* The variables bound in a let with pattern
+   are considered defined in the "in" branch *)
+
+channel c.
+
+query secret z.
+
+process
+  ( in(c, z: bitstring);
+   let (x: bitstring, y: bitstring) = z in
+      out(c, x)
+   else let x: bitstring = z in
+      out(c, x))
+   |
+   (in(c, a: bitstring);
+   if defined(x) && x = a then
+   out(c, true))
+
+(* EXPECTED
+RESULT Could not prove secrecy of z.
+0.623s (elapsed: user + system + other processes)
+END *)

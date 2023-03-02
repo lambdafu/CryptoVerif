@@ -1,0 +1,26 @@
+(* The variables bound in a let with pattern
+   are considered defined in the "in" branch,
+   but the variable defined inside terms in the pattern
+   are defined before the branching. *)
+
+channel c.
+
+query secret z.
+
+fun f(bitstring):bitstring.
+
+process
+  ( in(c, z: bitstring);
+   let (x: bitstring, =(let y = f(z) in y)) = z in
+      out(c, x)
+   else let y: bitstring = z in
+      out(c, y))
+   |
+   (in(c, a: bitstring);
+   if defined(y) && y = a then
+   out(c, true))
+
+(* EXPECTED
+Error: y is referenced in an array reference and is defined several times in incompatible ways
+xtime: error in child process (status : 2)
+END *)

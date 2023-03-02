@@ -1,0 +1,24 @@
+(* The variables defined in a get
+   cannot have array accesses *)
+
+channel c.
+
+query secret z.
+
+table T(bitstring,bitstring).
+
+process
+  ( in(c, z: bitstring);
+   get T(x: bitstring, y: bitstring) suchthat z = x in
+      out(c, x)
+   else let x: bitstring = z in
+      out(c, x))
+   |
+   (in(c, a: bitstring);
+   if defined(x) && x = a then
+   out(c, true))
+
+(* EXPECTED
+Error: x is referenced in an array reference and is defined in a condition of find or get
+xtime: error in child process (status : 2)
+END *)
