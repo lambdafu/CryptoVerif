@@ -92,6 +92,8 @@ rm "$DESTD"/src/*lexer.ml "$DESTD"/src/*parser.ml "$DESTD"/src/*parser.mli "$DES
 cd "$DEST"
 
 tar -czf "$DEST"/cryptoverif"$VERSION".tar.gz cryptoverif"$VERSION"
+cp "$DESTD"/docs/manual.pdf "$DEST"/manual.pdf
+
 rm -r "$DESTD"
 
 cd "$CWD"/..

@@ -56,6 +56,7 @@ Comments and bug reports welcome.
 <UL>
   <LI>Source: <A HREF="cryptoverif.html">CryptoVerif version VERSIONN, sources under the CeCILL-B license</A> (gzipped tar file)
   <LI>Binary: <A HREF="cryptoverifbin.html">CryptoVerif version VERSIONN for Windows, binaries under the CeCILL-B license</A> (zip file)
+  <LI><A HREF="manual.pdf">Reference manual</A>
 </UL>
 
 <H3>Mailing List</H3>
