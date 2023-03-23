@@ -22,3 +22,9 @@ val case_insensitive_ends_with : string -> string -> bool
 (* [case_insensitive_contains s sub] is true when [s] contains [sub]. 
    Comparison is case insensitive. *)
 val case_insensitive_contains : string -> string -> bool
+
+(* [alphabetize_string] converts any string into a string that contains
+   only alphanumeric characters (A..Z,a..z,0..9) and underscore.
+   This function is injective. This is required to avoid clashes
+   between OCaml/F* identifiers generated from CryptoVerif identifiers. *)
+val alphabetize_string : string -> string

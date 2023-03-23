@@ -162,7 +162,7 @@ let anal_file s0 =
 	      game_number = -1;
 	      current_queries = [] }
 	  in
-          (*W]e put AbsentQuery to make sure that events are preserved in [initial_expand_simplify]*)
+          (*We put AbsentQuery to make sure that events are preserved in [initial_expand_simplify]*)
 	  final_game.current_queries <-
 	     ((AbsentQuery,final_game), ref ToProve)::(List.map (fun q -> ((q,final_game), ref ToProve)) q2);
 	  let final_state =
@@ -187,9 +187,10 @@ let anal_file s0 =
     let p = Terms.move_occ_process p in
     Check.check_def_process_main p;
     let _ = 
-      if !Settings.get_implementation then
-        Implementation.do_implementation impl
-      else
+      match !Settings.get_implementation with
+      | OCaml -> ImplementationOCaml.do_implementation impl
+      | FStar -> ImplementationFStar.do_implementation s0 impl statements
+      | Prove ->
         begin
           let g = { proc = RealProcess p;
 		    expanded = false;
@@ -253,7 +254,17 @@ let _ =
 	| "oracles" -> Settings.front_end := Settings.Oracles
 	| _ -> Parsing_helper.user_error "Command-line option -in expects argument either \"channels\" or \"oracles\".\n"),
       "channels / -in oracles \tchoose the front-end";
-      "-impl", Arg.Unit (fun () -> Settings.get_implementation := true),"\tget implementation of defined modules";
+      "-impl",
+        Arg.String
+          (function
+          | "OCaml" -> Settings.get_implementation := OCaml
+          | "FStar" -> Settings.get_implementation := FStar
+          | _ ->
+              Parsing_helper.user_error
+                "Command-line option -impl expects argument either \"OCaml\" \
+                 or \"FStar\".\n"),
+        "\t<language> get implementation of defined modules in the chosen \
+         language (OCaml or FStar)";
       "-o", Arg.String (fun s -> 
                           try 
                             if (Sys.is_directory s) then Settings.out_dir := s
@@ -263,4 +274,4 @@ let _ =
                        ),
           "<directory> \tthe generated files will be placed in this directory, for -impl, out_game, out_state, and out_facts (Default: .)";
     ]
-    anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet and David Cadé\nCopyright ENS-CNRS-Inria, distributed under the CeCILL-B license\nUsage:\n  cryptoverif [options] <file_to_analyze>\nwhere the options are listed below:")
+    anal_file ("Cryptoverif " ^ Version.version ^ ". Cryptographic protocol verifier, by Bruno Blanchet, David Cadé, and Benjamin Lipp\nCopyright ENS, CNRS, Inria, MPI-SP, distributed under the CeCILL-B license\nUsage:\n  cryptoverif [options] <file_to_analyze>\nwhere the options are listed below:")

@@ -19,7 +19,7 @@ license: "CECILL-B"
 homepage: "https://cryptoverif.inria.fr"
 dev-repo: "git+https://gitlab.inria.fr/bblanche/CryptoVerif.git"
 bug-reports: "Bruno.Blanchet@inria.fr"
-depends: [ "ocaml" { >= "4.03" } "ocamlfind" { post } "cryptokit" { post } "conf-m4" { post } ]
+depends: [ "ocaml" { >= "4.04" } "ocamlfind" { post } "cryptokit" { post } "conf-m4" { post } ]
 build: [
        [ "./build" "byte" { !ocaml:native } ] 
 ]

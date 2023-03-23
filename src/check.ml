@@ -330,7 +330,8 @@ let rec build_encode_idx_types_funs_fg cur_array = function
 		tpredicate = None;
 		timplname = None;
 		tserial = None;
-		trandom = None }
+		trandom = None;
+                tequal = None; }
 	    in
 	    let encode_fun =
 	      Settings.create_fun (Terms.fresh_id ("encode_"^repl_param.pname))

@@ -1,0 +1,18 @@
+.envrc
+obj
+hints
+
+### OCaml ###
+*.annot
+*.cmo
+*.cma
+*.cmi
+*.a
+*.o
+*.cmx
+*.cmxs
+*.cmxa
+
+### FStar ###
+.depend
+._depend

@@ -1,0 +1,138 @@
+## Tables After Calling Setup
+
+trusted_keys [
+{
+  address: 41406c6f63616c686f7374,
+  skey: bbaf72e38bde1762cd7ae5d8131564ce53dab98e3833c50787cb41c9ff03675c,
+  pkey: 6b5d7247d86d11cdbddb2424d8c3452f53b8a356cd27418eeced60ed41740168,
+}
+{
+  address: 42406c6f63616c686f7374,
+  skey: 7fff1939e09bf201d6109e4266cc7e1c2f0c182693543ae4154b7a4865c51dd8,
+  pkey: 60065714e3eb134b47efb281347ea4c1ab2eb7fed50b45bed377fa41afd7744c,
+}
+]
+
+all_keys [
+{
+  address: 41406c6f63616c686f7374,
+  pkey: 6b5d7247d86d11cdbddb2424d8c3452f53b8a356cd27418eeced60ed41740168,
+  bool: ff,
+}
+{
+  address: 42406c6f63616c686f7374,
+  pkey: 60065714e3eb134b47efb281347ea4c1ab2eb7fed50b45bed377fa41afd7744c,
+  bool: ff,
+}
+]
+
+
+## Sessions After init_send_msg_1
+
+0.R1_initiator_send_msg_3: {
+  var_Na_3: bf5f95304e5c5774,
+  var_addrA_1: 41406c6f63616c686f7374,
+  var_addrX_1: 42406c6f63616c686f7374,
+  var_pkX_4: 60065714e3eb134b47efb281347ea4c1ab2eb7fed50b45bed377fa41afd7744c,
+  var_skA_2: bbaf72e38bde1762cd7ae5d8131564ce53dab98e3833c50787cb41c9ff03675c,
+  var_trustX_2: ff,
+}
+
+
+## Protocol Message 1
+
+  ct: 7f228bf10ca18725e7d305e860d1b984838099be2d09f14e335ffc565500de164fe6313d8941f7d870244d76376e940e2f5cd096de407b04735d80676aa1d011b5807692fb4b,
+
+
+## Sessions After resp_send_msg_2
+
+0.R1_initiator_send_msg_3: {
+  var_Na_3: bf5f95304e5c5774,
+  var_addrA_1: 41406c6f63616c686f7374,
+  var_addrX_1: 42406c6f63616c686f7374,
+  var_pkX_4: 60065714e3eb134b47efb281347ea4c1ab2eb7fed50b45bed377fa41afd7744c,
+  var_skA_2: bbaf72e38bde1762cd7ae5d8131564ce53dab98e3833c50787cb41c9ff03675c,
+  var_trustX_2: ff,
+}
+1.R1_responder_receive_msg_3: {
+  var_Na_4: bf5f95304e5c5774,
+  var_Nb_2: 97c3e672460be937,
+  var_addrB_0: 42406c6f63616c686f7374,
+  var_addrY_0: 41406c6f63616c686f7374,
+  var_skB_0: 7fff1939e09bf201d6109e4266cc7e1c2f0c182693543ae4154b7a4865c51dd8,
+  var_trustY_0: ff,
+}
+
+
+## Protocol Message 2
+
+  ct: 2b692acd381128d1d3f074642fbadc0ee543079f9f43d8416227a992f434365421c012947b2f0597c3e4c424d805b5828c0fd3802da8edfa141615dfb9116e7511c51410ccb6b73c8a63136b4070,
+
+
+## Sessions After init_send_msg_3
+
+0.R1_initiator_finish: {
+  var_Na_3: bf5f95304e5c5774,
+  var_Nb_1: 97c3e672460be937,
+  var_addrA_1: 41406c6f63616c686f7374,
+  var_addrX_1: 42406c6f63616c686f7374,
+  var_trustX_2: ff,
+}
+1.R1_responder_receive_msg_3: {
+  var_Na_4: bf5f95304e5c5774,
+  var_Nb_2: 97c3e672460be937,
+  var_addrB_0: 42406c6f63616c686f7374,
+  var_addrY_0: 41406c6f63616c686f7374,
+  var_skB_0: 7fff1939e09bf201d6109e4266cc7e1c2f0c182693543ae4154b7a4865c51dd8,
+  var_trustY_0: ff,
+}
+
+
+## Protocol Message 3
+
+  ct: 83985f428da9802eded4034c6c858988aea75d69e695f3bc3f660e80d98f3f00928349a8bc9f8a84ac2f2066777c9024fbe3e7630628d524e7,
+
+
+## Sessions After resp_recv_msg_3
+
+0.R1_initiator_finish: {
+  var_Na_3: bf5f95304e5c5774,
+  var_Nb_1: 97c3e672460be937,
+  var_addrA_1: 41406c6f63616c686f7374,
+  var_addrX_1: 42406c6f63616c686f7374,
+  var_trustX_2: ff,
+}
+1.session does not exist
+
+
+## Sessions After init_finish
+
+0.session does not exist
+1.session does not exist
+
+
+## Event List at the End of Protocol Execution
+
+Events: [beginB: {   address: 41406c6f63616c686f7374,
+  address: 42406c6f63616c686f7374,
+  lbytes 8: bf5f95304e5c5774,
+  lbytes 8: 97c3e672460be937,
+}
+beginA: {   address: 41406c6f63616c686f7374,
+  address: 42406c6f63616c686f7374,
+  lbytes 8: bf5f95304e5c5774,
+  lbytes 8: 97c3e672460be937,
+}
+endB: {   address: 41406c6f63616c686f7374,
+  address: 42406c6f63616c686f7374,
+  lbytes 8: bf5f95304e5c5774,
+  lbytes 8: 97c3e672460be937,
+}
+endA: {   address: 41406c6f63616c686f7374,
+  address: 42406c6f63616c686f7374,
+  lbytes 8: bf5f95304e5c5774,
+  lbytes 8: 97c3e672460be937,
+}
+]
+
+success

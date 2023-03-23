@@ -6,7 +6,12 @@ type frontend =
     Channels
   | Oracles
 
-val get_implementation : bool ref
+type impl_language =
+  | OCaml
+  | FStar
+  | Prove (* Prove the protocol, do not generate an implementation *)
+      
+val get_implementation : impl_language ref
 val out_dir : string ref
 val proof_output : string ref
 val equiv_output : string ref

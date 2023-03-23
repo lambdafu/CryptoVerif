@@ -1,0 +1,35 @@
+PROJECT_HOME ?= $(realpath .)
+
+KRML_HOME ?= $(CV2FSTAR_HOME)/../karamel
+HACL_HOME ?= $(CV2FSTAR_HOME)/../hacl-star
+
+include $(HACL_HOME)/Makefile.include
+
+FSTAR_INCLUDE_PATH= \
+	$(PROJECT_HOME)/src \
+	$(CV2FSTAR_HOME)/src \
+	$(CV2FSTAR_HOME)/obj \
+	$(KRML_HOME)/krmllib \
+	$(KRML_HOME)/krmllib/obj \
+	$(ALL_HACL_DIRS)
+
+# In interactive mode, chill out and don't roll over if something isn't cached
+# somewhere.
+FSTAR_CHILL_FLAGS= \
+	$(addprefix --include ,$(FSTAR_INCLUDE_PATH)) \
+	--cache_checked_modules \
+	--cache_dir $(PROJECT_HOME)/obj \
+	--odir $(PROJECT_HOME)/obj \
+	--cmi \
+	--use_hints \
+	--record_hints \
+	$(OTHERFLAGS)
+
+FSTAR_FLAGS=$(FSTAR_CHILL_FLAGS) \
+	--already_cached '*,-NSL,-Application' \
+	--warn_error @241-274
+
+FSTAR=$(FSTAR_HOME)/bin/fstar.exe $(FSTAR_FLAGS)
+
+%.fst-in %.fsti-in:
+	@echo $(FSTAR_CHILL_FLAGS)

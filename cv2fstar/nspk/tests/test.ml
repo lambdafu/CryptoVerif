@@ -1,0 +1,1 @@
+let _ = Application.run

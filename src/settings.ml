@@ -7,10 +7,13 @@ type frontend =
     Channels
   | Oracles
 
-let get_implementation = ref false
+type impl_language = OCaml | FStar | Prove
+(* Prove the protocol, do not generate an implementation *)
 
-let out_dir = ref Filename.current_dir_name 
+let get_implementation = ref Prove
+let out_dir = ref Filename.current_dir_name
 let proof_output = ref ""
+
 let equiv_output = ref ""
 let command_output = ref ""
     
@@ -23,10 +26,10 @@ let lib_name = ref []
    is implicitly added to the probability of distinguishing the LHS
    from the RHS, without trying to prove that it is negligible. *)
 let events_to_ignore_lhs = ref []
-    
+
 (* memory saving *)
 let forget_old_games = ref false
-                   
+
 (* debug settings *)
 let debug_instruct = ref false
 let debug_cryptotransf = ref 0
@@ -36,7 +39,7 @@ let debug_elsefind_facts = ref false
 let debug_simplif_add_facts = ref false
 let debug_corresp = ref false
 let debug_event_adv_loses = ref false
-    
+
 (* To parse games output by CryptoVerif, 
 set this variable to true: such games may contain
 "defined" conditions on variables that are never defined. *)
@@ -50,8 +53,10 @@ let use_oracle_count_in_result = ref true
 
 let max_efl = ref 50
 let max_depth_add_fact = ref 1000
+
 let max_depth_try_no_var_rec = ref 20
 let max_replace_depth = ref 20
+    
 let elsefind_facts_in_replace = ref true
 let elsefind_facts_in_success = ref true
 let elsefind_facts_in_simplify = ref true
@@ -69,7 +74,7 @@ let use_known_equalities_crypto = ref true
 let priority_event_unchanged_rand = ref 5
 
 let normalize_in_match_funapp = ref false
-                                        
+
 let expand_letxy = ref true
 
 (* Bound the number of advice possibilities in cryptotransf.ml
@@ -92,7 +97,7 @@ let auto_remove_assign_find_cond = ref true
 let auto_remove_if_find_cond = ref true
 let auto_move = ref true
 let auto_expand = ref true
-    
+
 let ignore_small_times = ref 3
 
 let interactive_mode = ref false
@@ -112,17 +117,21 @@ let detect_incompatible_defined_cond = ref true
 
 let psize_NONINTERACTIVE = 80 (* Eg. an attacker can make at most 2^80 hash computations *)
 let psize_PASSIVE = 30
+
 let psize_DEFAULT = psize_PASSIVE
-let psize_SMALL = 2 (* For active sessions, when the number of failed
-                        attempts is limited, e.g. max 4 attemtps then the
-                        card is blocked. *)
-    
+
+let psize_SMALL = 2
+(* For active sessions, when the number of failed
+    attempts is limited, e.g. max 4 attemtps then the
+    card is blocked. *)
+
 let tysize_LARGE = 160
 let tysize_PASSWORD_min = 20
 let tysize_PASSWORD_max = 40
 let tysize_SMALL = 2
 
 let trust_size_estimates = ref false
+
 let tysize_MIN_Coll_Elim = ref tysize_PASSWORD_min
 let tysize_MIN_Auto_Coll_Elim = ref 80
 let tysize_MAX_Guess = ref 40
@@ -131,7 +140,7 @@ let max_exp = 1000000000
 (* min_exp = -max_exp is needed for the code in proba.ml
    to evaluate orders of magnitude to be correct *)
 let min_exp = -max_exp
-    
+
 (* Determines the probabilities that are considered small enough to 
    eliminate collisions. It consists of a list of probability descriptions
    of the form ([(psize1, n1); ...; (psizek,nk)], tsize) 
@@ -154,8 +163,10 @@ let check_exp v ext =
   if v < 0 then
     raise (Parsing_helper.Error ("Bounds should be greater or equal to 0", ext));
   if v > max_exp then
-    raise (Parsing_helper.Error ("Bounds should be at most " ^ (string_of_int max_exp), ext))
-    
+    raise
+      (Parsing_helper.Error
+         ("Bounds should be at most " ^ string_of_int max_exp, ext))
+
 let parse_type_size_pcoll (s, ext) =
   match s with
   | "large" -> Some (tysize_LARGE, max_exp), Some (tysize_LARGE, max_exp)
@@ -295,7 +306,6 @@ let do_set p v =
   | "forgetOldGames", _ -> parse_bool v forget_old_games
   | _ -> raise Not_found
 
-
 (* Type options *)
 
 (* Types consisting of all bitstrings of the same length *)
@@ -325,80 +335,99 @@ let tex_output = ref ""
 as well as f_not *)
 (* Types *)
 
-let t_bitstring = { tname = "bitstring";
-		    tcat = BitString;
-		    toptions = 0;
-		    tsize = Some (max_exp, max_exp);
-		    tpcoll = None;
-                    timplsize = None;
-                    tpredicate = Some "always_true";
-                    timplname = Some "string";
-                    tserial = Some ("id","id");
-                    trandom = None }
+let t_bitstring =
+  {
+    tname = "bitstring";
+    tcat = BitString;
+    toptions = 0;
+    tsize = Some (max_exp, max_exp);
+    tpcoll = None;
+    timplsize = None;
+    tpredicate = Some "always_true";
+    timplname = Some "string";
+    tserial = Some ("id", "id");
+    trandom = None;
+    tequal = None;
+  }
 
-let t_bitstringbot = { tname = "bitstringbot";
-		       tcat = BitString;
-		       toptions = 0;
-		       tsize = Some (max_exp, max_exp);
-		       tpcoll = None;
-                       timplsize = None;
-                       tpredicate = Some "always_true";
-                       timplname = Some "string option"; 
-                       tserial = Some ("stringbot_to","stringbot_from");
-                       trandom = None }
+let t_bitstringbot =
+  {
+    tname = "bitstringbot";
+    tcat = BitString;
+    toptions = 0;
+    tsize = Some (max_exp, max_exp);
+    tpcoll = None;
+    timplsize = None;
+    tpredicate = Some "always_true";
+    timplname = Some "string option";
+    tserial = Some ("stringbot_to", "stringbot_from");
+    trandom = None;
+    tequal = None;
+  }
 
-let t_bool = { tname = "bool";
-	       tcat = BitString;
-	       toptions = tyopt_FIXED + tyopt_BOUNDED;
-	       tsize = Some (1,1);
-	       tpcoll = Some (1,1);
-               timplsize = Some(1);
-               tpredicate = Some "always_true";
-               timplname = Some "bool";
-               tserial = Some ("bool_to","bool_from");
-               trandom = Some ("rand_bool") }
-
+let t_bool =
+  {
+    tname = "bool";
+    tcat = BitString;
+    toptions = tyopt_FIXED + tyopt_BOUNDED;
+    tsize = Some (1, 1);
+    tpcoll = Some (1, 1);
+    timplsize = Some 1;
+    tpredicate = Some "always_true";
+    timplname = Some "bool";
+    tserial = Some ("bool_to", "bool_from");
+    trandom = Some "rand_bool";
+    tequal = Some "(=)";
+  }
 
 (* For precise computation of the runtime only*)
-let t_unit = { tname = "unit";
-	       tcat = BitString;
-	       toptions = tyopt_BOUNDED;
-	       tsize = Some (0,0);
-	       tpcoll = Some (0,0);
-               timplsize = None;
-               tpredicate = None;
-               timplname = None;
-               tserial = None;
-               trandom = None }
-
+let t_unit =
+  {
+    tname = "unit";
+    tcat = BitString;
+    toptions = tyopt_BOUNDED;
+    tsize = Some (0, 0);
+    tpcoll = Some (0, 0);
+    timplsize = None;
+    tpredicate = None;
+    timplname = None;
+    tserial = None;
+    trandom = None;
+    tequal = None;
+  }
 
 (* For events in terms; they have a type compatible with any type*)
-let t_any = { tname = "any";
-	      tcat = BitString;
-	      toptions = 0;
-	      tsize = None;
-	      tpcoll = None;
-              timplsize = None;
-              tpredicate = None;
-              timplname = None;
-              tserial = None;
-              trandom = None }
+let t_any =
+  {
+    tname = "any";
+    tcat = BitString;
+    toptions = 0;
+    tsize = None;
+    tpcoll = None;
+    timplsize = None;
+    tpredicate = None;
+    timplname = None;
+    tserial = None;
+    trandom = None;
+    tequal = None;
+  }
 
-let p_empty_idx = { pname = "0";
-		    psize = 0 }
-    
-let t_empty_idx = { tname = "empty-idx";
-	      tcat = Interv p_empty_idx;
-	      toptions = tyopt_BOUNDED;
-	      tsize = Some(0,0);
-	      tpcoll = Some(0,0);
-              timplsize = None;
-              tpredicate = None;
-              timplname = None;
-              tserial = None;
-              trandom = None }
+let p_empty_idx = { pname = "0"; psize = 0 }
 
-    
+let t_empty_idx =
+  {
+    tname = "empty-idx";
+    tcat = Interv p_empty_idx;
+    toptions = tyopt_BOUNDED;
+    tsize = Some (0, 0);
+    tpcoll = Some (0, 0);
+    timplsize = None;
+    tpredicate = None;
+    timplname = None;
+    tserial = None;
+    trandom = None;
+    tequal = None;
+  }
 
 let create_fun s ty ?(options=0) ?(eqth=NoEq) ?(impl=No_impl) ?(impl_inv=None) cat =
   { f_name = s;
@@ -410,6 +439,7 @@ let create_fun s ty ?(options=0) ?(eqth=NoEq) ?(impl=No_impl) ?(impl_inv=None) c
     f_eq_theories = eqth;
     f_impl = impl;
     f_impl_inv = impl_inv;
+    f_impl_ent = false;
     f_impl_needs_state = false }
     
 (* Constants *)
@@ -442,16 +472,14 @@ module CatTypeHashtbl = Hashtbl.Make(HashedCatType)
 let comp_funs = CatTypeHashtbl.create 7
 
 let f_comp cat t t2 =
-  let t = 
-    if t2 == t_any then t else
-    if t == t_any then t2 else
-    if t != t2 then
+  let t =
+    if t2 == t_any then t
+    else if t == t_any then t2
+    else if t != t2 then
       Parsing_helper.internal_error "Comparisons for compatible types only"
-    else
-      t
+    else t
   in
-  try 
-    CatTypeHashtbl.find comp_funs (cat,t)
+  try CatTypeHashtbl.find comp_funs (cat, t)
   with Not_found ->
     let r = create_fun
 	(match cat with
@@ -463,34 +491,35 @@ let f_comp cat t t2 =
 	([t; t], t_bool) 
 	~eqth:(if cat == Equal || cat == Diff then Commut else NoEq)
         ~impl:(match cat with
-          Equal -> Func "(=)"
-        | Diff -> Func "(<>)"
+          Equal -> FuncEqual
+        | Diff -> FuncDiff
         | _ -> No_impl)
 	cat
     in
-    CatTypeHashtbl.add comp_funs (cat,t) r;
+    CatTypeHashtbl.add comp_funs (cat, t) r;
     r
 
 let f_not = create_fun "not" ([t_bool], t_bool) ~impl:(Func "not") Std
 
 (* Create tuple function of given type *)
 
-module HashedTypeList =
-  struct
-    type t = Types.typet list
-    let equal x1 x2 = (List.length x1 == List.length x2) && (List.for_all2 (==) x1 x2)
-    (* The hash function must use only parts that are not modified,
-       otherwise, we may have the same element with several different hashes *)
-    let hash x = Hashtbl.hash (List.map (fun t -> t.tname) x)
-  end
+module HashedTypeList = struct
+  type t = Types.typet list
 
-module TypeListHashtbl = Hashtbl.Make(HashedTypeList)
+  let equal x1 x2 =
+    List.length x1 == List.length x2 && List.for_all2 ( == ) x1 x2
+
+  (* The hash function must use only parts that are not modified,
+     otherwise, we may have the same element with several different hashes *)
+  let hash x = Hashtbl.hash (List.map (fun t -> t.tname) x)
+end
+
+module TypeListHashtbl = Hashtbl.Make (HashedTypeList)
 
 let tuple_fun_table = TypeListHashtbl.create 7
 
 let get_tuple_fun tl =
-  try 
-    TypeListHashtbl.find tuple_fun_table tl
+  try TypeListHashtbl.find tuple_fun_table tl
   with Not_found ->
     let f = create_fun "" (tl, t_bitstring) ~impl:(Func "tuple")
 	~impl_inv:(Some "detuple") ~options:fopt_COMPOS	Tuple 
@@ -525,16 +554,20 @@ let get_if_fun t =
       
 (*For precise computation of the runtime only*)
 
-let t_interv = { tname ="[1,*]";
-		 tcat = Interv { pname = "N*"; psize = 0 };
-		 toptions = tyopt_BOUNDED;
-	         tsize = None;
-		 tpcoll = None;
-                 timplsize = None;
-                 tpredicate = None;
-                 timplname = None;
-                 tserial = None;
-                 trandom = None }
+let t_interv =
+  {
+    tname = "[1,*]";
+    tcat = Interv { pname = "N*"; psize = 0 };
+    toptions = tyopt_BOUNDED;
+    tsize = None;
+    tpcoll = None;
+    timplsize = None;
+    tpredicate = None;
+    timplname = None;
+    tserial = None;
+    trandom = None;
+    tequal = None;
+  }
 
 let f_plus = create_fun "+" ([t_interv; t_interv],t_interv) ~eqth:Commut Std
 
@@ -553,19 +586,18 @@ module FunIntHashtbl = Hashtbl.Make(HashedFunInt)
 
 let inverse_table = FunIntHashtbl.create 7
 
-let get_inverse f n = 
+let get_inverse f n =
   if f.f_options land fopt_COMPOS == 0 then
     Parsing_helper.internal_error "Can get inverse only for COMPOS functions";
-  if (n < 1) || (n > (List.length (fst f.f_type))) then
+  if n < 1 || n > List.length (fst f.f_type) then
     Parsing_helper.internal_error "Arity error in get_inverse";
-  try
-    FunIntHashtbl.find inverse_table (f,n)
+  try FunIntHashtbl.find inverse_table (f, n)
   with Not_found ->
     let finv = create_fun (f.f_name ^ "^-1_" ^ (string_of_int n))
 		 ([snd f.f_type], (List.nth (fst f.f_type) (n-1)))
 		 ~options:fopt_DECOMPOS Std
     in
-    FunIntHashtbl.add inverse_table (f,n) finv;
+    FunIntHashtbl.add inverse_table (f, n) finv;
     finv
 
 (***************************************************************************)
@@ -575,10 +607,10 @@ let get_query_status (_, poptref) =
 
 let add_pub_vars_q public_vars q =
   let add_pub_vars pub_vars =
-    List.iter (fun b ->
-      if not (List.memq b (!public_vars)) then
-	public_vars := b :: (!public_vars)
-			      ) pub_vars
+    List.iter
+      (fun b ->
+        if not (List.memq b !public_vars) then public_vars := b :: !public_vars)
+      pub_vars
   in
   match q with
   | QSecret (b',pub_vars,onesession) ->
@@ -600,35 +632,35 @@ let get_public_vars queries =
     | q when get_query_status q != ToProve -> () (* I ignore already proved and inactive queries *)
     | (q,_),_ -> add_pub_vars_q public_vars q) queries;
   !public_vars
-    
+
 let occurs_in_queries b q = List.memq b (get_public_vars q)
 
-let event_occurs_in_term f t = 
-  match t.t_desc with
-    FunApp(f',_) -> f == f'
-  | _ -> false
+let event_occurs_in_term f t =
+  match t.t_desc with FunApp (f', _) -> f == f' | _ -> false
 
 let rec event_occurs_in_qterm f = function
-    QEvent(_,t) -> event_occurs_in_term f t
+  | QEvent (_, t) -> event_occurs_in_term f t
   | QTerm _ -> false
-  | QAnd(t1,t2) | QOr(t1,t2) -> 
-      (event_occurs_in_qterm f t1) || (event_occurs_in_qterm f t2)
+  | QAnd (t1, t2) | QOr (t1, t2) ->
+      event_occurs_in_qterm f t1 || event_occurs_in_qterm f t2
 
 let event_occurs_in_queries f q =
-  List.exists (function
-      q when get_query_status q != ToProve -> false (* I ignore already proved and inactive queries *)
-    | (QSecret _, _),_ -> false
-    | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _),_ ->
-       (* When I want to prove indistinguishability, keep all events *)
-       true
-    | (QEventQ (l,r,_),_),_ ->
-	(List.exists (fun (_,t) -> event_occurs_in_term f t) l) ||
-	(event_occurs_in_qterm f r)
-	  ) q
+  List.exists
+    (function
+      | q when get_query_status q != ToProve ->
+          false (* I ignore already proved and inactive queries *)
+      | (QSecret _, _), _ -> false
+      | ((AbsentQuery | QEquivalence _ | QEquivalenceFinal _), _), _ ->
+          (* When I want to prove indistinguishability, keep all events *)
+          true
+      | (QEventQ (l, r, _), _), _ ->
+          List.exists (fun (_, t) -> event_occurs_in_term f t) l
+          || event_occurs_in_qterm f r)
+    q
 
 (***************************************************************************)
 
-let equivs = ref ([]: equiv_gen list)
+let equivs = ref ([] : equiv_gen list)
 
 (****************************************************************************)
 
@@ -641,4 +673,3 @@ let changed = ref false
    to apply before I so that instruction I can be better performed. *)
 
 let advise = ref ([] : instruct list)
-

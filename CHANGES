@@ -3,6 +3,9 @@ of the cryptographic protocol verifier.
 
 Version
 
+- Translation of CryptoVerif models into F* implementations, by
+  Benjamin Lipp. (More documentation and the translation of
+  properties proved in CryptoVerif into F* axioms will be added later.)
 - Added notions of secrecy as reachability and secrecy for a bit.
 - Added predefined function if_fun, such that if_fun(true,x,y) = x
   and if_fun(false,x,y) = y.

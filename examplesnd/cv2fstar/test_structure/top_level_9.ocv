@@ -1,0 +1,241 @@
+(* Needham Schroeder public key protocol, fixed by Lowe.
+   The user identity in this model is just an arbitrary
+   address. An implementation could use an user@hostname
+   construction.
+ *)
+
+param Qsetup.
+param Qkey_reg.
+param Qinit.
+param Qresp.
+
+def OptionType_1(option, option_Some, option_None, input) {
+  fun option_Some(input): option [data].
+  const option_None: option.
+  equation forall x: input;
+    option_Some(x) <> option_None.
+}
+
+type nonce [fixed,large].
+type pkey [bounded].
+type skey [bounded].
+type keyseed [fixed,large].
+type encseed [bounded].
+type plaintext [bounded].
+type address [bounded].
+type keypair [bounded].
+fun kp(pkey, skey): keypair [data].
+
+type ciphertext [bounded].
+type ciphertext_opt [bounded].
+expand OptionType_1(ciphertext_opt, ciphertext_some, ciphertext_bottom, ciphertext).
+
+table trusted_keys(address, skey, pkey).
+table all_keys(address, pkey, bool).
+
+set diffConstants = false.
+
+fun msg1(nonce, address):plaintext [data].
+fun msg2(nonce, nonce, address):plaintext [data].
+fun msg3(nonce):plaintext [data].
+
+
+
+equation forall z:nonce,t:nonce,u:address,y2:nonce,z2:address;
+  msg2(z,t,u) <> msg1(y2,z2).
+equation forall y:nonce,y2:nonce,z2:address;
+  msg3(y) <> msg1(y2,z2).
+equation forall z:nonce,t:nonce,u:address,y2:nonce;
+  msg2(z,t,u) <> msg3(y2).
+
+(* Public-key encryption (IND-CCA2) *)
+
+proba Penc.
+proba Penccoll.
+
+expand IND_CCA2_public_key_enc_all_args(
+  keyseed, pkey, skey, plaintext, ciphertext_opt, encseed,
+  skgen, skgen2, pkgen, pkgen2, enc, enc_r, enc_r2, dec_opt, dec_opt2, injbot,
+  Z, Penc, Penccoll).
+
+(* Not needed because the in processes receive ciphertext, not ciphertext_opt *)
+equation forall sk: skey; dec_opt(ciphertext_bottom, sk) = bottom.
+
+letfun dec(c: ciphertext, sk: skey) =
+  dec_opt(ciphertext_some(c), sk).
+
+letfun keygen() =  k <-R keyseed; kp(pkgen(k), skgen(k)).
+
+const Zplaintext: plaintext.
+equation forall x: plaintext; Z(x) = Zplaintext.
+
+(* Queries *)
+
+event beginA(address, address, nonce, nonce).
+event endA(address, address, nonce, nonce).
+event beginB(address, address, nonce, nonce).
+event endB(address, address, nonce, nonce).
+
+query x:address, y:address, na:nonce, nb:nonce;
+  event(endA(x,y,na,nb)) ==> event(beginB(x,y,na,nb)).
+query x:address, y:address, na:nonce, nb:nonce;
+  event(endB(x,y,na,nb)) ==> event(beginA(x,y,na,nb)).
+query x:address, y:address, na:nonce, nb:nonce;
+  inj-event(endA(x,y,na,nb)) ==> inj-event(beginB(x,y,na,nb)).
+query x:address, y:address, na:nonce, nb:nonce;
+  inj-event(endB(x,y,na,nb)) ==> inj-event(beginA(x,y,na,nb)).
+
+type msg1res_t.
+fun msg1succ(skey, pkey, bool, nonce, ciphertext): msg1res_t [data].
+const msg1fail: msg1res_t.
+equation forall x1: skey, x2: pkey, x3: bool, x4: nonce, x5: ciphertext;
+  msg1succ(x1,x2,x3,x4,x5) <> msg1fail.
+
+implementation
+  type keyseed=256;
+  type nonce=64;
+  type ciphertext="ciphertext"
+    [serial = "serialize_ciphertext","deserialize_ciphertext"; equal = "eq_ciphertext"];
+  type ciphertext_opt="ciphertext_opt"
+    [equal = "eq_ciphertext_opt"; serial = "ciphertext_opt_to","ciphertext_opt_from"];
+  fun ciphertext_some="ciphertext_some" [inverse = "inv_ciphertext_some"];
+  const ciphertext_bottom="ciphertext_bottom";
+  type pkey="pkey" [serial = "serialize_pkey","deserialize_pkey"; equal = "eq_pkey"];
+  type skey="skey" [serial = "serialize_skey","deserialize_skey"; equal = "eq_skey"];
+  type encseed=256;
+  table trusted_keys="trusted_keys";
+  table all_keys="all_keys";
+  type keypair="keypair" [equal = "eq_keypair"];
+  type plaintext="plaintext" [equal = "eq_plaintext"];
+  fun msg1="msg1" [inverse = "inv_msg1"];
+  fun msg2="msg2" [inverse = "inv_msg2"];
+  fun kp = "kp" [inverse = "inv_kp"];
+  fun skgen = "skgen";
+  fun pkgen = "pkgen";
+  type address="address"
+    [serial = "serialize_address", "deserialize_address"; equal = "eq_addr"];
+  fun enc_r="enc";
+  fun dec="dec";
+  fun injbot="injbot" [inverse = "inv_injbot"];
+  fun msg3="msg3" [inverse = "inv_msg3"];
+  fun msg1succ="msg1succ" [inverse = "inv_msg1succ"];
+  const msg1fail="msg1fail";
+  type msg1res_t="msg1res" [equal = "eq_msg1res"].
+
+letfun initiator_send_msg_1_inner(addrA: address, addrX: address) =
+  (* the gets fail if addrA or addrX have not been
+      setup by the adversary. *)
+  get[unique] trusted_keys(=addrA, skA, pkA) in (
+    get[unique] all_keys(=addrX, pkX, trustX) in (
+      (* Prepare Message 1 *)
+      Na <-R nonce;
+      let cc1 = enc(msg1(Na, addrA), pkX) in
+      let ciphertext_some(c1: ciphertext) = cc1 in (
+        msg1succ(skA, pkX, trustX, Na, c1)
+      ) else msg1fail
+    ) else msg1fail
+  ) else msg1fail.
+
+let initiator() =
+
+  Initiator {
+
+    foreach i_init <= Qinit do
+
+    ((
+      initiator_something (addrA: address) :=
+      Nx <-R nonce;
+      return (Nx)
+    )|(
+
+    initiator_send_msg_1 (addrA: address, addrX: address) :=
+      let msg1succ(skA, pkX, trustX, Na, c1) = initiator_send_msg_1_inner(addrA, addrX) in
+      return (c1);
+
+    (* Receive Message 2 *)
+    initiator_send_msg_3 (c: ciphertext) :=
+      let injbot(msg2(=Na, Nb, =addrX)) = dec(c, skA) in
+      event beginA(addrA, addrX, Na, Nb);
+      (* Prepare Message 3 *)
+      let ciphertext_some(c3) = enc(msg3(Nb), pkX) in
+      return (c3);
+
+    (* OK *)
+    initiator_finish () :=
+      if (trustX) then
+      event endA(addrA, addrX, Na, Nb);
+      return ()
+
+
+  })).
+
+let responder() =
+
+  Responder {
+
+  foreach i_resp <= Qresp do
+
+  (* Receive Message 1 *)
+  responder_send_msg_2 (addrB: address, m: ciphertext) :=
+    (* the get fails if addrB has not been setup by
+       the adversary *)
+    get[unique] trusted_keys(=addrB, skB, pkB) in
+    let injbot(msg1(Na, addrY)) = dec(m, skB) in
+    get[unique] all_keys(=addrY, pkY, trustY) in
+    (* Send Message 2 *)
+    Nb <-R nonce;
+    event beginB(addrY, addrB, Na, Nb);
+    let ciphertext_some(c2) = enc(msg2(Na, Nb, addrB), pkY) in
+    return (c2) };
+
+    (* Receive Message 3 *)
+    Responder_2 {
+    responder_receive_msg_3 (m3: ciphertext) :=
+      let injbot(msg3(=Nb)) = dec(m3, skB) in
+      if (trustY) then (
+        event endB(addrY, addrB, Na, Nb); return ())
+      else return ().
+
+let key_register() =
+  Key_Register {
+
+  foreach i <= Qkey_reg do
+
+  register (addr: address, pkX: pkey) :=
+    get[unique] all_keys(=addr, ign1, ign2) in (
+      yield
+    ) else
+      insert all_keys(addr, pkX, false);
+      return ()
+  }.
+
+let setup() =
+  Setup {
+
+    foreach i <= Qsetup do
+      setup(addr: address) :=
+        get[unique] all_keys(=addr, ign1, ign2) in (
+          yield
+        ) else
+          let kp(the_pkA: pkey, the_skA: skey) = keygen() in
+          insert trusted_keys(addr, the_skA, the_pkA);
+          insert all_keys(addr, the_pkA, true);
+          return(the_pkA)
+
+  }.
+
+process
+  (
+    run setup()
+  |
+    run key_register()
+  |
+    run initiator()
+  |
+    run responder()
+  )
+
+(* EXPECTED
+Error: A role ends before the end of the process. (implementation)
+xtime: error in child process (status : 2)
+END *)

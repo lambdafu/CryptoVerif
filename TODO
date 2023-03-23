@@ -2,11 +2,15 @@ TO DO next
 
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
+   - rename replication indices in RHS to the names of the LHS before
+   presenting the equiv to the EC translation
+   - have a way to designate a bunch of equations we want to translate to EC
 2) Extend macros (see point 5 in HIGH PRIORITY)
 3) Extend depanal2 and simplify so that they apply to
    non-expanded games (see point 6 in HIGH PRIORITY)
 4) Implement the "diff" construct in CryptoVerif
    (see point 2 in HIGH PRIORITY)
+   DONE
 5) Guess the tested session (see point 4 in HIGH PRIORITY)
    DONE
 6) Extend the "move" instruction to allow precisely moving
@@ -200,7 +204,6 @@ following game <n> are shown.
 
 0.7) 
 For cv2fstar
-- generate letfun as separate functions [DONE]
 - generate implementation from "equivalence" proofs
 (be able to generate both games) [also in cv2ml]
 - for secrecy queries, generate both the real game and the ideal
@@ -213,147 +216,18 @@ Give the secrets to the fstar external code, perhaps by returning
 them together with messages output at the next output.
 The same games can be generated both for correspondences and
 secrecy only when the correspondences have the secrets as "public_variables".
-- for events, generate an fstar event
 - generate an fstar interface for the correspondence properties
-- use a database instead of files? (to store keys and tables)
-- allow using choice in the initial game to express equivalence proofs
-like in ProVerif. In this case, also generate two games, one
+- storage of tables in databases/files
+- if diff is used to express equivalence between two games, generate
+implementations for these two games, one
 for the left process, one for the right one. [also in cv2ml]
-- make sure that the structure of programs in the CryptoVerif input
-is enforced in fstar: just above the start of a module that is
-under some other code, require a replication
-(so that the module can be executed several times) and
-require that the previous module is executed once and
-stores a variable in a file that
-is read by the current module (to enforce that the previous module
-really is executed).
-Modules not under replication must not insert elements in tables
-(because in reality, they can be executed several times, resulting
-in several elements inserted in the table). That will require a change
-in the SSH example.
-Perhaps it is simpler to allow only the structure
-!N1 prog1 {...} | ... | !Nn progn {...} 
-Then I do not need to save variables; tables are enough.
-(That's still a bit strange for SSH for instance: the server saves
-its own key in a table instead of a file containing a single key.)
-[also in cv2ml]
-- obviously, check that the way code is generated is also ok
-in fstar.
 - avoid concatenation of strings in the generation of code,
 to avoid being quadratic [also in cv2ml]
-
-cv2ml: improve generated code
-- get: optimize the case (=M,...) by structuring the file as a key-value
-table. (perhaps not)
-- ABANDONED instead of putting the next oracles in a tuple, put them in
-a record. When some oracles are omitted, use fun _ -> raise BadCall
-for them. (However, it creates a mismatch with the semantics:
-the caller can do something after a call to a non-existing oracle
-by catching exception BadCall. In the semantics of the paper, a call to a
-non-existing oracle blocks. Perhaps the semantics should be changed.)
-Then the constraints checked on oracles in syntax.ml are sufficient.
-(In the channels front-end, in syntax.ml, these constraints lead to
-warnings, so an error may still happen at the implementation level.
-On the other hand, we can have a warning in syntax.ml without an
-error when we generate the implementation, in case the warning comes
-from a part of the model that is not in a module.)
-
-syntax.ml:
-check the structure
-!N1 prog1 {...} | ... | !Nn progn {...}
-
-val initialize_state: Lib.RandomSequence.entropy -> state
-- entropy initialized
-- tables read from files
-- empty sessions
-
-Oracles are the top of the module:
-state -> oracle input -> state * option (oracle output * session_id).
-(They can always be called several times because of the replication
-above the module start.)
-The returned state contains a new entry
-returned session_id ->
-   After_oracle_name_nth_return(free variables of following oracles)
-considered valid for session state "After_oracle_name"
-
-Other oracles under replication
-state -> session_id -> oracle input ->
-   state * option (oracle output * session_id').
-The oracle gets the session state using session_id.
-The entry session_id remains in the state.
-A new entry session_id' is created:
-session_id' ->
-   After_oracle_name_nth_return(free variables of following oracles)
-considered valid for session state "After_oracle_name"
-
-Other oracles not under replication
-state -> session_id -> oracle input ->
-   state * option oracle output.
-The oracle gets the session state using session_id.
-The entry session_id is modified to be
-session_id ->
-   After_oracle_name_nth_return(free variables of following oracles)
-considered valid for session state "After_oracle_name"
-In case the oracle yields, the entry session_id is removed from the state.
-To do that, remove the session_id entry at the beginning
-of the oracle (after reading it), and add an entry session_id
-at the end of the oracle when it succeeds.
-
-However, when an oracle is not followed by any oracle after return,
-no need to add an entry for a session id in the state and return a session id.
-
-Oracle begin (input):
--> at the top of the module:
-    - create a fresh session_id, which is the current_session_id
--> when under replication:
-    - read the entry for the received session_id of the state
-    - create a fresh session_id, which is the current_session_id
--> when not under replication:
-    - read and remove the entry for the received session_id of the state
-    - the current_session_id is the received session_id
-
-Yield: return(state, None)
-Return(output value):
--> if there are following oracles:
-   add in the state the entry
-     current_session_id ->
-       After_oracle_name_nth_return(free variables of following oracles)
-   -> if current oracle is under replication or at the top of the module:
-      return(state, Some(output_value, current_session_id))
-   -> if current oracle is not under replication:
-      return(state, Some(output_value))
-      (the current_session_id is the received session_id)
--> if there are no following oracles:
-   return(state, Some(output_value))
-
-(We require the oracles to be the same after all returns of the same
-oracle, and we should continue to do that.)
-
-Start with letfun and the translation of terms (translate_term).
-random: uses entropy, taken from the state
-calls to letfun functions: use state
-event_abort: do not translate, it is an error if the input script contains it.
-event: add an fstar event (not done now in your NSL implementation)
-       may need one more component in the state.
-insert/get use the state (tables + entropy for get when it is not unique
-       and the content of the found entry is used)
-replindex: for a first step, you can just not translate them;
-      later we may want to associate a session id to each repl.index.
-
-
-Structure to collect for oracles
-map oracle name O -> info:
-- under_repl: bool (same for all occs)
-- previous_oracle: oracle_name O' option (same for all occs, None at the top)
-- input_type: typet list (same for all occs)
-- output_type: typet list option (same for all returns, None before we meet the first return)
-      Warning: for input and output, decompose top tuple in oracle front-end, not in channel front-end.
-- following_oracles: oracle_name list option (same for all returns, None before we meet the first return)
-- list_of_returns: (After_oracle_name(=O)_nth_return(free variables of following oracles) at the return, process of the return) list
-- list_of_defs:
-    | Top of p
-    | NonTop of (After_oracle_name(=O')_nth_return(free variables of following oracles) at the def, p) list
-   p = input process that defines the oracle
+- prove the assume in F* in cv2fstar/cv2fstar/src/CVtypes.fst serialize_nat
+and cv2fstar/cv2fstar/src/RandomHelper.fst gen_nat
+- commut for FuncDiff: it is in fact the same as for equality, so we could
+avoid generating the equation with (not eq)
+- documentation
 
 EXAMPLE that uses security properties proved by CV and continues the
 proof in F*: write in F* an interface similar to the one of Noise*
@@ -428,12 +302,10 @@ Beware of quantum random oracles https://eprint.iacr.org/2010/428.pdf
    to the session identifiers of ProVerif)
 
    - Encode more ProVerif queries in CryptoVerif
-TODO document the equations for if_fun (in section 3.1),
-the transformation move_if_fun in cryptoverif.tex
-generate 2 OCaml/F* implementations for processes with diff
+TODO generate 2 OCaml/F* implementations for processes with diff
 and for equivalence
-Should choice be allowed as a synonym for diff?
-(If yes, update list of keywords, documentation of diff, ...)
+Should "choice" be allowed as a synonym for diff?
+No, deprecate "choice" in ProVerif
 
 noninterf x in ProVerif can be coded in CryptoVerif by 
 receiving m1,m2 at the beginning 
@@ -6941,3 +6813,144 @@ replacing choice[M1,M2] with "if b then M1 else M2"
       symbols in the list as part of simplify.
       -> done as option autoSwapIf at function declaration
 DONE 17/2/2023
+
+cv2ml: improve generated code
+- get: optimize the case (=M,...) by structuring the file as a key-value
+table. (perhaps not)
+- ABANDONED instead of putting the next oracles in a tuple, put them in
+a record. When some oracles are omitted, use fun _ -> raise BadCall
+for them. (However, it creates a mismatch with the semantics:
+the caller can do something after a call to a non-existing oracle
+by catching exception BadCall. In the semantics of the paper, a call to a
+non-existing oracle blocks. Perhaps the semantics should be changed.)
+Then the constraints checked on oracles in syntax.ml are sufficient.
+(In the channels front-end, in syntax.ml, these constraints lead to
+warnings, so an error may still happen at the implementation level.
+On the other hand, we can have a warning in syntax.ml without an
+error when we generate the implementation, in case the warning comes
+from a part of the model that is not in a module.)
+
+cv2fstar
+- generate letfun as separate functions [DONE]
+Oracles are the top of the module:
+state -> oracle input -> state * option (oracle output * session_id).
+(They can always be called several times because of the replication
+above the module start.)
+The returned state contains a new entry
+returned session_id ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+
+Other oracles under replication
+state -> session_id -> oracle input ->
+   state * option (oracle output * session_id').
+The oracle gets the session state using session_id.
+The entry session_id remains in the state.
+A new entry session_id' is created:
+session_id' ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+
+Other oracles not under replication
+state -> session_id -> oracle input ->
+   state * option oracle output.
+The oracle gets the session state using session_id.
+The entry session_id is modified to be
+session_id ->
+   After_oracle_name_nth_return(free variables of following oracles)
+considered valid for session state "After_oracle_name"
+In case the oracle yields, the entry session_id is removed from the state.
+To do that, remove the session_id entry at the beginning
+of the oracle (after reading it), and add an entry session_id
+at the end of the oracle when it succeeds.
+
+However, when an oracle is not followed by any oracle after return,
+no need to add an entry for a session id in the state and return a session id.
+
+Oracle begin (input):
+-> at the top of the module:
+    - create a fresh session_id, which is the current_session_id
+-> when under replication:
+    - read the entry for the received session_id of the state
+    - create a fresh session_id, which is the current_session_id
+-> when not under replication:
+    - read and remove the entry for the received session_id of the state
+    - the current_session_id is the received session_id
+
+Yield: return(state, None)
+Return(output value):
+-> if there are following oracles:
+   add in the state the entry
+     current_session_id ->
+       After_oracle_name_nth_return(free variables of following oracles)
+   -> if current oracle is under replication or at the top of the module:
+      return(state, Some(output_value, current_session_id))
+   -> if current oracle is not under replication:
+      return(state, Some(output_value))
+      (the current_session_id is the received session_id)
+-> if there are no following oracles:
+   return(state, Some(output_value))
+
+(We require the oracles to be the same after all returns of the same
+oracle, and we should continue to do that.)
+
+Start with letfun and the translation of terms (translate_term).
+random: uses entropy, taken from the state
+calls to letfun functions: use state
+event_abort: do not translate, it is an error if the input script contains it.
+event: add an fstar event (not done now in your NSL implementation)
+       may need one more component in the state.
+insert/get use the state (tables + entropy for get when it is not unique
+       and the content of the found entry is used)
+replindex: for a first step, you can just not translate them;
+      later we may want to associate a session id to each repl.index.
+
+val initialize_state: Lib.RandomSequence.entropy -> state
+- entropy initialized
+- tables read from files
+- empty sessions
+
+Structure to collect for oracles
+map oracle name O -> info:
+- under_repl: bool (same for all occs)
+- previous_oracle: oracle_name O' option (same for all occs, None at the top)
+- input_type: typet list (same for all occs)
+- output_type: typet list option (same for all returns, None before we meet the first return)
+      Warning: for input and output, decompose top tuple in oracle front-end, not in channel front-end.
+- following_oracles: oracle_name list option (same for all returns, None before we meet the first return)
+- list_of_returns: (After_oracle_name(=O)_nth_return(free variables of following oracles) at the return, process of the return) list
+- list_of_defs:
+    | Top of p
+    | NonTop of (After_oracle_name(=O')_nth_return(free variables of following oracles) at the def, p) list
+   p = input process that defines the oracle
+DONE 13/03/2023
+
+revise verification of module structure in syntax.ml
+- allow Repl above BeginModule
+- allow Par between BeginModule and Repl
+- check that there is no BeginModule under BeginModule and
+  no closure of modules other than POutput(..., PNil)
+
+- make sure that the structure of programs in the CryptoVerif input
+is enforced in fstar: just above the start of a module that is
+under some other code, require a replication
+(so that the module can be executed several times) and
+require that the previous module is executed once and
+stores a variable in a file that
+is read by the current module (to enforce that the previous module
+really is executed).
+Modules not under replication must not insert elements in tables
+(because in reality, they can be executed several times, resulting
+in several elements inserted in the table). That will require a change
+in the SSH example.
+Perhaps it is simpler to allow only the structure
+!N1 prog1 {...} | ... | !Nn progn {...} 
+Then I do not need to save variables; tables are enough.
+(That's still a bit strange for SSH for instance: the server saves
+its own key in a table instead of a file containing a single key.)
+[also in cv2ml]
+
+syntax.ml:
+check the structure
+!N1 prog1 {...} | ... | !Nn progn {...}
+DONE 14/03/2023, for cv2fstar; abandoned for cv2OCaml

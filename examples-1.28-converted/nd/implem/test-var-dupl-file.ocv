@@ -240,10 +240,15 @@ ONS_Keygen [xpkS > pkS, xskS > skS ] {
 Error: This name is ambiguous, or the variable has not been declared with its type
 However, CryptoVerif now accepts variables defined several times 
 in different branches of if/find/let, so this example does not cause
-that error any more. However, it causes another error (see below).
+that error any more. However, it causes another error:
+Error: Role ONS_A is defined after oracle OAGK that has more than one return (implementation)
+
+From CV 2.07, the role declarations are not checked when we do not generate
+implementations (because the check is different for OCaml and F* ), so
+this file no longer causes an error when we try to prove the protocol.
 *)
 
 (* EXPECTED
-Error: Role ONS_A is defined after oracle OAGK that has more than one return (implementation)
-xtime: error in child process (status : 2)
+RESULT Could not prove secrecy of NbB; secrecy of NbA; secrecy of NaB; secrecy of NaA.
+7.072s (user 7.064s + system 0.008s), max rss 15716K
 END *)

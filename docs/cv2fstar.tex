@@ -1,0 +1,13 @@
+CryptoVerif can also generate an F$^\star$ implementation of the protocol
+from the CryptoVerif specification, using the command-line
+option \texttt{-impl FStar}.
+It works along similar principles to the OCaml generation of implementations,
+but additionally generates F$^\star$ lemmas for equations used as
+assumptions in CryptoVerif, to be proved in F$^\star$.
+In the future, we plan to generate F$^\star$ axioms for security properties
+proved by CryptoVerif.
+
+The subdirectory \texttt{cv2fstar} contains files for CryptoVerif to F$^\star$
+as well as an example, the Needham-Schroeder-Lowe public-key protocol.
+
+More documentation is going to be added here in the future.

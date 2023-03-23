@@ -36,11 +36,12 @@ expected result in the script when it is missing
 do not test scripts that already have an expected result
 - update: test the mentioned scripts and update the expected
 result in the script
-and <test_set> can be: basic, proverif, converted, big, impl, all, or
+and <test_set> can be: basic, proverif, converted, big, cv2OCaml, cv2fstar, all, or
 dir <prefix> <list_of_directories>
 - proverif runs ProVerif on tests suitable for it
 - converted runs CryptoVerif on examples converted from CryptoVerif 1.28
-- all runs all tests included in basic, proverif, converted, big, and impl
+- all runs all tests included in basic, proverif, converted, big, cv2OCaml,
+and cv2fstar
 - dir <prefix> <list_of_directories> analyzes the mentioned directories
 using CryptoVerif, using <prefix> as prefix for the output files.
 EOF
@@ -78,7 +79,7 @@ analyzedirlist()
 
 basic()
 {
-    analyzedirlist test examples/basic examples/obasic examples/prf-odh examples/kerberos examples/hpke examples/noiseNK implementation/wlsk implementation/nspk
+    analyzedirlist test examples/basic examples/obasic examples/prf-odh examples/kerberos examples/hpke examples/noiseNK cv2OCaml/wlsk cv2OCaml/nspk
 
     if [ -d examplesnd ]
     then
@@ -122,20 +123,20 @@ big()
 	analyzedirlist icao9880-May17- "$dir"
     fi
 
-    analyzedirlist ssh implementation/ssh
+    analyzedirlist ssh cv2OCaml/ssh
 
     analyzedirlist WG examples/wireguard
 }
 
 
-impl()
+cv2OCaml()
 {
     echo
-    echo Implementation
+    echo cv2OCaml
     echo
-    output=impl`date '+%Y.%m.%d-%H_%M_%S'`
+    output=cv2OCaml`date '+%Y.%m.%d-%H_%M_%S'`
     (
-    for i in examplesnd/impl/*
+    for i in examplesnd/cv2OCaml/*
     do
 	echo -n PROTOCOL $i " "
 	(cd $i; ./build.sh) > $TMP.out 2>&1
@@ -144,7 +145,14 @@ impl()
 	egrep \(CORRECT\|ERROR\) $TMP.out
     done
     ) | tee tests/res-$output
+
 }
+
+cv2fstar()
+{
+    ./analyze -progopt -impl FStar -endprogopt $timeoutopt CV "$mode" "$TMPDIR" cv2fstar dirs examplesnd/cv2fstar/test_structure
+}    
+
 
 mkdir -p tests
 
@@ -177,15 +185,18 @@ case X$1 in
     Xbig)
 	# test big
 	big;;
-    Ximpl)
-	impl;;
+    Xcv2OCaml)
+	cv2OCaml;;
+    Xcv2fstar)
+	cv2fstar;;
     Xall)
 	# test all  (runs all tests)
 	basic
 	proverif
 	converted
 	big
-	impl;;
+	cv2OCaml
+	cv2fstar;;
     Xdir)
 	# test dir <prefix> <list of directories>
 	# analyzes the CryptoVerif scripts in the given list of directories,

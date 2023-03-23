@@ -3,11 +3,11 @@ open Parsing_helper
 open Types
 open Terms
 open Stringmap
-  
+
 let parse_from_string parse ?(lex = Lexer.token) (s, ext_s) =
   let lexbuf = Lexing.from_string s in
   Parsing_helper.set_start lexbuf ext_s;
-  try 
+  try
     parse lex lexbuf
   with
     Parsing.Parse_error -> raise (Error("Syntax error", extent lexbuf))
@@ -99,6 +99,7 @@ let parse_with_lib filename =
   in
   parse_all_lib libs
 
+
 (* Environment.
    May contain function symbols, variables, ...
    Is a map from strings to the description of the ident *)
@@ -127,12 +128,12 @@ type location_type =
 let current_location = ref InProcess
 
 let unique_to_prove = ref false
-    
-let in_impl_process() = 
-  (!Settings.get_implementation) && (!current_location) <> InEquivalence
+
+let in_impl_process () =
+  !Settings.get_implementation <> Prove && !current_location <> InEquivalence
 
 exception CannotSeparateLetFun
-    
+
 (* Declarations *)
 
 type macro_elem =
@@ -159,7 +160,8 @@ let unused_type = { tname = "error: this type should not be used";
                     tpredicate = None;
                     timplname = None;
                     tserial = None;
-                    trandom = None }
+                    trandom = None;
+		    tequal = None }
     
 let merge_types t1 t2 ext =
   if t1 == Settings.t_any then
@@ -206,7 +208,6 @@ let add_var_list env in_find_cond cur_array bindl =
       | Some ty -> add_in_env1 env s ty cur_array
 	    ) env bindl
 
-
 (* [check_term1 binder_env in_find_cond cur_array env t] returns
    a binder environment containing the variables of [binder_env]
    plus those defined by [t]. 
@@ -217,7 +218,7 @@ let add_var_list env in_find_cond cur_array bindl =
    to [env], so that the right [letfun]s are visible, but we use dummy
    variables. *)
 let dummy_var = Terms.create_binder "@dummy" Settings.t_any []
-  
+
 let rec check_args1 env = function
     [] -> env
   | ((s1, ext1), tyb)::rvardecl ->
@@ -799,9 +800,8 @@ let rec check_role_aux error h name = function
     check_role_aux error h name p;
     List.iter (fun (_, _, _, _, p) -> check_role_aux error h name p) l
   | PBeginModule (((role, _), _), p), ext ->
-    begin
-      match name with
-        | Some name ->
+      ( match name with
+      | Some name ->
           let returns = Hashtbl.find_all h name in
           if List.length returns > 1 then
             let oracle = match !Settings.front_end with
@@ -821,14 +821,12 @@ let rec check_role_aux error h name = function
                  name
                  return)
               ext
-        | None -> ()
-    end;
-    check_role_aux error h name p
-  | PInput(((name, _), _), _, p), _ ->
-    check_role_aux error h (Some name) p
+      | None -> ()
+      );
+      check_role_aux error h name p
+  | PInput (((name, _), _), _, p), _ -> check_role_aux error h (Some name) p
 
-let check_role error h p =
-  check_role_aux error h None p
+let check_role error h p = check_role_aux error h None p
 
 (* Check that an out followed by a role declaration closes the current
    oracle. This ensures that no oracle is between two roles.
@@ -859,45 +857,186 @@ let rec check_role_continuity_aux error role_possible = function
   | POutput(role_end, _, _, p), _ ->
     check_role_continuity_aux error role_end p
   | PBeginModule (((role, _), _), p), ext ->
-    if not role_possible then
-      begin
-        let return = match !Settings.front_end with
+      ( if not role_possible then
+        let return =
+          match !Settings.front_end with
           | Settings.Channels -> "an out construct"
           | Settings.Oracles -> "a return"
         in
         error
           (Printf.sprintf
-             "Role %s is defined after %s that does not end the \
-              previous role/is not in a role (implementation)"
-             role
-             return)
-          ext
-      end;
-    check_role_continuity_aux error role_possible p
+             "Role %s is defined after %s that does not end the previous \
+              role/is not in a role (implementation)"
+             role return)
+          ext );
+      check_role_continuity_aux error role_possible p
 
-let check_role_continuity error p =
-  check_role_continuity_aux error true p
+let check_role_continuity error p = check_role_continuity_aux error true p
+
+
+let rec check_fstar_no_event_abort error = function
+  | PNil, _ | PYield, _ -> ()
+  | PEventAbort _, ext ->
+      error
+        (Printf.sprintf
+           "event_abort is not supported in F* implementations (implementation)")
+        ext
+  | PPar (p1, p2), _
+  | PTest (_, p1, p2), _
+  | PLet (_, _, p1, p2), _
+  | PGet (_, _, _, p1, p2, _), _
+  | PDiffIndistProc(p1, p2), _ ->
+      check_fstar_no_event_abort error p1;
+      check_fstar_no_event_abort error p2
+  | PRepl (_, _, _, p), _
+  | PRestr (_, _, p), _
+  | PEvent (_, p), _
+  | PInsert (_, _, p), _
+  | PInput (((_, _), _), _, p), _
+  | POutput (_, _, _, p), _ ->
+      check_fstar_no_event_abort error p
+  | PLetDef ((s, ext), _), _ ->
+      let env', vardecl, p = get_process !env s ext in
+      check_fstar_no_event_abort error p
+  | PFind (l, p, _), _ ->
+      check_fstar_no_event_abort error p;
+      List.iter (fun (_, _, _, _, p) -> check_fstar_no_event_abort error p) l
+  | PBeginModule (((role, _), _), p), ext ->
+      check_fstar_no_event_abort error p
+
+
+(* For FStar, check that we have mod1 { !N1 ... } | ... | modn { !Nn ... } *)
+
+(*  *)
+let rec check_no_module_closure_open error = function
+  | PNil, _ | PYield, _ | PEventAbort _, _ -> ()
+  | PPar (p1, p2), _
+  | PTest (_, p1, p2), _
+  | PLet (_, _, p1, p2), _
+  | PGet (_, _, _, p1, p2, _), _
+  | PDiffIndistProc(p1, p2), _ ->
+      check_no_module_closure_open error p1;
+      check_no_module_closure_open error p2
+  | PRepl (_, _, _, p), _
+  | PRestr (_, _, p), _
+  | PEvent (_, p), _
+  | PInsert (_, _, p), _
+  | PInput (((_, _), _), _, p), _ ->
+      check_no_module_closure_open error p
+  | POutput (role_end, _, _, p), ext ->
+      if role_end then
+	match p with
+	| PNil, _ -> ()
+	| _ ->
+	    error
+	      "A role ends before the end of the process. (implementation)"
+              ext
+      else
+	check_no_module_closure_open error p
+  | PLetDef ((s, ext), _), _ ->
+      let env', vardecl, p = get_process !env s ext in
+      check_no_module_closure_open error p
+  | PFind (l, p, _), _ ->
+      check_no_module_closure_open error p;
+      List.iter (fun (_, _, _, _, p) -> check_no_module_closure_open error p) l
+  | PBeginModule (((role, _), _), p), ext ->
+      (* In fact, this error will always be detected earlier:
+         - if there is a role closure above, the role closure will trigger
+           an error
+         - if there is no role closure above, it will trigger a 
+	   "Roles cannot be nested" error in [check_process] *)
+      error
+        (Printf.sprintf
+           "The role %s is defined under some other role. (implementation)"
+           role)
+        ext
+
+(* check if the module is under replication *)
+let rec check_start_repl role error = function
+  | PPar(p1,p2), _ ->
+      check_start_repl role error p1;
+      check_start_repl role error p2
+  | PRepl (_, _, _, p), _ ->
+      check_no_module_closure_open error p
+  (* processes defined using let should be transparent for this structure check *)
+  | PLetDef ((s, ext), _), _ ->
+      let env', vardecl, p = get_process !env s ext in
+      check_start_repl role error p
+  | _, ext ->
+      let str_process =
+        match !Settings.front_end with
+        | Settings.Channels -> "in process"
+        | Settings.Oracles -> "oracle"
+      in
+      error
+        (Printf.sprintf
+           "The top-level %s of role %s must be under \
+           replication. (implementation)"
+           str_process role)
+        ext
+
+let rec check_fstar_toplevel_structure error = function
+  (* Nil is always ok for this structure check. *)
+  | PNil, _ -> ()
+  (* We either need to start by a parallel composition, ... *)
+  | PPar (p1, p2), _ ->
+      check_fstar_toplevel_structure error p1;
+      check_fstar_toplevel_structure error p2
+  (* a replication, *)	
+  | PRepl (_, _, _, p), _ ->
+      check_fstar_toplevel_structure error p
+  (* ... or directly by a module declaration. *)
+  | PBeginModule (((role, _), _), p), ext ->
+      check_start_repl role error p
+  (* processes defined using let should be transparent for this structure check *)
+  | PLetDef ((s, ext), _), _ ->
+      let env', vardecl, p = get_process !env s ext in
+      check_fstar_toplevel_structure error p
+  (* If we encounter the following at this point, the structure requirement is violated *)
+  | PYield, ext
+  | PTest (_, _, _), ext
+  | PLet (_, _, _, _), ext
+  | PGet (_, _, _, _, _, _), ext
+  | PDiffIndistProc(_,_), ext
+  | PRestr (_, _, _), ext
+  | PEvent (_, _), ext
+  | PInsert (_, _, _), ext
+  | PInput (((_, _), _), _, _), ext
+  | POutput (_, _, _, _), ext
+  | PFind (_, _, _), ext
+  | PEventAbort _, ext ->
+      error
+        (Printf.sprintf
+           "For an FStar implementation, the main process must start with a \
+            parallel composition of modules, or only one module (implementation)")
+        ext
+
 
 let check_process2 p =
-  (* Do not check implementation based requirements when not compiling
+  (* Do not check implementation-based requirements when not compiling
      the specification into an implementation, in the channel front-end. *)
-  if (!Settings.get_implementation) || (!Settings.front_end = Settings.Oracles) then
-    let h = build_return_list p in
-    check_role raise_error h p;
-    check_role_continuity raise_error p
-  (* We could have a warning when we do not generate an implementation,
-     as follows. However, in this case, we should also have a warning
-     for other errors that happen at implementation time (e.g. type errors) 
-  let error_function =
-    if !Settings.get_implementation then
-      raise_error
-    else
-      input_warning
-  in
-  let h = build_return_list p in
-  check_role error_function h p;
-  check_role_continuity error_function p *)
+  match !Settings.get_implementation with
+  | OCaml ->
+      let h = build_return_list p in
+      check_role raise_error h p;
+      check_role_continuity raise_error p
+  | FStar ->
+      check_fstar_toplevel_structure raise_error p;
+      check_fstar_no_event_abort raise_error p
+  | Prove -> ()
 
+(* We could have a warning when we do not generate an implementation,
+      as follows. However, in this case, we should also have a warning
+      for other errors that happen at implementation time (e.g. type errors)
+   let error_function =
+     if !Settings.get_implementation then
+       raise_error
+     else
+       input_warning
+   in
+   let h = build_return_list p in
+   check_role error_function h p;
+   check_role_continuity error_function p *)
 
 (* Check the form of process p to signal inefficiencies.
 
@@ -988,8 +1127,6 @@ let warn_process_form i =
         l
   in
   aux None i
-
-
 
 
 (**** Second pass: type check everything ****)
@@ -3021,7 +3158,7 @@ let check_compatible ext l1 l2 =
 
 let dummy_channel = { cname = "dummy_channel" }
 
-
+    
 (* Add a role *)
 
 let check_opt opt =
@@ -3596,53 +3733,76 @@ let add_not_found s ext v =
     env := StringMap.add s v (!env)
 
 let rec write_type_options typ = function
-  | ((i,ext), l)::l' ->
-      begin
-        if i = "pred" then
-          match l with 
-            | [ (pr,ext) ] -> 
-                if typ.timplsize != None then
-                  raise_error ("Cannot set predicate for type "^typ.tname^".\n(Predicate already determined by the size.)") ext
-                else
-                  typ.tpredicate <- Some pr
-            | _ ->
-                raise_error "Wrong format for the pred option" ext
-        else
-        if i = "serial" then
-          match l with 
-            | [(s,ext); (d,ext')] ->
-                typ.tserial <- Some(s,d)
-            | _ ->
-                raise_error "Wrong format for the serial option" ext
-        else
-        if i = "random" then
+  | ((i, ext), l) :: l' ->
+      if i = "pred" then
+        match l with
+        | [ (pr, ext) ] ->
+            if typ.timplsize != None then
+              raise_error
+                ( "Cannot set predicate for type " ^ typ.tname
+                ^ ".\n(Predicate already determined by the size.)" )
+                ext
+            else typ.tpredicate <- Some pr
+        | _ -> raise_error "Wrong format for the pred option" ext
+      else if i = "serial" then
+        match l with
+        | [ (s, ext); (d, ext') ] -> typ.tserial <- Some (s, d)
+        | _ -> raise_error "Wrong format for the serial option" ext
+      else if i = "random" then
+        match l with
+        | [ (r, ext) ] ->
+            if
+              typ.timplsize <> None
+              && typ.toptions land Settings.tyopt_NONUNIFORM == 0
+            then
+              raise_error
+                ( "Cannot set random generator function for type " ^ typ.tname
+                ^ ".\n\
+                   (Function already determined by the size and the generator \
+                   is uniform.)" )
+                ext
+            else if typ.toptions land Settings.tyopt_CHOOSABLE == 0 then
+              raise_error
+                ( "One cannot generate random values from type  " ^ typ.tname
+                ^ ".\nYou should not specify the random generator." )
+                ext
+            else typ.trandom <- Some r
+        | _ -> raise_error "Wrong format for the random option" ext
+      else if i = "equal" then
+        if !Settings.get_implementation = OCaml then
+          Parsing_helper.input_warning
+            "Type option equal is not supported for OCaml implementations \
+             and will be ignored."
+            ext
+        else 
           match l with
-            | [ (r,ext) ] ->
-                if (typ.timplsize <> None) && (typ.toptions land Settings.tyopt_NONUNIFORM == 0) then
-                  raise_error ("Cannot set random generator function for type "^typ.tname^".\n(Function already determined by the size and the generator is uniform.)") ext
-                else if typ.toptions land Settings.tyopt_CHOOSABLE == 0 then
-		  raise_error ("One cannot generate random values from type  "^typ.tname^".\nYou should not specify the random generator.") ext
-		else
-                  typ.trandom <- Some r
-            | _ -> 
-                raise_error "Wrong format for the random option" ext
-        else
-          raise_error ("Type option "^i^" not recognized") ext
-      end;
+          | [ (eq, ext) ] -> typ.tequal <- Some eq; let eq_fun = Settings.f_comp Equal typ typ in eq_fun.f_impl <- Func eq;
+          | _ -> raise_error "Wrong format for the equal option" ext
+      else raise_error ("Type option " ^ i ^ " not recognized") ext;
       write_type_options typ l'
   | [] -> ()
 
 let rec write_fun_options fu = function
-  | ((i,ext), (j,ext'))::l' ->
-      begin
-        if i = "inverse" then
-          if (fu.f_options land Settings.fopt_COMPOS) <> 0 then
-            fu.f_impl_inv <- Some(j)
-          else
-            raise_error (fu.f_name^" is not composable and an inverse is given.") ext' 
+  | ((i, ext), (j, ext')) :: l' ->
+      if i = "inverse" then
+        if fu.f_options land Settings.fopt_COMPOS <> 0 then
+          fu.f_impl_inv <- Some j
         else
-          raise_error ("Fun option "^i^" not recognized") ext
-      end;
+          raise_error
+            (fu.f_name ^ " is not composable and an inverse is given.")
+            ext'
+      else if i = "use_entropy" then
+        if !Settings.get_implementation = OCaml then
+          Parsing_helper.input_warning
+            "Calling with entropy is not supported for OCaml implementations \
+             and will be ignored."
+            ext
+        else
+          match j with
+          | "true" -> fu.f_impl_ent <- true
+          | "false" -> fu.f_impl_ent <- false
+          |_ -> raise_error ("Value for use_entropy must be true or false.") ext'
+      else raise_error ("Fun option " ^ i ^ " not recognized") ext;
       write_fun_options fu l'
   | [] -> ()
 
@@ -3663,12 +3823,13 @@ let queries_map_vars vars l =
 	      ) l
 
 let rec check_one = function
-    ParamDecl((s,ext), options) ->
+  | ParamDecl ((s, ext), options) ->
       let size =
-	match options with
-	  [] -> Settings.psize_DEFAULT
-	| [opt_ext] -> Settings.parse_psize opt_ext
-	| _::_::_ -> raise_error "Parameters accept a single size option" ext
+        match options with
+        | [] -> Settings.psize_DEFAULT
+        | [ opt_ext ] -> Settings.parse_psize opt_ext
+        | _ :: _ :: _ ->
+            raise_error "Parameters accept a single size option" ext
       in
       add_not_found s ext (EParam{ pname = s; psize = size })
   | ProbabilityDecl((s,ext), args, options) ->
@@ -3761,7 +3922,8 @@ let rec check_one = function
                    tpredicate = None;
                    timplname = None;
                    tserial = None;
-                   trandom = None }
+                   trandom = None;
+		   tequal = None }
 	in
 	add_not_found s1 ext1 (EType ty);
   | ConstDecl((s1,ext1),(s2,ext2)) ->
@@ -3841,7 +4003,7 @@ let rec check_one = function
 	      ) l ([],[],!env)
       in
       let f = 
-	if (!Settings.get_implementation) then
+	if (!Settings.get_implementation <> Prove) then
 	  begin
 	    (* Implementation does not support array accesses and find;
 	       it is not a problem if I do not have all variables of processes in binder_env.
@@ -3887,29 +4049,22 @@ let rec check_one = function
 		     set_binder_env old_env;
 		     p')))
 	
-  | EventDecl((s1,ext1), l) ->
-      let l' = List.map (fun (s,ext) ->
-	get_type_or_param (!env) s ext) l 
-      in
+  | EventDecl ((s1, ext1), l) ->
+      let l' = List.map (fun (s, ext) -> get_type_or_param !env s ext) l in
       add_not_found s1 ext1 (EEvent (Terms.create_event s1 l'))
-  | Statement s ->
-      check_statement (!env) s
-  | BuiltinEquation(eq_categ, l_fun_symb) ->
-      check_builtin_eq (!env) eq_categ l_fun_symb
-  | EqStatement s ->
-      equivalences := (check_eqstatement true s) :: (!equivalences)
-  | Collision s ->
-      check_collision (!env) s
+  | Statement s -> check_statement !env s
+  | BuiltinEquation (eq_categ, l_fun_symb) ->
+      check_builtin_eq !env eq_categ l_fun_symb
+  | EqStatement s -> equivalences := check_eqstatement true s :: !equivalences
+  | Collision s -> check_collision !env s
   | Query (vars, l) ->
       queries_parse := (queries_map_vars vars l) @ (!queries_parse)
   | PDef((s1,ext1),vardecl,p) ->
       add_not_found s1 ext1 (EProcess (!env, vardecl, p))
-  | Proofinfo(pr, ext) ->
-      if !proof != None then
-	raise_error "Several proof indications" ext
-      else
-	proof := Some pr
-  | Implementation(impl) ->
+  | Proofinfo (pr, ext) ->
+      if !proof != None then raise_error "Several proof indications" ext
+      else proof := Some pr
+  | Implementation impl ->
       (* adding implementation informations *)
       List.iter 
         (function 
@@ -3927,16 +4082,34 @@ let rec check_one = function
                            typ.tpredicate <- Some "always_true";
                            typ.timplname <- Some "bool";
                            (* writing default serializers *)
-                           typ.tserial   <- Some ("bool_to","bool_from");
-                           typ.trandom   <- Some ("rand_bool")
+			   typ.tserial <-
+			      (match !Settings.get_implementation with
+			      | OCaml -> Some ("bool_to", "bool_from")
+			      | FStar -> Some ("serialize_bool", "deserialize_bool")
+			      | Prove -> None);
+                           typ.trandom   <- Some ("rand_bool");
+			   typ.tequal <- Some "(=)"
 			 end
                        else if size mod 8 = 0 then 
 			 begin
                            typ.tpredicate <- Some ("(sizep "^(string_of_int (size/8))^")");
- 			   typ.timplname <- Some "string";
-			     (* writing default serializers *)
-			   typ.tserial <- Some ("id","(size_from "^(string_of_int (size/8))^")");
-                           typ.trandom <- Some ("(rand_string "^(string_of_int (size/8))^")")
+                           typ.timplname <-
+			      (match !Settings.get_implementation with
+				(* Always set [timplname] because it is used to detect duplicate implementation declarations *)
+			      | OCaml | Prove -> Some "string"
+			      | FStar -> Some ("lbytes " ^ string_of_int (size / 8 )));
+                          (* writing default serializers *)
+			   typ.tserial <-
+			      (match !Settings.get_implementation with
+			      | OCaml -> Some ("id", "(size_from " ^ string_of_int (size / 8) ^ ")")
+			      | FStar -> Some ("serialize_lbytes", "(deserialize_lbytes " ^ string_of_int (size / 8) ^ ")")
+			      | Prove -> None);
+			   typ.trandom <-
+			      (match !Settings.get_implementation with
+			      | OCaml -> Some ("(rand_string " ^ string_of_int (size / 8) ^ ")")
+			      | FStar -> Some ("(gen_lbytes " ^ string_of_int (size / 8) ^ ")")
+			      | Prove -> None);
+			   typ.tequal <- Some "eq_lbytes"; 			   
 			 end
                        else 
 			 raise_error "Fixed-length types of size different from 1 and non-multiple of 8 not supported" ext
@@ -3995,13 +4168,11 @@ let check_process_full p =
       Terms.iproc_from_desc (Input((ch,[]), PatTuple(Settings.empty_tuple,[]), new_proc))
 	
 let new_bitstring_binder() = 
-  let b = Terms.create_binder "!l" Settings.t_bitstring []
-  in
+  let b = Terms.create_binder "!l" Settings.t_bitstring [] in
   Terms.term_from_binder b
 
-
 let rec check_term_query1 env = function
-  | PQEvent(inj, (PFunApp((s,ext), tl), ext2)),ext3 ->
+  | PQEvent (inj, (PFunApp ((s, ext), tl), ext2)), ext3 ->
       let tl' = List.map (check_term_nobe env) tl in
       let f = get_event env s ext in
       check_type_list ext2 tl tl' (List.tl (fst f.f_type));
@@ -4130,11 +4301,12 @@ let rec check_term_query3 syntax env = function
       (x', QTerm (Terms.make_false()))
 	    
 let rec find_inj = function
-    QAnd(t1,t2) | QOr(t1,t2) -> find_inj t1 || find_inj t2
-  | QEvent(b,t) -> b
+  | QAnd (t1, t2) | QOr (t1, t2) -> find_inj t1 || find_inj t2
+  | QEvent (b, t) -> b
   | QTerm t -> false
 
-let get_qpubvars l = List.map (get_global_binder "in public variables of a query") l
+let get_qpubvars l =
+  List.map (get_global_binder "in public variables of a query") l
 
 let check_query = function
     (PQSecret (i, pub_vars, options), ext_full) ->
@@ -4201,16 +4373,21 @@ let check_query = function
 	
 let get_impl ()=
   (* Return the used letfuns, in the order in which they have been declared *)
-  let letfuns = List.rev (List.filter (fun (f,vardecl,res) -> f.f_impl = SepFun) (!impl_letfuns)) in
+  let letfuns =
+    List.rev
+      (List.filter (fun (f, vardecl, res) -> f.f_impl = SepFun) !impl_letfuns)
+  in
   (* Return the roles *)
-  let roles = StringMap.fold (fun s (p,opt) l -> (s,opt,p)::l) !impl_roles [] in
+  let roles =
+    StringMap.fold (fun s (p, opt) l -> (s, opt, p) :: l) !impl_roles []
+  in
   (letfuns, roles)
 
-let rec check_all (l,p) = 
+let rec check_all (l, p) =
   List.iter check_one l;
   current_location := InProcess;
-  unique_to_prove := not (!Settings.get_implementation);
-  let result = 
+  unique_to_prove := not (!Settings.get_implementation <> Prove);
+  let result =
     match p with
     | PSingleProcess p1 ->
 	let p = check_process_full p1 in
@@ -4241,7 +4418,7 @@ let rec check_all (l,p) =
     | PEquivalence(p1,p2,pub_vars) ->
 	if (!queries_parse) != [] then
 	  raise_user_error "Queries are incompatible with equivalence";
-	if !Settings.get_implementation then
+	if !Settings.get_implementation <> Prove then
 	  raise_user_error "Implementation is incompatible with equivalence";
 	let p1' = check_process_full p1 in
 	let nu1 = !non_unique_events in
@@ -4257,14 +4434,19 @@ let rec check_all (l,p) =
 	(!statements, !collisions, !equivalences,
 	 [], !proof, ([],[]), final_p)
     | PQueryEquiv equiv_statement ->
-	if (!queries_parse) != [] then
-	  raise_user_error "Queries are incompatible with query_equiv";
-	if !Settings.get_implementation then
-	  raise_user_error "Implementation is incompatible with query_equiv";
-	let equiv_statement' = check_eqstatement false equiv_statement in
-	let (queries, final_p) = Query_equiv.equiv_to_process equiv_statement' in
-	(!statements, !collisions, !equivalences,
-	 queries, !proof, ([],[]), final_p)
+        if !queries_parse != [] then
+          raise_user_error "Queries are incompatible with query_equiv";
+        if !Settings.get_implementation <> Prove then
+          raise_user_error "Implementation is incompatible with query_equiv";
+        let equiv_statement' = check_eqstatement false equiv_statement in
+        let queries, final_p = Query_equiv.equiv_to_process equiv_statement' in
+        ( !statements,
+          !collisions,
+          !equivalences,
+          queries,
+          !proof,
+          ([], []),
+          final_p )
   in
   (* Reset unique_to_prove so that it is false when we parse special equivalences
      generated later *)
@@ -4285,7 +4467,7 @@ let declares = function
   | PDef(id,_,_) ->
       Some id
   | _ -> None
-    
+
 let rec record_ids l = 
   List.iter (fun decl ->
 	match declares decl with

@@ -2,17 +2,18 @@
  *                                                           *
  *       Cryptographic protocol verifier                     *
  *                                                           *
- *       Bruno Blanchet and David Cadé                       *
+ *       Bruno Blanchet, David Cadé, and Benjamin Lipp       *
  *                                                           *
- *       Copyright (C) ENS, CNRS, INRIA, 2005-YEAR           *
+ *       Copyright (C) ENS, CNRS, INRIA, MPI-SP, 2005-YEAR   *
  *                                                           *
  *************************************************************)
 
 (*
 
-    Copyright ENS, CNRS, INRIA 
+    Copyright ENS, CNRS, INRIA, MPI-SP
     contributors: Bruno Blanchet, Bruno.Blanchet@inria.fr
                   David Cadé
+                  Benjamin Lipp, benjamin.lipp@mpi-sp.org
 
 This software is a computer program whose purpose is to verify 
 cryptographic protocols in the computational model.

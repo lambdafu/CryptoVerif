@@ -580,7 +580,8 @@ let type_for_param p =
               tpredicate = None;
               timplname = None;
               tserial = None;
-              trandom = None }
+              trandom = None;
+	      tequal = None }
     in
     ParamHashtbl.add type_for_param_table p t;
     t

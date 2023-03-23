@@ -68,8 +68,10 @@ type typet = { tname : string;
 	         (* Name of the OCaml type that corresponds to this type *)
                mutable tserial : (string * string) option;
 	         (* Name of the OCaml serialization and deserialization functions for this type *)
-               mutable trandom : string option 
+               mutable trandom : string option;
 		 (* Name of the OCaml random element generation for this type *)
+               mutable tequal : string option;
+     (* Name of the FStar equality function for this type *)
 	     }
 
 type table = { tblname : string;
@@ -104,6 +106,8 @@ type impl_name =
               as a separate function (corresponds to f_cat = SepLetFun
               and the function is used in the part translated to 
 	      implementation) *)
+  | FuncEqual
+  | FuncDiff
   | No_impl
       
 
@@ -232,7 +236,8 @@ and funsymb = { f_name : string;
 		mutable f_eq_theories : eq_th; (* equational theories for this function symbol *)
                 mutable f_impl : impl_name; (* implementation name *)
                 mutable f_impl_inv : string option; (* implementation of inverse if applicable *)
-		mutable f_impl_needs_state : bool;
+                mutable f_impl_ent : bool; (* Only FStar: true if function needs entropy in implementation. *)
+		mutable f_impl_needs_state : bool; (* FStar and OCaml: true if function needs state in implementation. *)
               }
 
 and eq_th =

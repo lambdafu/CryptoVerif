@@ -97,3 +97,30 @@ let rec case_insensitive_contains_from s sub n =
     
 let case_insensitive_contains s sub =
   case_insensitive_contains_from s sub 0
+
+(* [alphabetize_string] converts any string into a string that contains
+   only alphanumeric characters (A..Z,a..z,0..9) and underscore.
+   This function is injective. This is required to avoid clashes
+   between OCaml/F* identifiers generated from CryptoVerif identifiers. *)
+
+let is_alphabetic c =
+  (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+
+let hex_of_char buf c = Printf.bprintf buf "%02x" (int_of_char c)
+
+let alphabetize_string s =
+  let buf = Buffer.create 16 in
+  String.iter
+    (fun c ->
+      if is_alphabetic c then
+	Buffer.add_char buf c
+      else if c = '_' then
+	Buffer.add_string buf "__"
+      else
+	begin
+	  Buffer.add_char buf '_';
+	  hex_of_char buf c
+	end)
+    s;
+  Buffer.contents buf
+
