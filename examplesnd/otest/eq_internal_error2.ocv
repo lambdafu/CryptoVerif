@@ -1,0 +1,34 @@
+param N1, N2, N3.
+
+type T [fixed].
+
+fun op(T,T):T.
+
+equiv(index3)
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O2(i1 <= N1, i2 <= N1, j1 <= N2, j2 <= N2) :=
+     return (op(y[j1,i1],y[j2,i2])) [all]
+<=(0)=>
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O2(i1 <= N1, i2 <= N1, j1 <= N2, j2 <= N2) :=
+      return (op(y[j2,i1],y[j1,i2])).
+
+process
+   (foreach i <= N1 do
+     Ox() := x <-R T; return();
+     foreach j <= N2 do
+       Oy() := y <-R T; return((x,y))) |
+   (foreach k <= N3 do
+      Oz(a: T, b: T) :=
+          find i1 <= N1, i2 <= N1, j1 <= N2, j2 <= N2 suchthat
+	     defined(y[j1,i1], y[j2,i2]) then
+	        return(op(y[j1,i1],y[j2,i2])))
+		
+       
+
+(* EXPECTED
+Error: Variable reference y[j1_1, i2_1] not guaranteed to be defined, because there is no matching reference in the left-hand side
+xtime: error in child process (status : 2)
+END *)

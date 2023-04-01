@@ -1,0 +1,27 @@
+proof {
+    show_equiv
+}
+
+
+param N1, N2, N3.
+
+type T [fixed].
+
+
+equiv(index3)
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O1(i' <= N1, j' <= N2) := return (y[j',i']) [all]
+<=(0)=>
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O1(i' <= N1, j' <= N2) :=
+    find suchthat defined (y[j',i'])
+    then return (y[j',i']) else return (y[j',i']).
+
+process 0
+
+(* EXPECTED
+All queries proved.
+0.054s (user 0.033s + system 0.022s), max rss 18444K
+END *)

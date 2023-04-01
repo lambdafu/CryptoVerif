@@ -64,6 +64,7 @@ Version
 - Fixed bug: events were not preserved in the initial transformation
   of the RHS in equivalence proofs.
 - Fixed bug in SArename that could cause an internal error.
+- Fixed 2 bugs in the pre-treatment of equiv statements.
 - Fixed bugs in probability counting: avoid counting spurious
   collisions of previous transformations in globaldepanal;
   do the proof of secrecy in one step to avoid counting twice the

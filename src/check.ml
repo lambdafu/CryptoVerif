@@ -427,19 +427,23 @@ let remove_array_access_find_idx ext has_more_indices lindex t2 =
   with Not_found ->
     (lindex, t2)
 
-      
+
+(* [remove_common_prefix l1 l2] returns [l2] without the prefix that also occurs in [l1]
+   [l2] is a list of terms, [l1] is a list of replication indices *)
 let rec remove_common_prefix l1 l2 = 
   match (l1,l2) with
   | ri::r1, {t_desc = ReplIndex ri'}::r2 when ri == ri' -> 
       remove_common_prefix r1 r2
   | _ ->
-      (l1,l2)
+      l2
 
+(* [remove_common_suffix l1 l2] returns [l2] without the suffix that also occurs in [l1]
+   [l2] is a list of terms, [l1] is a list of replication indices *)
 let remove_common_suffix l1 l2 = 
   let l1rev = List.rev l1 in
   let l2rev = List.rev l2 in
-  let (l1rev',l2rev') = remove_common_prefix l1rev l2rev in
-  (List.rev l1rev', List.rev l2rev')
+  let l2rev' = remove_common_prefix l1rev l2rev in
+  List.rev l2rev'
 
 (* [replace_suffix old_suffix new_suffix l] checks that
    [l] ends with [old_suffix] and replaces the suffix [old_suffix] with
@@ -559,10 +563,9 @@ let rec check_rm_term tested_var_defs defined_restr cur_array t =
 	    | ReplIndex ri' -> ri == ri'
 	    | _ -> false) lindex lindex_maxseq) then
 	    Parsing_helper.input_error "Variables in right member of equivalences should have as indexes the indexes defined by find, plus possibly index variables" t.t_loc;
-	  let suffix = Terms.skip (List.length cur_array - l_max_seq_suffix) cur_array in
-	  let (_, other_seq_middle) = remove_common_suffix suffix max_seq_suffix in
+	  let other_seq_middle = remove_common_suffix cur_array max_seq_suffix in
 	  let cur_array_suffix_terms =
-	    List.map Terms.term_from_repl_index (Terms.skip (List.length other_seq_middle) suffix)
+	    Terms.skip (List.length other_seq_middle) max_seq_suffix
 	  in
 	  let (lindex, def_list, t1, t2) =
 	    match other_seq_middle with
@@ -1417,6 +1420,55 @@ let build_restr_mapping tested_execution_points restr_mapping lmg rmg =
     ignore (build_restr_mapping_fungroup tested_execution_points restr_mapping lm rm)
       ) lmg rmg
 
+
+
+
+let rec final_check_corresp_uses restr_mapping funlist funlist' =
+  match funlist, funlist' with
+    (ReplRestr(_, _, funlist), ReplRestr(_, _, funlist')) ->
+       List.iter2 (final_check_corresp_uses restr_mapping) funlist funlist'
+  | (Fun (_,args,res,_), Fun (_,args',res',_)) -> 
+      (* For references to b/b' with indices taken in arguments *)
+      let index_args = array_index_args args in
+      let array_ref_args = ref [] in
+      get_arg_array_ref index_args array_ref_args res;
+      let index_args' = array_index_args args' in
+      let array_ref_args' = ref [] in
+      get_arg_array_ref index_args' array_ref_args' res';
+      let args_map = List.combine args' args in
+      List.iter (fun (b',l') ->
+	let rec find_restr_mapping b' = function
+	  | [] -> Parsing_helper.internal_error "restriction should be mapped"
+	  | (b_after,b_before,_)::r ->
+	      if b' == b_after then b_before else find_restr_mapping b' r
+	in
+	let b = find_restr_mapping b' restr_mapping in
+	(* b'[l'] used in res' => b[l] used in res *)
+	let l = List.map (function
+	  | { t_desc = Var(i,_) } -> 
+	      Terms.term_from_binder (List.assq i args_map)
+	  | _ -> 
+	      Parsing_helper.internal_error "Variable expected as index") l'
+	in
+	(* Check if b[l] is used in res *)
+	if not (List.exists (Terms.equal_binderref (b,l)) (!array_ref_args)) then
+	  (* I do not allow array accesses in the RHS that do not correspond to array accesses
+	     in the LHS. *)
+	  begin
+	    let t_string =
+	      Display.string_out (fun () -> 
+		Display.display_var b' l')
+	    in
+	    Parsing_helper.input_error ("Variable reference "^t_string^" not guaranteed to be defined, because there is no matching reference in the left-hand side") res'.t_loc
+	  end	    
+	    ) (!array_ref_args')
+
+  | _ -> Parsing_helper.internal_error "Structures of left- and right-hand sides of an equivalence must be the same"
+
+
+let final_check_corresp_uses_member restr_mapping lm rm =
+  List.iter2 (fun (lm_fg,_) (rm_fg, _) -> final_check_corresp_uses restr_mapping lm_fg rm_fg) lm rm
+    
 (* Apply the lemma that infers !N G1 ~ !N G2 from G1 ~ G2 *)
 
 let add_index_binder idx b =
@@ -1643,13 +1695,20 @@ let check_equiv normalize equiv =
       let rm3 = move_names_all lm rm2 in
       Array_ref.cleanup_array_ref();
       Def.empty_def_member rm1;
-      
+
+      (* 8. Build a mapping between random numbers in the LHS and in the RHS *)
       Array_ref.array_ref_eqside lm;
       Array_ref.array_ref_eqside rm3;
       let restr_mapping = ref [] in
       build_restr_mapping (!tested_execution_points) restr_mapping lm rm3;
       Array_ref.cleanup_array_ref();
       renamed_vars := [];
+
+      (* 9. Check that array accesses in the RHS that use indices provided as
+	 arguments of the oracle match similar array accesses in the LHS,
+	 to make sure that they are defined. *)
+      final_check_corresp_uses_member (!restr_mapping) lm rm3;
+
       let equiv'' =
 	{ equiv' with
           eq_fixed_equiv = Some(lm, rm3, p, opt2);
