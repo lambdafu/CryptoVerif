@@ -453,7 +453,8 @@ let replace_suffix old_suffix new_suffix l =
   let (prefix, suffix) = Terms.split lprefix l in
   if not (List.for_all2 Terms.equal_terms suffix old_suffix) then
     Parsing_helper.internal_error "replace_suffix: old suffix not found";
-  prefix @ new_suffix
+  prefix @ (List.map Terms.delete_info_term new_suffix)
+	     (* By calling [Terms.delete_info_term] we make sure to create a distinct physical copy of [new_suffix] *)
 
 let rec check_rm_term tested_var_defs defined_restr cur_array t =
   match t.t_desc with
