@@ -1,0 +1,31 @@
+type T [fixed].
+
+fun op(T,T): T.
+
+param N1.
+param N2.
+param N3.
+param N4.
+
+proba Pfoo.
+
+equiv(index3)
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O1(i1 <= N1, i2 <= N1, j1 <= N2, j2 <= N2) :=
+     return (op(y[j1,i1],y[j2,i2])) [all]
+<=(0)=>
+  foreach i <= N1 do x <-R T;
+    foreach j <= N2 do y <-R T; O() := return ((x,y)) |
+  foreach k <= N3 do O1(i1 <= N1, i2 <= N1, j1 <= N2, j2 <= N2) :=
+     if defined (y[j2,i1],y[j1,i2])
+     then return (op(y[j2,i1],y[j1,i2]))
+     else return (op(y[j1,i1],y[j2,i2])).
+
+process
+   0
+
+(* EXPECTED
+Error: In equivalences, in find, one "defined" variable reference should imply all others
+xtime: error in child process (status : 2)
+END *)

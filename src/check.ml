@@ -182,7 +182,14 @@ let check_common_index (b,l) (b',l') =
   in
   check_common sufl sufl'
 
-let rec get_arg_array_ref index_args accu t = 
+
+(* [get_arg_array_ref] collects in [accu] accesses to variables using indices
+   passed as arguments to the oracle [index_args].
+   It excludes accesses guarded by a defined condition. That does not change
+   anything in the LHS, because the LHS cannot contain [find].
+   [defined_refs] is the initial value of accesses already guarded by a [defined]
+   condition, typically []. *)
+let rec get_arg_array_ref defined_refs index_args accu t = 
   match t.t_desc with
     Var(b,l) ->
       if List.exists 
@@ -190,8 +197,11 @@ let rec get_arg_array_ref index_args accu t =
 	    | _ -> false) l then
 	(* This is an array reference with an argument as index.
            Check that it is correct *)
-	if List.exists (Terms.equal_binderref (b,l)) (!accu) then
-	  (* Already found before and was ok, so it's ok *)
+	if List.exists (Terms.equal_binderref (b,l)) (!accu) ||
+	   List.exists (Terms.equal_binderref (b,l)) defined_refs
+	then
+	  (* Already found before and was ok, so it's ok,
+	     or guaranteed by a [defined] condition *)
 	  ()
 	else
 	  let rec check_ok l args_at_creation =
@@ -226,52 +236,53 @@ let rec get_arg_array_ref index_args accu t =
 	  List.iter (check_common_index (b,l)) (!accu);
 	  accu := (b,l) :: (!accu)
       else
-	List.iter (get_arg_array_ref index_args accu) l
+	List.iter (get_arg_array_ref defined_refs index_args accu) l
   | ReplIndex _ -> ()
   | FunApp(f,l) -> 
-      List.iter (get_arg_array_ref index_args accu) l
+      List.iter (get_arg_array_ref defined_refs index_args accu) l
   | TestE(t1,t2,t3) ->
-      get_arg_array_ref index_args accu t1;
-      get_arg_array_ref index_args accu t2;
-      get_arg_array_ref index_args accu t3
+      get_arg_array_ref defined_refs index_args accu t1;
+      get_arg_array_ref defined_refs index_args accu t2;
+      get_arg_array_ref defined_refs index_args accu t3
   | LetE(pat, t1, t2, topt) ->
-      get_arg_array_ref index_args accu t1;
-      get_arg_array_ref_pat index_args accu pat;
-      get_arg_array_ref index_args accu t2;
+      get_arg_array_ref defined_refs index_args accu t1;
+      get_arg_array_ref_pat defined_refs index_args accu pat;
+      get_arg_array_ref defined_refs index_args accu t2;
       begin
 	match topt with
 	  None -> ()
-	| Some t3 -> get_arg_array_ref index_args accu t3
+	| Some t3 -> get_arg_array_ref defined_refs index_args accu t3
       end
   | FindE(l0,t3,_) ->
-      List.iter (fun (bl,def_list,t1,t2) ->
-	List.iter (fun (_,l) -> List.iter (get_arg_array_ref index_args accu) l) def_list;
-	get_arg_array_ref index_args accu t1;
-	get_arg_array_ref index_args accu t2) l0;
-      get_arg_array_ref index_args accu t3
+      List.iter (fun (bl,def_list,t1,t2) ->	
+	let (defined_refs_t1, defined_refs_t2) = Terms.defined_refs_find bl def_list defined_refs in
+	List.iter (fun (_,l) -> List.iter (get_arg_array_ref defined_refs_t1 index_args accu) l) def_list;
+	get_arg_array_ref defined_refs_t1 index_args accu t1;
+	get_arg_array_ref defined_refs_t2 index_args accu t2) l0;
+      get_arg_array_ref defined_refs index_args accu t3
   | ResE(b,t) ->
-      get_arg_array_ref index_args accu t
+      get_arg_array_ref defined_refs index_args accu t
   | EventAbortE(f) -> ()
   | EventE _ ->
       Parsing_helper.input_error "event is not allowed in equivalences" t.t_loc
   | GetE (tbl, patl, topt, p1, p2,_) ->
-      List.iter (get_arg_array_ref_pat index_args accu) patl;
+      List.iter (get_arg_array_ref_pat defined_refs index_args accu) patl;
       begin
 	match topt with
 	  None -> ()
-	| Some t -> get_arg_array_ref index_args accu t
+	| Some t -> get_arg_array_ref defined_refs index_args accu t
       end;
-      get_arg_array_ref index_args accu p1;
-      get_arg_array_ref index_args accu p2
+      get_arg_array_ref defined_refs index_args accu p1;
+      get_arg_array_ref defined_refs index_args accu p2
   | InsertE(tbl, tl, p) ->
-      List.iter (get_arg_array_ref index_args accu) tl;
-      get_arg_array_ref index_args accu p
+      List.iter (get_arg_array_ref defined_refs index_args accu) tl;
+      get_arg_array_ref defined_refs index_args accu p
 
-and get_arg_array_ref_pat index_args accu = function
+and get_arg_array_ref_pat defined_refs index_args accu = function
     PatVar b -> ()
   | PatTuple (f,l) ->
-      List.iter (get_arg_array_ref_pat index_args accu) l
-  | PatEqual t -> get_arg_array_ref index_args accu t
+      List.iter (get_arg_array_ref_pat defined_refs index_args accu) l
+  | PatEqual t -> get_arg_array_ref defined_refs index_args accu t
     
 
 type side =
@@ -292,7 +303,7 @@ let rec check_def_fungroup tested_var_defs_opt def_refs = function
   | Fun(ch, args, res, priority) ->
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
-      get_arg_array_ref index_args array_ref_args res;
+      get_arg_array_ref [] index_args array_ref_args res;
       begin
 	match tested_var_defs_opt with
 	| None -> ()
@@ -490,14 +501,18 @@ let rec check_rm_term tested_var_defs defined_restr cur_array t =
                above the oracle. This is needed to avoid a bug that reveals
                that some variables at not defined in the game at the same
                time as they are defined in the equivalence. 
-	       See examplesnd/test/bug_transf_crypto_random_gen1.cv *)
+	       See examplesnd/test/bug_transf_crypto_random_gen1.cv
+	       This may no longer be necessary thanks to the more careful
+	       check of defined conditions implemented in [build_restr_mapping]. *)
 	    match branch with
 	    | ([], def_list, t1, t2) ->
 		([], List.filter (fun (b,l) ->
 		  if Terms.is_args_at_creation b l && List.memq b defined_restr then
 		    begin
-		      (* This defined condition is useless *)
-		      Parsing_helper.input_warning ("Removing useless defined condition of "^(Display.binder_to_string b)) t.t_loc;
+		      (* This defined condition is useless. We do not display a warning because the useless defined condition may
+			 be introduced by [remove_assign], and therefore may not appear in the initial equiv statement,
+			 so it would look strange to the user. *)
+		      (* Parsing_helper.input_warning ("Removing useless defined condition of "^(Display.binder_to_string b)) t.t_loc; *)
 		      false
 		    end
 		  else
@@ -646,16 +661,34 @@ and check_rm_pat tested_var_defs defined_restr cur_array = function
   | PatTuple (f,l) -> PatTuple (f,List.map (check_rm_pat tested_var_defs defined_restr cur_array) l)
   | PatEqual t -> PatEqual (check_rm_term tested_var_defs defined_restr cur_array t)
 
-let rec check_rm_fungroup tested_var_defs defined_restr cur_array = function
-    ReplRestr(repl_opt, restr, funlist) ->
+
+(* [l] must a list of index arguments of the current oracle,
+   indices of variable references returned by [get_arg_array_ref] on the LHS.
+   [lm_rm_match] is the list of pairs (argument of LHS, argument of RHS).
+   [convert_index_args_lm_rm lm_rm_match l] converts [l] into index arguments of the RHS. *)
+let convert_index_args_lm_rm lm_rm_match l =
+  List.map (fun t ->
+    match t.t_desc with
+    | Var(b',l') ->
+	begin
+	  try
+	    Terms.term_from_binder (List.assq b' lm_rm_match)
+	  with Not_found -> assert false
+	end
+    | _ -> assert false) l
+	
+let rec check_rm_fungroup tested_var_defs defined_restr cur_array fg_lm fg_rm =
+  match fg_lm, fg_rm with
+  | ReplRestr(_,_,funlist_lm), ReplRestr(repl_opt, restr, funlist) ->
       let cur_array' = Terms.add_cur_array repl_opt cur_array in
       let defined_restr' = (List.map (fun (b,ext,opt) -> b) restr) @ defined_restr in
-      ReplRestr(repl_opt, restr, List.map (check_rm_fungroup tested_var_defs defined_restr' cur_array') funlist)
-  | Fun(ch, args, res, priority) ->
-      let index_args = array_index_args args in
-      let array_ref_args = ref [] in
-      get_arg_array_ref index_args array_ref_args res;
-      let allowed_index_seq_args = List.map (fun (b,l) -> l) (!array_ref_args) in
+      ReplRestr(repl_opt, restr, List.map2 (check_rm_fungroup tested_var_defs defined_restr' cur_array') funlist_lm funlist)
+  | Fun(_,args_lm,res_lm,_), Fun(ch, args, res, priority) ->
+      let index_args_lm = array_index_args args_lm in
+      let array_ref_args_lm = ref [] in
+      get_arg_array_ref [] index_args_lm array_ref_args_lm res_lm;
+      let lm_rm_match = List.combine args_lm args in
+      let allowed_index_seq_args = List.map (fun (b,l) -> convert_index_args_lm_rm lm_rm_match l) (!array_ref_args_lm) in
       let res = check_rm_term tested_var_defs defined_restr cur_array res in
       let rec make_lets body = function
 	  [] -> ([], body)
@@ -676,6 +709,7 @@ let rec check_rm_fungroup tested_var_defs defined_restr cur_array = function
       in
       let (args', res') = make_lets res args in
       Fun(ch, args', res', priority)
+  | _ -> Parsing_helper.internal_error "In equiv statements, LHS and RHS should have the same structure"
 
 (* [add_suffixes accu common_suffix l] adds to [accu]
    all suffixes of [l @ common_suffix] strictly containing [common_suffix] *)
@@ -976,15 +1010,17 @@ and encode_idx_term_keep_type cur_array allowed_index_seq t =
     Parsing_helper.input_error "index to be encoded is not allowed here" t.t_loc;
   t'
 
-let rec encode_idx_fungroup cur_array = function
-    ReplRestr(repl_opt, restr, funlist) ->
+let rec encode_idx_fungroup cur_array fg_lm fg_rm =
+  match fg_lm, fg_rm with
+  | ReplRestr(_,_,funlist_lm), ReplRestr(repl_opt, restr, funlist) ->
       let cur_array' = Terms.add_cur_array repl_opt cur_array in
-      ReplRestr(repl_opt, restr, List.map (encode_idx_fungroup cur_array') funlist)
-  | Fun(ch, args, res, priority) ->
-      let index_args = array_index_args args in
-      let array_ref_args = ref [] in
-      get_arg_array_ref index_args array_ref_args res;
-      let allowed_index_seq_args = List.map (fun (b,l) -> l) (!array_ref_args) in
+      ReplRestr(repl_opt, restr, List.map2 (encode_idx_fungroup cur_array') funlist_lm funlist)
+  | Fun(_,args_lm,res_lm,_), Fun(ch, args, res, priority) ->
+      let index_args_lm = array_index_args args_lm in
+      let array_ref_args_lm = ref [] in
+      get_arg_array_ref [] index_args_lm array_ref_args_lm res_lm;
+      let lm_rm_match = List.combine args_lm args in
+      let allowed_index_seq_args = List.map (fun (b,l) -> convert_index_args_lm_rm lm_rm_match l) (!array_ref_args_lm) in
       let allowed_index_seq = add_suffixes allowed_index_seq_args [] (List.map Terms.term_from_repl_index cur_array) in
       let res = encode_idx_term_keep_type cur_array allowed_index_seq res in
       let rec make_lets body = function
@@ -1003,6 +1039,7 @@ let rec encode_idx_fungroup cur_array = function
       in
       let (args', res') = make_lets res args in
       Fun(ch, args', res', priority)
+  | _ -> Parsing_helper.internal_error "In equiv statements, LHS and RHS should have the same structure"
 
 (* When there is a name just above a function in the left-hand side,
    the corresponding function in the right-hand side must not contain
@@ -1201,10 +1238,10 @@ let rec check_corresp_uses b b' accu funlist funlist' =
       (* For references to b/b' with indices taken in arguments *)
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
-      get_arg_array_ref index_args array_ref_args res;
+      get_arg_array_ref [] index_args array_ref_args res;
       let index_args' = array_index_args args' in
       let array_ref_args' = ref [] in
-      get_arg_array_ref index_args' array_ref_args' res';
+      get_arg_array_ref [] index_args' array_ref_args' res';
       let args_map = List.combine args' args in
       List.iter (fun (b'',l') -> 
 	if b'' == b' then
@@ -1416,9 +1453,9 @@ let rec build_restr_mapping_fungroup tested_var_defs restr_mapping lm rm =
       [], [res]
   | _ -> Parsing_helper.internal_error "Structures of left- and right-hand sides of an equivalence must be the same"
 
-let build_restr_mapping tested_execution_points restr_mapping lmg rmg =
+let build_restr_mapping tested_var_defs restr_mapping lmg rmg =
   List.iter2 (fun (lm,_) (rm,_) -> 
-    ignore (build_restr_mapping_fungroup tested_execution_points restr_mapping lm rm)
+    ignore (build_restr_mapping_fungroup tested_var_defs restr_mapping lm rm)
       ) lmg rmg
 
 
@@ -1432,10 +1469,10 @@ let rec final_check_corresp_uses restr_mapping funlist funlist' =
       (* For references to b/b' with indices taken in arguments *)
       let index_args = array_index_args args in
       let array_ref_args = ref [] in
-      get_arg_array_ref index_args array_ref_args res;
+      get_arg_array_ref [] index_args array_ref_args res;
       let index_args' = array_index_args args' in
       let array_ref_args' = ref [] in
-      get_arg_array_ref index_args' array_ref_args' res';
+      get_arg_array_ref [] index_args' array_ref_args' res';
       let args_map = List.combine args' args in
       List.iter (fun (b',l') ->
 	let rec find_restr_mapping b' = function
@@ -1664,11 +1701,11 @@ let check_equiv normalize equiv =
   match equiv'.eq_fixed_equiv with
   | None -> equiv'
   | Some(lm,rm,p,opt2) ->
-      let tested_execution_points = ref [] in
+      let tested_var_defs = ref [] in
       
       (* we must call [check_def_member] before using [close_def] *)
       Def.build_def_member lm;
-      check_def_member (Some tested_execution_points) lm;
+      check_def_member (Some tested_var_defs) lm;
       Def.build_def_member rm;
       check_def_member None rm;
       (* Require that each function has a different number of repetitions.
@@ -1678,8 +1715,8 @@ let check_equiv normalize equiv =
       (* 5. Check the "find" constructs, and modify them if needed. 
          Avoid array accesses on variables defined by "find" and on
 	 indices received as arguments. *) 
-      let rm1 = List.map (fun (fg, mode) ->
-	(check_rm_fungroup tested_execution_points [] [] fg, mode)) rm
+      let rm1 = List.map2 (fun (fg_lm,_) (fg, mode) ->
+	(check_rm_fungroup tested_var_defs [] [] fg_lm fg, mode)) lm rm
       in
       Def.empty_def_member rm;
 
@@ -1688,8 +1725,8 @@ let check_equiv normalize equiv =
       Array_ref.array_ref_eqside rm1;
       renamed_vars := [];
       build_encode_idx_types_funs rm1;
-      let rm2 = List.map (fun (fg, mode) ->
-	(encode_idx_fungroup [] fg, mode)) rm1
+      let rm2 = List.map2 (fun (fg_lm,_) (fg, mode) ->
+	(encode_idx_fungroup [] fg_lm fg, mode)) lm rm1
       in
 
       (* 7. Move creations of fresh random variables in the RHS *)
@@ -1701,7 +1738,7 @@ let check_equiv normalize equiv =
       Array_ref.array_ref_eqside lm;
       Array_ref.array_ref_eqside rm3;
       let restr_mapping = ref [] in
-      build_restr_mapping (!tested_execution_points) restr_mapping lm rm3;
+      build_restr_mapping (!tested_var_defs) restr_mapping lm rm3;
       Array_ref.cleanup_array_ref();
       renamed_vars := [];
 
