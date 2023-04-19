@@ -122,9 +122,9 @@ def Outsider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Auth
       (* The next oracle gives the public key to the adversary *)
       Opk() := return(pkgen(s))
     )
-  <=(Adv_Outsider_CCA(time, N, #OAEncap, #OADecap))=> [manual,computational]
-    foreach i <= N do s <-R keypairseed [unchanged]; (
-      foreach ie <= Qeperuser do ks <-R kemseed [unchanged]; (
+  <=(Adv_Outsider_CCA(time, N, #OAEncap, #OADecap))=> [manual]
+    foreach i <= N do s <-R keypairseed; (
+      foreach ie <= Qeperuser do ks <-R kemseed; (
         OAEncap(pk_R: pkey) :=
           find i2 <= N suchthat defined(s[i2]) && pk_R = pkgen(s[i2]) then (
             let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
@@ -173,9 +173,9 @@ def Outsider_Auth_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, Aut
       (* The next oracle gives the public key to the adversary *)
       Opk() := return(pkgen(s))
     )
-  <=(Adv_Outsider_Auth(time, N, #OAEncap, #OADecap))=> [manual,computational]
-    foreach i <= N do s <-R keypairseed [unchanged]; (
-      foreach ie <= Qeperuser do ks <-R kemseed [unchanged]; (
+  <=(Adv_Outsider_Auth(time, N, #OAEncap, #OADecap))=> [manual]
+    foreach i <= N do s <-R keypairseed; (
+      foreach ie <= Qeperuser do ks <-R kemseed; (
         OAEncap(pk_R: pkey) :=
           let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks, pk_R, skgen(s)) in (
 	    insert E(pkgen(s), pk_R, ce, k);
@@ -233,8 +233,8 @@ def Insider_CCA_Secure_Authenticated_KEM(keypairseed, pkey, skey, kemseed, AuthE
       (* The next oracle gives the public key to the adversary *)
       Opk() := return(pkgen(s))
     )
-  <=(Adv_Insider_CCA(time, N, #OAEncap, #Ochall, #OADecap))=> [manual,computational]
-    foreach i <= N do s <-R keypairseed [unchanged]; (
+  <=(Adv_Insider_CCA(time, N, #OAEncap, #Ochall, #OADecap))=> [manual]
+    foreach i <= N do s <-R keypairseed; (
       foreach ic <= Qcperuser do ks' <-R kemseed; (
         Ochall(s': keypairseed) :=
           let AuthEncap_tuple(k: key, ce: ciphertext) = AuthEncap_r(ks', pkgen(s), skgen(s')) in (
