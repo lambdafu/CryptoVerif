@@ -1554,6 +1554,11 @@ let display_move_set = function
   | MBinders l -> 
       print_string "binder ";
       display_list_sep " " display_binder l
+  | MUp(bl,occ,ext) ->
+      print_string "up ";
+      display_list_sep " " display_binder bl;
+      print_string " to occurrence ";
+      print_string (string_of_int occ)
 
 let display_bl_assoc bl_assoc =
   display_list display_binder bl_assoc
@@ -1979,6 +1984,22 @@ let display_detailed_ins = function
   | DMoveLet(b) ->
       print_string "  - Move assignment to ";
       display_binder b;
+      print_newline()
+  | DMoveNewUp(bl,occ,new_b) ->
+      print_string "  - Move random number generation(s) ";
+      display_list display_binder bl;
+      print_string " upwards to occurrence ";
+      print_occ occ;
+      print_string " as ";
+      display_binder new_b;
+      print_newline()
+  | DMoveLetUp(bl,occ,new_b) ->
+      print_string "  - Move assignment(s) ";
+      display_list display_binder bl;
+      print_string " upwards to occurrence ";
+      print_occ occ;
+      print_string " as ";
+      display_binder new_b;
       print_newline()      
   | DCryptoTransf(e, user_info) ->
       print_string "  - Equivalence ";
@@ -2067,7 +2088,8 @@ let mark_occs1 f_p f_t = function
     DExpandGetInsert _ | DGlobalDepAnal _ 
   | DRemoveAssign _ | DSArenaming _ | DMoveNew _ | DMoveLet _
   | DCryptoTransf _ | DMergeArrays _ -> ()
-  | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ) ->
+  | DInsertEvent (_,occ)  | DInsertInstruct (_,occ) | DReplaceTerm (_,_,occ)
+  | DMoveNewUp(_,occ,_) | DMoveLetUp(_,occ,_) ->
       useful_occs := occ :: (!useful_occs)
   | DUseVariable(_,l) ->
       List.iter (fun (t1,t2) -> f_t t1) l

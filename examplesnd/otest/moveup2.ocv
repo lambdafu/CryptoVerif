@@ -1,0 +1,20 @@
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+proof {
+   move up a b to after "O"
+   }
+
+process
+   O(x: bool) :=
+   if x then
+     new a:T; return(a)
+   else
+     let b = f(x) in return(b)
+
+(* EXPECTED
+Error: In move up, all variables must have the same type. The variable b has type bitstring but a has type T
+xtime: error in child process (status : 2)
+END *)

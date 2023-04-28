@@ -1355,6 +1355,11 @@ let display_move_set = function
       print_string "binder $";
       display_list_sep "\\ " display_binder l;
       print_string "$"
+  | MUp(bl,occ,ext) ->
+      print_string "up $";
+      display_list_sep "\\ " display_binder bl;
+      print_string "$ to occurrence ";
+      print_string (string_of_int occ)
 
 let display_bl_assoc bl_assoc =
   display_list display_binder bl_assoc
@@ -1795,6 +1800,22 @@ let display_detailed_ins = function
   | DMoveLet(b) ->
       print_string "\\quad -- Move assignment to $";
       display_binder b;
+      print_string "$\\\\\n"      
+  | DMoveNewUp(bl,occ,new_b) ->
+      print_string "\\quad -- Move random number generation(s) $";
+      display_list display_binder bl;
+      print_string "$ upwards to occurrence ";
+      print_occ occ;
+      print_string " as $";
+      display_binder new_b;
+      print_string "$\\\\\n"      
+  | DMoveLetUp(bl,occ,new_b) ->
+      print_string "  - Move assignment(s) $";
+      display_list display_binder bl;
+      print_string "$ upwards to occurrence ";
+      print_occ occ;
+      print_string " as $";
+      display_binder new_b;
       print_string "$\\\\\n"      
   | DCryptoTransf(e, user_info) ->
       print_string "\\quad -- Equivalence ";

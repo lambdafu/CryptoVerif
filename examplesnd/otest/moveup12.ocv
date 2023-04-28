@@ -1,0 +1,25 @@
+param N.
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+set autoMergeBranches = false.
+
+proof {
+   undo 2;
+   move up a1 b1 to after "O"
+   }
+
+process
+   !N
+   O(x: bool) :=
+   if x then
+     (let a1 = (find j <= N suchthat defined(b1[j]) then b1[j] else f(x)) in return(a1))
+   else
+     (let b1:bitstring = f(x) in return(b1))
+
+(* EXPECTED
+Error: In move up, assigned terms should contain only variables, function applications, and tests. This is not true for the term at occurrence 8
+xtime: error in child process (status : 2)
+END *)

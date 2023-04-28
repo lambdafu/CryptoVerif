@@ -2,8 +2,6 @@ TO DO next
 
 1) cv2fstar (see point 0.7 in HIGH PRIORITY)
    cv2easycrypt
-   - rename replication indices in RHS to the names of the LHS before
-   presenting the equiv to the EC translation
    - have a way to designate a bunch of equations we want to translate to EC
 2) Extend macros (see point 5 in HIGH PRIORITY)
 3) Extend depanal2 and simplify so that they apply to
@@ -15,7 +13,7 @@ TO DO next
    DONE
 6) Extend the "move" instruction to allow precisely moving
    "let"/"new" from one point to another (when correct).
-   (see point 7 in HIGH PRIORITY)
+   DONE (move up, ...)
 7) Improved merging of branches, by substituting
    assignments and new without array accesses,
    or delaying those with array accesses, and
@@ -607,7 +605,8 @@ then C'[x1...xn] is independent.
       inserting event_abort at a term position, then "insert"
       will subsume command "insert_event".]
       - merge
-      - move
+      - move [supports unexpanded games, but for now will not move
+        term random number generations and assignments]
       - expand [should allow partial expansion guided by the user]
       - success [equivalence queries]
 
@@ -801,43 +800,12 @@ Having an unspecified index that is returned is similar
 to what happens in the cv2fstar compilation (for oracles
 just under a replication).
 
-7) More generally, allow some reordering of instructions:
-- move "let"s up, when that reduces the number of occurrences of
-  crypto primitives to compute. Risk: we may compute the expression
-  more often if we cross tests.
-  We could do more with array references: when an expression depends
-  on x1[j],...,xn[j] and x1...xn are defined in the same block of code,
-  we could precompute the expression after defining x1...xn.
-  Risky, except if the expression is always computed, for example if
-  it is already computed just after the definition of x1...xn.
-- move "new"s (and, if necessary for that, "let"s) down, when that
-  allows distinguishing cases (i.e. when we cross a if/find)
-  Risk when I move "let"s: duplicating computations, which make the
-  size of the game explode.
-- move "let"s down when the computed value is used only in a single
-  branch of a if/find (or in not all branches of if/find)
-Terms in "let"s can be split to do that.
-
-Rather: More fine-grained user guidance:
-- Reorder instructions (moving "new" up can be useful, see fdh below;
-also for merging of branches until we do some auto reordering),
-  move b to occ:
-  - require b not to be defined above occ
-  - if all definitions of b under occ are "new b:T", require these definitions of b
-  to be executed at most once for each execution of occ.
-    insert "new b':T" at occ; replace "new b:T" with "let b = b' in"
-    under occ; remove useless assignments on b.
-  - if all definitions of b under occ are "let b = M in" for the same M,
-    M is a copiable term, and M is defined at occ,
-    insert "let b' = M in" at occ; replace "let b = M in" with
-    "let b = b' in" under occ; remove useless assignments on b.
-- decide to expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
-- perhaps decide to merge or not each if/let/find when the branches execute
-the same code, ...
-
 9) improved merging of find branches
 auto-reorder the instructions in the branches to merge,
 so that they are in the same order.
+
+perhaps decide to merge or not each if/let/find when the branches execute
+the same code
 
 Instead of fully reordering, rather:
 - for variables defined by "let x = M" without array
@@ -1086,20 +1054,6 @@ transformations (via a command "suggestions", or in background
 while it is waiting for the user to type his command)
 
 17) Files that could benefit from improvements:
-
-examples/fdh,pfdh: we cannot allow the hash oracle do be called
-before generating r, because we need r to be defined in the hash
-oracle, after some game transformations.
-We should start from a game like
-       in(hstart, ()); new hk: hashkey; out(hret, ());
-       ((!hashoracle) | (kgen ; (!sign | !verify)))
-A key r chosen in kgen is needed in hashoracle after a game
-transformation. In this case, we should move the generation of r
-upwards; it would end up being generated in the same block as hk,
-and we could then apply the game transformation as desired.
-   see examplesnd/notest/fdh.ocv
-   and examplesnd/notest/fdh-multikey.ocv (this one additionally needs
-   guessing the tested key pair)
 
 examples-1.28/nd/notest/needham-schroeder-pkcorr3Block-improve-secrecyNa.cv:
 One could prove the secrecy of NaA/NaB by improving the 
@@ -6954,3 +6908,53 @@ syntax.ml:
 check the structure
 !N1 prog1 {...} | ... | !Nn progn {...}
 DONE 14/03/2023, for cv2fstar; abandoned for cv2OCaml
+
+- decide to expand "if x then m1 else m2" or to keep it as "test(x,m1,m2)",
+DONE by move_if_fun
+
+examples/fdh,pfdh: we cannot allow the hash oracle do be called
+before generating r, because we need r to be defined in the hash
+oracle, after some game transformations.
+We should start from a game like
+       in(hstart, ()); new hk: hashkey; out(hret, ());
+       ((!hashoracle) | (kgen ; (!sign | !verify)))
+A key r chosen in kgen is needed in hashoracle after a game
+transformation. In this case, we should move the generation of r
+upwards; it would end up being generated in the same block as hk,
+and we could then apply the game transformation as desired.
+   see examplesnd/notest/fdh.ocv
+   and examplesnd/notest/fdh-multikey.ocv (this one additionally needs
+   guessing the tested key pair)
+DONE 26/5/2023
+
+More generally, allow some reordering of instructions:
+- move "let"s up, when that reduces the number of occurrences of
+  crypto primitives to compute. Risk: we may compute the expression
+  more often if we cross tests.
+  We could do more with array references: when an expression depends
+  on x1[j],...,xn[j] and x1...xn are defined in the same block of code,
+  we could precompute the expression after defining x1...xn.
+  Risky, except if the expression is always computed, for example if
+  it is already computed just after the definition of x1...xn.
+- move "new"s (and, if necessary for that, "let"s) down, when that
+  allows distinguishing cases (i.e. when we cross a if/find)
+  Risk when I move "let"s: duplicating computations, which make the
+  size of the game explode.
+- move "let"s down when the computed value is used only in a single
+  branch of a if/find (or in not all branches of if/find)
+Terms in "let"s can be split to do that.
+
+Rather: More fine-grained user guidance:
+- Reorder instructions (moving "new" up can be useful, see fdh below;
+also for merging of branches until we do some auto reordering),
+  move b to occ:
+  - require b not to be defined above occ
+  - if all definitions of b under occ are "new b:T", require these definitions of b
+  to be executed at most once for each execution of occ.
+    insert "new b':T" at occ; replace "new b:T" with "let b = b' in"
+    under occ; remove useless assignments on b.
+  - if all definitions of b under occ are "let b = M in" for the same M,
+    M is a copiable term, and M is defined at occ,
+    insert "let b' = M in" at occ; replace "let b = M in" with
+    "let b = b' in" under occ; remove useless assignments on b.
+DONE 27/4/2023

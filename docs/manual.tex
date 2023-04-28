@@ -2569,17 +2569,45 @@ as $\backslash\backslash$, as in OCaml string literals.
   the variables $x_i$ may also be regular expressions, designating
   all variables that match the regular expression.
 
-\item $\texttt{move }m$: Try to move instructions as follows:
+\item $\texttt{move }m$: Try to move random number generations
+  and assignments. It supports two versions.
+
+
+  $\texttt{move\ up\ }x_1\ \dots\ x_n\texttt{ to }occ$ moves the
+  random number generations or assignments of $x_1$, \dots, $x_n$ up
+  in the syntax tree, to the program point $occ$. This program point
+  must correspond to an output process resp. oracle body.
+  After the game transformation, a variable $x$ (which may be among
+  $x_1$, \dots, $x_n$) is defined at program point $occ$, and all
+  other variables $x_i$ are defined by $\texttt{let }x_i = x\texttt{ in}$.
+  All variables $x_1$, \dots, $x_n$ must have the same type.
+  They must not be defined syntactically above the program point $occ$.
+  Either all variables $x_1$, \dots, $x_n$ must be defined by
+  random number generations or all of them must be defined by assignments.
+  \begin{itemize}
+  \item If $x_1$, \dots, $x_n$ are defined by random number
+    generations, this transformation performs eager sampling of $x_i$.
+    The random number generation of $x_1$, \dots $x_n$ must be executed at most
+    once for each execution of program point $occ$.
+  \item If $x_1$, \dots, $x_n$ are defined by assignments of terms $M_i$,
+    then all $M_i$ must consist of variables, function applications,
+    and tests; there must be one $M_i$ defined at program point $occ$
+    (which will be used as the definition of $x$); and all terms $M_i$
+    must be equal.
+  \end{itemize}
+
+For all other values of $m$, $\texttt{move }m$ moves random number generations
+  and assignments down in the syntax tree:
 \begin{itemize}
 
-\item Move random number generations down in the syntax tree as much
-  as possible, in order to delay the choice of random numbers. This is
-  especially useful when the random number generations can be moved
+\item It moves random number generations down in the syntax tree as much
+  as possible, in order to delay the choice of random numbers (lazy sampling).
+  This is especially useful when the random number generations can be moved
   under a test {\tt if}, {\tt let}, or {\tt find}, so that we can
   distinguish in which branch of the test the random number is created
   by a subsequent \texttt{SArename} instruction.
 
-\item Move assignments down in the syntax tree but without duplicating
+\item It moves assignments down in the syntax tree but without duplicating
   them. This is especially useful when the assignment can be moved
   under a test, in which the assigned variable is used only in one
   branch. In this case, the assigned term is computed in fewer cases
@@ -2590,6 +2618,8 @@ as $\backslash\backslash$, as in OCaml string literals.
   we want to avoid.)
 
 \end{itemize}
+Only the random number generations and assignment at the process level
+can be moved. (Those that are terms will be left unchanged.)
 The argument $m$ specifies which instructions should be moved:
 \begin{itemize}
 \item \texttt{all}: move random number generations and assignments,
@@ -2611,6 +2641,8 @@ $x$ is then chosen at the point where it is really first used.
 (Since this point may depend on the trace, the uses of $x$ are often
 transformed into {\tt find} instructions that test whether $x$ has been 
 chosen before, and reuse the previously chosen value if this is true.)
+This transformation provides a stronger form of lazy sampling than
+other variants of \texttt{move}.
 
 The expressions $\texttt{"}exp\texttt{"}$ allow the user to specify expressions
 that do no require the generation of $x$ when it has not been generated before,

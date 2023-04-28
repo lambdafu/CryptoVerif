@@ -589,6 +589,7 @@ and move_set =
   | MNew
   | MNewNoArrayRef
   | MBinders of binder list
+  | MUp of binder list * int(*occurrence*) * Parsing_helper.extent
 
 and merge_mode =
     MNoBranchVar
@@ -707,6 +708,8 @@ and detailed_instruct =
   | DSArenaming of binder * binder list
   | DMoveNew of binder
   | DMoveLet of binder
+  | DMoveNewUp of binder list * int(*final occ*) * binder
+  | DMoveLetUp of binder list * int(*final occ*) * binder
   | DCryptoTransf of equiv_nm * crypto_transf_user_info
   | DInsertEvent of funsymb(*event name*) * int(*occurrence of insertion*) 
   | DInsertInstruct of string * int (*occurrence of insertion*)

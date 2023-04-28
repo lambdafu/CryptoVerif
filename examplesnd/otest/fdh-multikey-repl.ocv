@@ -1,6 +1,13 @@
 (* FDH signature scheme *)
 
-param qS, nK.
+proof {
+      guess iK;
+      SArename r;
+      move up "r_2" to after "hk_1 <-R";
+      auto
+      }
+
+param qS, nK, nX.
 
 type pkey [bounded].
 type skey [bounded].
@@ -35,7 +42,8 @@ let processT(hk: hashkey, pk: pkey) =
 	find u <= qS suchthat defined(m[u]) && (m' = m[u]) then yield else
 	event forge.
 
-process 
+process
+	foreach iX <= nX do
 	Ogenh() :=
 	hk <-R hashkey;
 	return;

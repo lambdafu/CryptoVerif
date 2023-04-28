@@ -210,6 +210,8 @@ let sa_rename_ins_updater b bl = function
 	[SArenaming b']
   | MoveNewLet (MBinders l) -> 
       [MoveNewLet (MBinders (replace_list b bl l))]
+  | MoveNewLet (MUp(l,occ,ext)) ->
+      [MoveNewLet (MUp(replace_list b bl l,occ,ext))]
   | GlobalDepAnal (b',l) ->
       if b' == b then
 	List.map (fun b'' -> GlobalDepAnal (b'',l)) bl
@@ -1744,6 +1746,13 @@ let rec interpret_command interactive state = function
 		CSuccess state' -> crypto_simplify state'
 	      | CFailure l -> 
 		  raise (Error ("Transformation \"move array\" failed", ext2))
+	    end
+	| MoveUp(l, (occ_cmd, ext)) ->
+	    begin
+	      let binders = find_binders state.game in	      
+	      let bl = find_binder_list binders l in
+	      let occ = interpret_occ state occ_cmd in
+	      execute_display_advise (MoveNewLet (MUp (bl, occ, ext))) state 
 	    end
       end
   | CSimplify(coll_elim) -> 

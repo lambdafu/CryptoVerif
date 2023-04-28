@@ -134,6 +134,8 @@ let return_channel = (dummy_channel, None)
 %token ALL
 %token BINDER
 %token MOVE
+%token UP
+%token TO
 %token NOARRAYREF
 %token RANDOM
 %token RANDOM_NOARRAYREF
@@ -657,6 +659,8 @@ move_opt:
     { MoveBinders($2) }
 |   ARRAY idst stringlist
     { MoveArray($2,$3) }
+|   UP neidentlistnosep TO occext
+    { MoveUp($2,$4) }
     
 varlistlist:
     neidentlistnosep

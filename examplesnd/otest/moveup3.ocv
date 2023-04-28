@@ -1,0 +1,20 @@
+
+type T [fixed].
+
+fun f(bool): T.
+
+proof {
+   move up a b to after "O"
+   }
+
+process
+   O(x: bool) :=
+   if x then
+     new a:T; return(a)
+   else
+     let b = f(x) in return(b)
+
+(* EXPECTED
+Error: Variable a is defined by a random number generation and variable b is defined by an assignment
+xtime: error in child process (status : 2)
+END *)

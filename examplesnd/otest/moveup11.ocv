@@ -1,0 +1,24 @@
+param N.
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+set autoMergeBranches = false.
+
+proof {
+   move up a1 b1 to after "O"
+   }
+
+process
+   !N
+   O(x: bool) :=
+   if x then
+     (let a1 = (find j <= N suchthat defined(b1[j]) then b1[j] else f(x)) in return(a1))
+   else
+     (let b1:bitstring = f(x) in return(b1))
+
+(* EXPECTED
+All queries proved.
+0.042s (user 0.038s + system 0.004s), max rss 18384K
+END *)

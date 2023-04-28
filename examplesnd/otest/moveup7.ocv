@@ -1,0 +1,27 @@
+param N.
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+proof {
+   move up j1 to after "O1"
+   }
+
+process
+   O1() :=
+   return();
+   !N
+   O(x: bool) :=
+   if x then
+     new a:T; return(a)
+   else
+     find j1 = i1 <= N suchthat defined(x[i1],b[i1]) then
+       return(b[j1])
+     else
+       let (b:bitstring, c:T) = f(x) in return(b)
+
+(* EXPECTED
+Error: Variable j1 is defined by a find. Only variables defined by random number generations and assignments can be moved up
+xtime: error in child process (status : 2)
+END *)

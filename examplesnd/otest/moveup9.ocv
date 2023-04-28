@@ -1,0 +1,26 @@
+param N.
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+set autoMergeBranches = false.
+
+proof {
+   move up a1 b1 to after "O1"
+   }
+
+process
+   O1() :=
+   return();
+   !N
+   O(x: bool) :=
+   if x then
+     (let a1 = true in return(a1))
+   else
+     (let b1 = true in return(b1))
+
+(* EXPECTED
+All queries proved.
+0.039s (user 0.039s + system 0.000s), max rss 18412K
+END *)

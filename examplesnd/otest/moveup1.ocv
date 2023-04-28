@@ -1,0 +1,17 @@
+
+type T [fixed].
+
+proof {
+   move up a b to after "O()"
+   }
+
+process
+   O() :=
+   new a:T;
+   new b:T;
+   return(a,b)
+
+(* EXPECTED
+Error: Variables a on the one hand and b on the other hand may be simultaneously defined
+xtime: error in child process (status : 2)
+END *)

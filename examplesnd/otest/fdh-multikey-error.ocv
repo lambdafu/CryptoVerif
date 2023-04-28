@@ -1,6 +1,10 @@
 (* FDH signature scheme *)
 
-param qS.
+proof {
+      move up "r" to after "hk_1 <-" 
+      }
+
+param qS, nK.
 
 type pkey [bounded].
 type skey [bounded].
@@ -40,6 +44,7 @@ process
 	hk <-R hashkey;
 	return;
 	(run hashoracle(hk) |
+	foreach iK <= nK do
 	Ogenk() :=
 	r <-R seed; 
 	pk <- pkgen(r);
@@ -49,6 +54,6 @@ process
 
 
 (* EXPECTED
-All queries proved.
-0.112s (user 0.104s + system 0.008s), max rss 16924K
+Error: I could not prove that the definition of r at occurrence 19 is executed at most once for each execution of occurrence 3.
+xtime: error in child process (status : 2)
 END *)

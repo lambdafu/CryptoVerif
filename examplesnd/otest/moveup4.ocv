@@ -1,0 +1,20 @@
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+proof {
+   move up b to after "O"
+   }
+
+process
+   O(x: bool) :=
+   if x then
+     new a:T; return(a)
+   else
+     let (b:bitstring, c:T) = f(x) in return(b)
+
+(* EXPECTED
+Error: Variable b is defined by a let with pattern-matching or an oracle definition. Only variables defined by random number generations and assignments can be moved up
+xtime: error in child process (status : 2)
+END *)

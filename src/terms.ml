@@ -880,6 +880,7 @@ let equal_lists_sets_q l1 l2 =
 let equal_mset mset1 mset2 =
   match (mset1, mset2) with
     (MBinders l1, MBinders l2) -> equal_lists_sets_q l1 l2
+  | MUp(b1,occ1,_), MUp(b2,occ2,_) -> b1 == b2 && occ1 == occ2
   | x, y -> x == y
 
 let equal_rset rset1 rset2 =

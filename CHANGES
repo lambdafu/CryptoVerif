@@ -16,6 +16,8 @@ Version
   the process that uses the first argument of diff and the one that
   uses the second argument, as in ProVerif.
 - Allow [onesession] as synonym of [cv_onesession].
+- Added command "move up x_1 ... x_n to occ" to move random number
+  generations or assignments upwards in the game.
 - Added universal one-way hash functions to the library of primitives.
 - Allow explicit quantifiers in correspondence queries:
   forall xi:Ti; ... ==> exists yj:T'j; ...
@@ -25,6 +27,8 @@ Version
 - Allow _ in patterns.
 - Allow proving [unique] after some game transformations.
 - As a consequence, removed setting allowUnprovedUnique.
+- The command [move] now supports non-expanded games, but
+  still moves only new and let that occur at the process level.
 - Removed command "remove_assign all", useless in practice.
 - New command "SArename random", previously included in "remove_assign".
 - Added option "no_test" to the commands "guess" and "guess_branch"

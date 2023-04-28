@@ -1,0 +1,24 @@
+param N.
+
+type T [fixed].
+
+fun f(bool): bitstring.
+
+proof {
+   move up a1 b1 to after "O1"
+   }
+
+process
+   O1() :=
+   return();
+   !N
+   O(x: bool) :=
+   if x then
+     (let a1 = true in return(a1))
+   else
+     (let b1 = false in return(b1))
+
+(* EXPECTED
+Error: I could not prove that all terms that define variables in b1, a1 are equal: true may be different from false
+xtime: error in child process (status : 2)
+END *)

@@ -102,6 +102,8 @@ let keyword_table_proof =
       "all", ALL;
       "binder", BINDER;
       "move", MOVE;
+      "up", UP;
+      "to", TO;
       "noarrayref", NOARRAYREF;
       "random", RANDOM;
       "random_noarrayref", RANDOM_NOARRAYREF;
