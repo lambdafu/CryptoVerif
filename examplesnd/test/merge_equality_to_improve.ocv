@@ -1,0 +1,78 @@
+(* We would like to automate this proof.
+CryptoVerif obtains:
+     Ostart() :=
+     b <-R bool;
+     if b then
+     (
+       return();
+       Oenc(m1_1: bitstring, m2_1: bitstring) :=
+       if Z(m1_1) = Z(m2_1) then
+       r_5 <-R enc_seed;
+       k_5 <-R key;
+       return(enc_r'(Z(m1_1), k_5, r_5))
+     )
+     else
+       return();
+       Oenc(m1_1: bitstring, m2_1: bitstring) :=
+       if Z(m1_1) = Z(m2_1) then
+       r_4 <-R enc_seed;
+       k_4 <-R key;
+       return(enc_r'(Z(m2_1), k_4, r_4))
+
+To merge the branches, it has to show Z(m2_1) = Z(m1_1) (message of the final
+return) and it tries to do it with the information known juste before the
+test of the 2 branches that we want to merge, here just before "if b then", 
+so it does not know that Z(m1_1) = Z(m2_1).
+
+This is obviously not the best possible, since we can rewrite a term M1
+of the first branch into M using the information valid at M1, and
+similarly rewrite a term M2 of the second branch into the same term M
+using the information valid at M2.
+
+In this file, we solve the issue by guiding the proof, but it would be better
+to improve the merge transformation.
+ *)
+
+type key [fixed].
+
+type enc_seed [bounded].
+
+proba Penc.
+
+expand IND_CPA_sym_enc_all_args(key, bitstring, bitstring, enc_seed, enc, enc_r, enc_r', dec, injbot, Z, Penc).
+
+query secret b.
+
+let QencL(k: key, r: enc_seed) = 
+	Oenc (m1: bitstring, m2: bitstring) :=
+	if Z(m1) = Z(m2) then (* m1 and m2 have the same length *)
+		return(enc_r(m1,k,r)).
+
+let QencR(k: key, r: enc_seed) = 
+	Oenc (m1: bitstring, m2: bitstring) :=
+	if Z(m1) = Z(m2) then (* m1 and m2 have the same length *)
+		return(enc_r(m2,k,r)).
+
+proof {
+      auto;
+      show_game;
+      replace 39 "Z(m1_1)";
+      merge_branches;
+      success
+}
+
+process Ostart () :=
+	b <-R bool;
+	k <-R key;
+	r <-R enc_seed;
+	if b then
+	   return;	
+	   run QencL(k, r)
+        else
+	   return;
+	   run QencR(k, r)
+
+(* EXPECTED
+All queries proved.
+0.045s (user 0.034s + system 0.011s), max rss 18988K
+END *)

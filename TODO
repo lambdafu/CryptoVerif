@@ -888,6 +888,15 @@ equality tests of processes. Or if that is too complicated,
 have a game transformation that allows the user to reorder
 branches of find.
 
+Improve the proof of equality of terms in merging of branches:
+right now, it uses the information known at the test of the
+branches that we want to merge.
+This is not the best possible, since we can rewrite a term M1
+of the first branch into M using the information valid at M1, and
+similarly rewrite a term M2 of the second branch into the same term M
+using the information valid at M2.
+(see file examplesnd/test/merge_equality_to_improve.ocv for an example)
+
 10) Add more comments, e.g. in terms.mli
 
 11) Make an up-to-date tech report describing CryptoVerif.
