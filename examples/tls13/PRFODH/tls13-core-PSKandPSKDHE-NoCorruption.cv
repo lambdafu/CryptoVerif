@@ -47,21 +47,18 @@ type elt [large, bounded, nonuniform].
 fun element2key(elt): key [data].
 fun elt2bitstring(elt): bitstring [data].
 
-(* Gap Diffie-Hellman assumption. Moreover, 
-   the probability that exp(g, x) = Y for random x and Y independent of x 
+(* Diffie-Hellman functions. 
+   The probability that exp(g, x) = Y for random x and Y independent of x 
    is at most PCollKey1, and
    the probability that exp(g, mult(x,y)) = Y where x and y are independent 
-   random private keys and Y is independent of x or y is at most PCollKey2. *)
+   random private keys and Y is independent of x or y is at most PCollKey2.
+   We do not need any other assumption on Diffie-Hellman because we rely on the PSK. *)
 
 expand DH_basic(elt, Z, G, exp, exp', mult).
 
 proba PCollKey1.
 proba PCollKey2.
 expand DH_proba_collision(elt, Z, G, exp, exp', mult, PCollKey1, PCollKey2).
-
-proba pGDH.
-proba pDistRerandom.
-expand GDH_RSR(elt, Z, G, exp, exp', mult, pGDH, pDistRerandom).
 
 letfun dh_keygen() =
    new x:Z;
