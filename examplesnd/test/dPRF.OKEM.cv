@@ -1,0 +1,96 @@
+	(* This file proves properties of the initial handshake (without
+pre-shared key), including 0.5-RTT data.
+It proves secrecy, authentication, and unique channel identifier
+properties.
+
+Regarding secrecy, the secrecy of sats is proved on the server side
+when the server sends ServerFinished, before it receives
+ClientFinished. This property is useful for proving security of 0.5RTT
+messages, by composition with the record protocol. The authentication
+property ClientTerm ==> ServerAccept shows that the client uses the
+same keys, so that implies secrecy on the client side as well.
+
+The secrecy of cats, ems and resumption_secret (denoted psk' in the
+paper) is proved on the client side. The authentication property
+ServerTerm ==> ClientAccept shows that the server uses the same keys,
+so that implies secrecy on the server side as well, when the server
+has received ClientFinished. *)
+
+channel io1, io2, io3, io4, io5, io6, io7, io8, io9, io10,
+	io11, io12, io13, io14, io15, io16, io17, io18, io19, io20,
+	io21, io22, io23, io24, io25, io26, io27, io28, io29, io30,
+	io31, io32, io33, io34, io35, io36, io37, io38, io39, io40,
+	io25', io26', io27', io28', io31', io32',
+	cCorruptS1, cCorruptC1, cCorruptS2, cCorruptC2.
+
+param N1,N5,N6,
+      N7,N8,N9,N10,N11,N12,
+      N13,N14,N15,N16.
+
+      
+
+(* KEM definitions *)
+type kempkey [bounded].
+type kemskey [bounded].
+type ciphertext.
+type kem_seed [large,fixed].
+type kem_enc_seed [large,fixed].
+
+type kemsec [fixed].
+
+fun kempkgen(kem_seed):kempkey.
+fun kemskgen(kem_seed):kemskey.
+
+fun decap(ciphertext, kemskey): kemsec.
+
+fun kem_secret(kempkey, kem_enc_seed) : kemsec.
+fun kem_encap(kempkey, kem_enc_seed): ciphertext.
+
+type encaps_return.
+fun kempair(kemsec,ciphertext) : encaps_return [data].
+
+
+
+letfun encaps(pk : kempkey, kseed : kem_enc_seed) =
+   kempair(kem_secret(pk,kseed ),  kem_encap(pk,kseed)).
+
+
+
+event ev_abort.
+
+param na, na1, na2, na3, nb, nb1, nb2, nb3, naDH9, nbDH9. 
+
+param Nc, Qeperuser, Qdperuser.
+
+proba CCA.
+
+equiv(ind_cca(Encap))
+   
+    foreach ie <= Qeperuser do
+      kseed <-R kem_enc_seed; (
+           Oks():= return(kseed)
+	   |
+           OE(pk_R:kempkey) := return(  encaps(pk_R, kseed) ) 
+	   
+	    )
+  <=(CCA(time, #OE))=>
+   foreach ie <= Qeperuser do
+      kseed <-R kem_enc_seed;
+      (
+      Oks():= 
+         let kks:bool = true in return(kseed)             
+      |
+     
+      OE(pk_R: kempkey) := return(encaps(pk_R, kseed) )
+    ) 
+
+    
+    .
+
+
+process 0
+
+(* EXPECTED
+All queries proved.
+0.072s (user 0.064s + system 0.008s), max rss 15716K
+END *)
