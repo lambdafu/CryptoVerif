@@ -2541,7 +2541,12 @@ let rec check_lm_term t =
 	  if not (Terms.is_args_at_creation b l) then
 	    raise_error "Array references to variables defined by let or <- forbidden in left member of equivalences" t.t_loc;
 	  check_lm_term t
-      |	NoLink -> ([],t)
+      |	NoLink ->
+	  (* We make a copy of the term, to make sure that terms are not
+	     physically equal, even if there are several references to the
+	     variable via "let".
+	     Physically equal terms cause a bug in [Def.build_def_member] *)
+	  ([],Terms.copy_term DeleteFacts t)
       end 
   | ReplIndex _ ->
       raise_error "One cannot refer to replication indices in the left-hand side of equivalences" t.t_loc

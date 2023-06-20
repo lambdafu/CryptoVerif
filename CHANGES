@@ -73,6 +73,8 @@ Version
   collisions of previous transformations in globaldepanal;
   do the proof of secrecy in one step to avoid counting twice the
   same collisions.
+- Fixed internal error with physically equal terms in the left-hand
+  side of equiv statements.
 
 Version 2.06
 
